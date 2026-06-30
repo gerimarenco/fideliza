@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Negocio {
+  id          String    @id @default(cuid())
+  nombre      String
+  tipo        String
+  ciudad      String
+  emoji       String
+  activo      Boolean   @default(true)
+  puntosXPeso Int       @default(1000)
+  createdAt   DateTime  @default(now())
+  clientes    Cliente[]
+  premios     Premio[]
+}
+
+model Cliente {
+  id        String   @id @default(cuid())
+  nombre    String
+  telefono  String
+  email     String?
+  puntos    Int      @default(0)
+  negocioId String
+  negocio   Negocio  @relation(fields: [negocioId], references: [id])
+  createdAt DateTime @default(now())
+  canjes    Canje[]
+}
+
+model Premio {
+  id        String  @id @default(cuid())
+  nombre    String
+  puntos    Int
+  emoji     String
+  negocioId String
+  negocio   Negocio @relation(fields: [negocioId], references: [id])
+  canjes    Canje[]
+}
+
+model Canje {
+  id        String   @id @default(cuid())
+  clienteId String
+  premioId  String
+  cliente   Cliente  @relation(fields: [clienteId], references: [id])
+  premio    Premio   @relation(fields: [premioId], references: [id])
+  createdAt DateTime @default(now())
+  entregado Boolean  @default(false)
+}
