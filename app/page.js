@@ -6,23 +6,55 @@ export default function Home() {
   const [vista, setVista] = useState('admin');
   const [negocios, setNegocios] = useState([]);
   const [negocioActivo, setNegocioActivo] = useState(null);
-  const [clienteActivo, setClienteActivo] = useState(null);
   const [tabCliente, setTabCliente] = useState('premios');
   const [monto, setMonto] = useState('');
+  const [clienteSeleccionado, setClienteSeleccionado] = useState('');
   const [loading, setLoading] = useState(true);
+  const [mostrarFormCliente, setMostrarFormCliente] = useState(false);
+  const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', telefono: '', email: '' });
 
-  useEffect(() => {
+  const cargarNegocios = () => {
     fetch('/api/negocios')
       .then(res => res.json())
       .then(data => {
         setNegocios(data);
-        if (data.length > 0) setNegocioActivo(data[0]);
+        if (data.length > 0 && !negocioActivo) setNegocioActivo(data[0]);
+        else if (negocioActivo) setNegocioActivo(data.find(n => n.id === negocioActivo.id) || data[0]);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { cargarNegocios(); }, []);
 
   const pts = Math.floor((parseFloat(monto) || 0) / 1000);
+
+  const sumarPuntos = async () => {
+    if (!monto || !clienteSeleccionado) { alert('Seleccioná un cliente y un monto'); return; }
+    const res = await fetch('/api/compras', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clienteId: clienteSeleccionado, monto: parseFloat(monto), negocioId: negocioActivo.id })
+    });
+    const data = await res.json();
+    alert(`✅ +${data.puntosASumados} puntos acreditados a ${negocioActivo.clientes.find(c => c.id === clienteSeleccionado)?.nombre}!`);
+    setMonto('');
+    setClienteSeleccionado('');
+    cargarNegocios();
+  };
+
+  const agregarCliente = async () => {
+    if (!nuevoCliente.nombre || !nuevoCliente.telefono) { alert('Nombre y teléfono son obligatorios'); return; }
+    await fetch('/api/clientes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...nuevoCliente, negocioId: negocioActivo.id })
+    });
+    alert(`✅ Cliente ${nuevoCliente.nombre} agregado!`);
+    setNuevoCliente({ nombre: '', telefono: '', email: '' });
+    setMostrarFormCliente(false);
+    cargarNegocios();
+  };
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', fontFamily: 'system-ui', fontSize: 16, color: '#555' }}>
@@ -33,7 +65,6 @@ export default function Home() {
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', minHeight: '100vh', background: '#f5f5f5' }}>
       
-      {/* Selector de vista (demo) */}
       <div style={{ background: '#1a1a1a', padding: '10px 20px', display: 'flex', gap: 8, alignItems: 'center' }}>
         <span style={{ color: '#888', fontSize: 12, marginRight: 8 }}>Ver como:</span>
         {['admin', 'negocio', 'cliente'].map(v => (
@@ -143,9 +174,33 @@ export default function Home() {
               <div style={{ fontSize: 15, fontWeight: 600 }}>Bienvenida, {negocioActivo.nombre}</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => setVista('admin')} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 12, cursor: 'pointer' }}>← Volver</button>
-                <button style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 12, cursor: 'pointer' }}>+ Registrar compra</button>
+                <button onClick={() => setMostrarFormCliente(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 12, cursor: 'pointer' }}>+ Nuevo cliente</button>
               </div>
             </div>
+
+            {mostrarFormCliente && (
+              <div style={{ margin: '20px 24px 0', background: '#fff', borderRadius: 12, border: '1px solid #6366f1', padding: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Agregar nuevo cliente</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+                  <div>
+                    <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Nombre *</label>
+                    <input value={nuevoCliente.nombre} onChange={e => setNuevoCliente({...nuevoCliente, nombre: e.target.value})} placeholder="María González" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Teléfono *</label>
+                    <input value={nuevoCliente.telefono} onChange={e => setNuevoCliente({...nuevoCliente, telefono: e.target.value})} placeholder="2324123456" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Email (opcional)</label>
+                    <input value={nuevoCliente.email} onChange={e => setNuevoCliente({...nuevoCliente, email: e.target.value})} placeholder="maria@email.com" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={agregarCliente} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar cliente</button>
+                  <button onClick={() => setMostrarFormCliente(false)} style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+                </div>
+              </div>
+            )}
 
             <div style={{ padding: 24 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
@@ -166,6 +221,25 @@ export default function Home() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
                   <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Clientes</div>
+                    {negocioActivo.clientes?.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Aún no hay clientes</div>}
+                    {negocioActivo.clientes?.map(c => (
+                      <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+                        <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#6366f1' }}>
+                          {c.nombre.split(' ').map(n => n[0]).join('')}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 500 }}>{c.nombre}</div>
+                          <div style={{ fontSize: 11, color: '#999' }}>{c.telefono}</div>
+                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 500, background: '#eef2ff', color: '#6366f1', padding: '2px 8px', borderRadius: 20 }}>{c.puntos} pts</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20, marginBottom: 12 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Premios configurados</div>
                     {negocioActivo.premios?.map(p => (
                       <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
@@ -177,16 +251,14 @@ export default function Home() {
                       </div>
                     ))}
                   </div>
-                </div>
 
-                <div>
                   <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Registrar compra manual</div>
                     <div style={{ marginBottom: 10 }}>
                       <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Cliente</label>
-                      <select style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }}>
-                        <option>Seleccionar cliente...</option>
-                        {negocioActivo.clientes?.map(c => <option key={c.id}>{c.nombre}</option>)}
+                      <select value={clienteSeleccionado} onChange={e => setClienteSeleccionado(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }}>
+                        <option value="">Seleccionar cliente...</option>
+                        {negocioActivo.clientes?.map(c => <option key={c.id} value={c.id}>{c.nombre} ({c.puntos} pts)</option>)}
                       </select>
                     </div>
                     <div style={{ marginBottom: 12 }}>
@@ -194,7 +266,7 @@ export default function Home() {
                       <input type="number" placeholder="$0" value={monto} onChange={e => setMonto(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }} />
                     </div>
                     {pts > 0 && <div style={{ fontSize: 13, color: '#22c55e', marginBottom: 12, fontWeight: 500 }}>+{pts} puntos a acreditar</div>}
-                    <button style={{ width: '100%', padding: '8px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Sumar puntos</button>
+                    <button onClick={sumarPuntos} style={{ width: '100%', padding: '8px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Sumar puntos</button>
                   </div>
                 </div>
               </div>
@@ -220,9 +292,9 @@ export default function Home() {
               <div style={{ background: '#6366f1', borderRadius: 16, padding: 20, marginBottom: 16, position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', right: -20, top: -20, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.07)' }}></div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', marginBottom: 4 }}>Tus puntos</div>
-                <div style={{ fontSize: 40, fontWeight: 700, color: '#fff', lineHeight: 1 }}>0</div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 6 }}>$0 en compras acumuladas</div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.9)', marginTop: 10, fontWeight: 500 }}>Tu nombre acá</div>
+                <div style={{ fontSize: 40, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{negocioActivo.clientes?.[0]?.puntos || 0}</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 6 }}>${((negocioActivo.clientes?.[0]?.puntos || 0) * 1000).toLocaleString('es-AR')} en compras acumuladas</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.9)', marginTop: 10, fontWeight: 500 }}>{negocioActivo.clientes?.[0]?.nombre || 'Sin clientes aún'}</div>
               </div>
 
               <div style={{ display: 'flex', borderBottom: '1px solid #eee', marginBottom: 16 }}>
@@ -238,16 +310,20 @@ export default function Home() {
               {tabCliente === 'premios' && (
                 <>
                   <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Premios disponibles</div>
-                  {negocioActivo.premios?.map(p => (
-                    <div key={p.id} style={{ background: '#f9f9f9', border: '1px solid #eee', borderRadius: 12, padding: 14, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 12, opacity: 0.7 }}>
-                      <div style={{ fontSize: 24 }}>{p.emoji}</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500 }}>{p.nombre}</div>
-                        <div style={{ fontSize: 12, color: '#999' }}>{p.puntos} puntos necesarios</div>
+                  {negocioActivo.premios?.map(p => {
+                    const puntosCliente = negocioActivo.clientes?.[0]?.puntos || 0;
+                    const disponible = puntosCliente >= p.puntos;
+                    return (
+                      <div key={p.id} style={{ background: disponible ? '#dcfce7' : '#f9f9f9', border: `1px solid ${disponible ? '#bbf7d0' : '#eee'}`, borderRadius: 12, padding: 14, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 12, opacity: disponible ? 1 : 0.7 }}>
+                        <div style={{ fontSize: 24 }}>{p.emoji}</div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 500 }}>{p.nombre}</div>
+                          <div style={{ fontSize: 12, color: disponible ? '#16a34a' : '#999' }}>{p.puntos} puntos {disponible ? '· ¡Ya podés canjear!' : `· te faltan ${p.puntos - puntosCliente}`}</div>
+                        </div>
+                        {disponible ? <button style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer' }}>Canjear</button> : <span style={{ fontSize: 16 }}>🔒</span>}
                       </div>
-                      <span style={{ fontSize: 16 }}>🔒</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </>
               )}
 
