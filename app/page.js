@@ -13,9 +13,12 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [mostrarFormCliente, setMostrarFormCliente] = useState(false);
   const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', telefono: '', email: '' });
+  const [clientePropio, setClientePropio] = useState(null);
+  const [negocioDelCliente, setNegocioDelCliente] = useState(null);
 
   const isAdmin = session?.user?.role === 'admin';
   const isNegocio = session?.user?.role === 'negocio';
+  const isCliente = session?.user?.role === 'cliente';
 
   const cargarNegocios = () => {
     fetch('/api/negocios')
@@ -29,6 +32,16 @@ export default function Home() {
         if (isNegocio && session?.user?.id) {
           const propio = data.find(n => n.id === session.user.id);
           setNegocioPropio(propio || null);
+        }
+        if (isCliente && session?.user?.id) {
+          for (const neg of data) {
+            const c = neg.clientes?.find(cl => cl.id === session.user.id);
+            if (c) {
+              setClientePropio(c);
+              setNegocioDelCliente(neg);
+              break;
+            }
+          }
         }
         setLoading(false);
       })
@@ -58,23 +71,25 @@ export default function Home() {
 
   const agregarCliente = async () => {
     const negocio = isAdmin ? negocioActivo : negocioPropio;
-    if (!nuevoCliente.nombre || !nuevoCliente.telefono) { alert('Nombre y teléfono son obligatorios'); return; }
-    await fetch('/api/clientes', {
+    if (!nuevoCliente.nombre || !nuevoCliente.telefono || !nuevoCliente.email) {
+      alert('Nombre, teléfono y email son obligatorios');
+      return;
+    }
+    const res = await fetch('/api/clientes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...nuevoCliente, negocioId: negocio.id })
     });
-    alert(`✅ Cliente ${nuevoCliente.nombre} agregado!`);
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`❌ Error: ${data.error || 'no se pudo crear el cliente'}`);
+      return;
+    }
+    alert(`✅ Cliente ${nuevoCliente.nombre} agregado!\n\nEmail: ${nuevoCliente.email}\nContraseña: ${data.passwordGenerada}\n\n(Guardá esta contraseña para pasársela al cliente)`);
     setNuevoCliente({ nombre: '', telefono: '', email: '' });
     setMostrarFormCliente(false);
     cargarNegocios();
   };
-
-  if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', fontFamily: 'system-ui', fontSize: 16, color: '#555' }}>
-      Cargando Fideliza...
-    </div>
-  );
 
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
   const PanelNegocio = ({ negocio, onVolver }) => (
@@ -182,6 +197,64 @@ export default function Home() {
       </div>
     </div>
   );
+
+  // Panel del cliente (vista mobile-friendly, solo lectura)
+  const PanelCliente = () => {
+    if (!clientePropio || !negocioDelCliente) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#999', fontFamily: 'system-ui' }}>
+          No encontramos tus datos de cliente.
+        </div>
+      );
+    }
+
+    const premiosDisponibles = (negocioDelCliente.premios || []).filter(p => clientePropio.puntos >= p.puntos);
+    const premiosBloqueados = (negocioDelCliente.premios || []).filter(p => clientePropio.puntos < p.puntos);
+
+    return (
+      <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'system-ui', maxWidth: 480, margin: '0 auto' }}>
+        <div style={{ padding: '20px 20px 16px', background: '#fff', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 600 }}>Hola, {clientePropio.nombre.split(' ')[0]} 👋</div>
+            <div style={{ fontSize: 12, color: '#999' }}>{negocioDelCliente.nombre} {negocioDelCliente.emoji}</div>
+          </div>
+          <button onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: '1px solid #eee', background: '#fff', color: '#ef4444', cursor: 'pointer' }}>Salir</button>
+        </div>
+
+        <div style={{ padding: 20 }}>
+          <div style={{ background: '#6366f1', borderRadius: 16, padding: 24, color: '#fff', textAlign: 'center', marginBottom: 20 }}>
+            <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 4 }}>Tus puntos</div>
+            <div style={{ fontSize: 40, fontWeight: 700 }}>{clientePropio.puntos}</div>
+          </div>
+
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Premios disponibles</div>
+          {premiosDisponibles.length === 0 && (
+            <div style={{ fontSize: 13, color: '#999', marginBottom: 16 }}>Todavía no llegás a ningún premio.</div>
+          )}
+          {premiosDisponibles.map(p => (
+            <div key={p.id} style={{ background: '#fff', border: '1px solid #22c55e', borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{p.emoji}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
+                <div style={{ fontSize: 11, color: '#16a34a' }}>{p.puntos} puntos · ¡Ya podés canjearlo!</div>
+              </div>
+            </div>
+          ))}
+
+          <div style={{ fontSize: 14, fontWeight: 600, margin: '20px 0 10px' }}>Próximos premios</div>
+          {premiosBloqueados.map(p => (
+            <div key={p.id} style={{ background: '#fff', border: '1px solid #eee', borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, opacity: 0.7 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{p.emoji}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
+                <div style={{ fontSize: 11, color: '#999' }}>Te faltan {p.puntos - clientePropio.puntos} puntos</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', minHeight: '100vh', background: '#f5f5f5' }}>
@@ -296,8 +369,11 @@ export default function Home() {
         </div>
       )}
 
+      {/* PANEL CLIENTE */}
+      {isCliente && <PanelCliente />}
+
       {/* Sin acceso */}
-      {!isAdmin && !isNegocio && (
+      {!isAdmin && !isNegocio && !isCliente && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', flexDirection: 'column', gap: 16 }}>
           <div style={{ fontSize: 16, color: '#555' }}>No tenés acceso a este panel.</div>
           <button onClick={() => signOut({ callbackUrl: '/login' })} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer' }}>Cerrar sesión</button>

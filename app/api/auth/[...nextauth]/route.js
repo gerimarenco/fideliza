@@ -23,6 +23,14 @@ const handler = NextAuth({
           return { id: negocio.id, name: negocio.nombre, email: credentials.email, role: 'negocio' }
         }
 
+        const cliente = await prisma.cliente.findFirst({
+          where: { email: credentials.email }
+        })
+
+        if (cliente && credentials.password === cliente.password) {
+          return { id: cliente.id, name: cliente.nombre, email: credentials.email, role: 'cliente' }
+        }
+
         return null
       }
     })
