@@ -5,8 +5,10 @@ export function middleware(request) {
                 request.cookies.get('__Secure-next-auth.session-token')
   
   const isLoginPage = request.nextUrl.pathname === '/login'
+  const isRegistroPage = request.nextUrl.pathname.startsWith('/registro')
+  const isPublicPage = isLoginPage || isRegistroPage
   
-  if (!token && !isLoginPage) {
+  if (!token && !isPublicPage) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
   

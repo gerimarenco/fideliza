@@ -10,6 +10,9 @@ async function main() {
       ciudad: 'Mercedes, Bs As',
       emoji: '👗',
       puntosXPeso: 1000,
+      email: 'peperina@fideliza.com',
+      password: 'peperina123',
+      slug: 'peperina',
       premios: {
         create: [
           { nombre: 'Pañuelo sorpresa', puntos: 100, emoji: '🎀' },

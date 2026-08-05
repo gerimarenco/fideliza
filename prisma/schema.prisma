@@ -17,6 +17,7 @@ model Negocio {
   puntosXPeso Int       @default(1000)
   email       String?   @unique
   password    String?
+  slug        String?   @unique
   createdAt   DateTime  @default(now())
   clientes    Cliente[]
   premios     Premio[]
@@ -24,8 +25,8 @@ model Negocio {
 
 model Cliente {
   id        String   @id @default(cuid())
-  nombre    String
-  telefono  String
+  nombre    String?
+  telefono  String?
   email     String   @unique
   password  String
   puntos    Int      @default(0)

@@ -148,15 +148,16 @@ export default function Home() {
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Clientes</div>
               {negocio.clientes?.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Aún no hay clientes</div>}
               {negocio.clientes?.map(c => (
-                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
-                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#6366f1' }}>
-                    {c.nombre.split(' ').map(n => n[0]).join('')}
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
+                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#6366f1' }}>
+                    {c.email.slice(0, 2).toUpperCase()}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{c.nombre}</div>
-                    <div style={{ fontSize: 11, color: '#999' }}>{c.telefono}</div>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{c.email}</div>
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 500, background: '#eef2ff', color: '#6366f1', padding: '2px 8px', borderRadius: 20 }}>{c.puntos} pts</div>
+                  <div style={{ fontSize: 12, fontWeight: 500, background: '#eef2ff', color: '#6366f1', padding: '4px 10px', borderRadius: 20 }}>
+                    {c.puntos} pts
+                  </div>
                 </div>
               ))}
             </div>
