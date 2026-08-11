@@ -216,7 +216,7 @@ export default function Home() {
       <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'system-ui', maxWidth: 480, margin: '0 auto' }}>
         <div style={{ padding: '20px 20px 16px', background: '#fff', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 600 }}>Hola, {clientePropio.nombre.split(' ')[0]} 👋</div>
+          <div style={{ fontSize: 16, fontWeight: 600 }}>Hola, {clientePropio.nombre ? clientePropio.nombre.split(' ')[0] : clientePropio.email.split('@')[0]} 👋</div>
             <div style={{ fontSize: 12, color: '#999' }}>{negocioDelCliente.nombre} {negocioDelCliente.emoji}</div>
           </div>
           <button onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: '1px solid #eee', background: '#fff', color: '#ef4444', cursor: 'pointer' }}>Salir</button>
