@@ -55,7 +55,10 @@ export async function POST(request) {
       },
     });
 
-    return NextResponse.json({ init_point: result.init_point }, { status: 200 });
+    return NextResponse.json(
+        { init_point: result.sandbox_init_point || result.init_point },
+        { status: 200 }
+      );
   } catch (error) {
     console.error('Error al crear preferencia de MP:', error);
     return NextResponse.json(
