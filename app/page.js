@@ -15,6 +15,8 @@ export default function Home() {
   const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', telefono: '', email: '' });
   const [clientePropio, setClientePropio] = useState(null);
   const [negocioDelCliente, setNegocioDelCliente] = useState(null);
+  const [montoPago, setMontoPago] = useState('');
+  const [generandoPago, setGenerandoPago] = useState(false);
 
   const isAdmin = session?.user?.role === 'admin';
   const isNegocio = session?.user?.role === 'negocio';
@@ -89,6 +91,40 @@ export default function Home() {
     setNuevoCliente({ nombre: '', telefono: '', email: '' });
     setMostrarFormCliente(false);
     cargarNegocios();
+  };
+
+  // Genera el link de pago de Mercado Pago y redirige al cliente ahí
+  const iniciarPago = async () => {
+    if (!montoPago || parseFloat(montoPago) <= 0) {
+      alert('Ingresá un monto válido');
+      return;
+    }
+    if (!negocioDelCliente?.slug) {
+      alert('Este negocio todavía no tiene pagos online configurados.');
+      return;
+    }
+    setGenerandoPago(true);
+    try {
+      const res = await fetch('/api/mercadopago/crear-preferencia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          negocioSlug: negocioDelCliente.slug,
+          clienteId: clientePropio.id,
+          monto: parseFloat(montoPago),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo generar el pago'}`);
+        setGenerandoPago(false);
+        return;
+      }
+      window.location.href = data.init_point;
+    } catch (err) {
+      alert('❌ Ocurrió un error al generar el pago.');
+      setGenerandoPago(false);
+    }
   };
 
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
@@ -211,6 +247,7 @@ export default function Home() {
 
     const premiosDisponibles = (negocioDelCliente.premios || []).filter(p => clientePropio.puntos >= p.puntos);
     const premiosBloqueados = (negocioDelCliente.premios || []).filter(p => clientePropio.puntos < p.puntos);
+    const ptsAGanar = Math.floor((parseFloat(montoPago) || 0) / (negocioDelCliente.puntosXPeso || 1000));
 
     return (
       <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'system-ui', maxWidth: 480, margin: '0 auto' }}>
@@ -226,6 +263,27 @@ export default function Home() {
           <div style={{ background: '#6366f1', borderRadius: 16, padding: 24, color: '#fff', textAlign: 'center', marginBottom: 20 }}>
             <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 4 }}>Tus puntos</div>
             <div style={{ fontSize: 40, fontWeight: 700 }}>{clientePropio.puntos}</div>
+          </div>
+
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 16, marginBottom: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Cargar puntos con Mercado Pago</div>
+            <input
+              type="number"
+              placeholder="Monto de tu compra"
+              value={montoPago}
+              onChange={e => setMontoPago(e.target.value)}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }}
+            />
+            {ptsAGanar > 0 && (
+              <div style={{ fontSize: 13, color: '#22c55e', marginBottom: 10, fontWeight: 500 }}>+{ptsAGanar} puntos a sumar</div>
+            )}
+            <button
+              onClick={iniciarPago}
+              disabled={generandoPago}
+              style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: '#009ee3', color: '#fff', fontSize: 14, fontWeight: 600, cursor: generandoPago ? 'not-allowed' : 'pointer', opacity: generandoPago ? 0.7 : 1 }}
+            >
+              {generandoPago ? 'Generando link de pago...' : 'Pagar con Mercado Pago'}
+            </button>
           </div>
 
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Premios disponibles</div>
