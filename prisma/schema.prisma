@@ -76,3 +76,17 @@ model WebhookEvento {
 
   @@unique([proveedor, referenciaExterna])
 }
+
+// Historial de cada vez que se otorgan puntos (compra manual o webhook).
+// Cliente.puntos sigue siendo el contador acumulado; esto es lo que permite
+// calcular estadísticas por rango de fechas (ej. puntos otorgados este mes).
+model MovimientoPuntos {
+  id        String   @id @default(cuid())
+  clienteId String
+  negocioId String   // denormalizado a propósito, para no tener que hacer join en las consultas de stats
+  puntos    Int
+  origen    String   // "manual" | "mercadopago" | "tiendanube" | "dragonfish"
+  createdAt DateTime @default(now())
+
+  @@index([negocioId, createdAt])
+}

@@ -21,10 +21,17 @@ export async function POST(request) {
 
   const puntosASumar = Math.floor(monto / negocio.puntosXPeso)
 
-  const { password, ...cliente } = await prisma.cliente.update({
-    where: { id: clienteId },
-    data: { puntos: { increment: puntosASumar } }
-  })
+  const [clienteActualizado] = await prisma.$transaction([
+    prisma.cliente.update({
+      where: { id: clienteId },
+      data: { puntos: { increment: puntosASumar } }
+    }),
+    prisma.movimientoPuntos.create({
+      data: { clienteId, negocioId, puntos: puntosASumar, origen: 'manual' }
+    }),
+  ])
+
+  const { password, ...cliente } = clienteActualizado
 
   return NextResponse.json({ cliente, puntosASumados: puntosASumar })
 }

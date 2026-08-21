@@ -52,6 +52,9 @@ export async function POST(request) {
           where: { id: cliente_id },
           data: { puntos: { increment: puntosASumar } },
         }),
+        prisma.movimientoPuntos.create({
+          data: { clienteId: cliente_id, negocioId: negocio_id, puntos: puntosASumar, origen: 'mercadopago' },
+        }),
       ]);
     } catch (error) {
       if (error.code === 'P2002') {
