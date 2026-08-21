@@ -57,3 +57,15 @@ model Canje {
   createdAt DateTime @default(now())
   entregado Boolean  @default(false)
 }
+
+// Idempotencia de webhooks: guarda qué notificaciones ya procesamos para no
+// sumar puntos dos veces si un proveedor (Mercado Pago, Tiendanube, Dragon
+// Fish) reenvía la misma notificación.
+model WebhookEvento {
+  id                String   @id @default(cuid())
+  proveedor         String
+  referenciaExterna String
+  createdAt         DateTime @default(now())
+
+  @@unique([proveedor, referenciaExterna])
+}
