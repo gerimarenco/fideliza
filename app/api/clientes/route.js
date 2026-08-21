@@ -1,20 +1,42 @@
 import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { hashPassword } from '@/lib/password'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export async function GET(request) {
+  const session = await getServerSession(authOptions)
+  if (!session || session.user.role === 'cliente') {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  }
+
   const { searchParams } = new URL(request.url)
   const negocioId = searchParams.get('negocioId')
-  
+
+  if (session.user.role === 'negocio' && negocioId !== session.user.id) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  }
+
   const clientes = await prisma.cliente.findMany({
     where: negocioId ? { negocioId } : {},
-    include: { canjes: true }
+    select: {
+      id: true, nombre: true, telefono: true, email: true, puntos: true,
+      negocioId: true, createdAt: true, canjes: true,
+    }
   })
   return NextResponse.json(clientes)
 }
 
 export async function POST(request) {
+  const session = await getServerSession(authOptions)
   const body = await request.json()
+
+  const autorizado = session?.user?.role === 'admin' ||
+    (session?.user?.role === 'negocio' && session.user.id === body.negocioId)
+
+  if (!autorizado) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  }
 
   if (!body.email) {
     return NextResponse.json({ error: 'El email es obligatorio' }, { status: 400 })
@@ -22,7 +44,7 @@ export async function POST(request) {
 
   const passwordGenerada = Math.random().toString(36).slice(-8)
 
-  const cliente = await prisma.cliente.create({
+  const { password, ...cliente } = await prisma.cliente.create({
     data: {
       nombre: body.nombre,
       telefono: body.telefono,
@@ -33,6 +55,7 @@ export async function POST(request) {
   })
 
   // passwordGenerada va en texto plano en la respuesta: el negocio la
-  // necesita para pasársela al cliente, en la base queda solo el hash.
+  // necesita para pasársela al cliente. El hash (password) se descarta acá,
+  // en la base queda solo el hash.
   return NextResponse.json({ ...cliente, passwordGenerada })
 }

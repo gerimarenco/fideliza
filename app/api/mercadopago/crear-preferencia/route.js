@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { MercadoPagoConfig, Preference } from 'mercadopago';
 import { prisma } from '@/lib/db';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 const client = new MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
@@ -8,11 +10,18 @@ const client = new MercadoPagoConfig({
 
 export async function POST(request) {
   try {
-    const { negocioSlug, clienteId, monto } = await request.json();
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'cliente') {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
 
-    if (!negocioSlug || !clienteId || !monto) {
+    const { negocioSlug, monto } = await request.json();
+    // El cliente siempre paga y suma puntos para sí mismo, nunca para otro.
+    const clienteId = session.user.id;
+
+    if (!negocioSlug || !monto) {
       return NextResponse.json(
-        { error: 'Faltan datos: negocioSlug, clienteId y monto son obligatorios.' },
+        { error: 'Faltan datos: negocioSlug y monto son obligatorios.' },
         { status: 400 }
       );
     }
@@ -25,6 +34,14 @@ export async function POST(request) {
       return NextResponse.json(
         { error: 'Negocio no encontrado.' },
         { status: 404 }
+      );
+    }
+
+    const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
+    if (!cliente || cliente.negocioId !== negocio.id) {
+      return NextResponse.json(
+        { error: 'El cliente no pertenece a este negocio.' },
+        { status: 403 }
       );
     }
 

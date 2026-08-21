@@ -1,9 +1,18 @@
 import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export async function POST(request) {
+  const session = await getServerSession(authOptions)
+  if (!session) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
   const body = await request.json()
-  const { clienteId, premioId } = body
+  const { premioId } = body
+  // Un cliente solo puede canjear para sí mismo, nunca en nombre de otro.
+  const clienteId = session.user.role === 'cliente' ? session.user.id : body.clienteId
 
   const premio = await prisma.premio.findUnique({
     where: { id: premioId }
