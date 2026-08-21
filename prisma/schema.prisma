@@ -36,6 +36,8 @@ model Cliente {
   negocio   Negocio  @relation(fields: [negocioId], references: [id])
   createdAt DateTime @default(now())
   canjes    Canje[]
+
+  @@index([negocioId])
 }
 
 model Premio {
@@ -46,6 +48,8 @@ model Premio {
   negocioId String
   negocio   Negocio @relation(fields: [negocioId], references: [id])
   canjes    Canje[]
+
+  @@index([negocioId])
 }
 
 model Canje {
@@ -56,6 +60,9 @@ model Canje {
   premio    Premio   @relation(fields: [premioId], references: [id])
   createdAt DateTime @default(now())
   entregado Boolean  @default(false)
+
+  @@index([clienteId])
+  @@index([premioId])
 }
 
 // Idempotencia de webhooks: guarda qué notificaciones ya procesamos para no
