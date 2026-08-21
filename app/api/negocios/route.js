@@ -23,3 +23,20 @@ export async function POST(request) {
   })
   return NextResponse.json(negocio)
 }
+
+export async function PATCH(request) {
+  const body = await request.json()
+
+  if (!body.id) {
+    return NextResponse.json({ error: 'El id del negocio es obligatorio' }, { status: 400 })
+  }
+
+  const negocio = await prisma.negocio.update({
+    where: { id: body.id },
+    data: {
+      tiendanubeStoreId: body.tiendanubeStoreId,
+      tiendanubeAccessToken: body.tiendanubeAccessToken,
+    }
+  })
+  return NextResponse.json(negocio)
+}
