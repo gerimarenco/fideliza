@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client')
+const bcrypt = require('bcryptjs')
 
 const prisma = new PrismaClient()
 
@@ -11,7 +12,7 @@ async function main() {
       emoji: '👗',
       puntosXPeso: 1000,
       email: 'peperina@fideliza.com',
-      password: 'peperina123',
+      password: await bcrypt.hash('peperina123', 10),
       slug: 'peperina',
       premios: {
         create: [

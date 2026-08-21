@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { hashPassword } from '@/lib/password'
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
@@ -26,10 +27,12 @@ export async function POST(request) {
       nombre: body.nombre,
       telefono: body.telefono,
       email: body.email,
-      password: passwordGenerada,
+      password: await hashPassword(passwordGenerada),
       negocioId: body.negocioId,
     }
   })
 
+  // passwordGenerada va en texto plano en la respuesta: el negocio la
+  // necesita para pasársela al cliente, en la base queda solo el hash.
   return NextResponse.json({ ...cliente, passwordGenerada })
 }
