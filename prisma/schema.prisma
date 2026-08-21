@@ -8,17 +8,19 @@ datasource db {
 }
 
 model Negocio {
-  id          String    @id @default(cuid())
-  nombre      String
-  tipo        String
-  ciudad      String
-  emoji       String
-  activo      Boolean   @default(true)
-  puntosXPeso Int       @default(1000)
-  email       String?   @unique
-  password    String?
-  slug        String?   @unique
-  createdAt   DateTime  @default(now())
+  id                    String    @id @default(cuid())
+  nombre                String
+  tipo                  String
+  ciudad                String
+  emoji                 String
+  activo                Boolean   @default(true)
+  puntosXPeso           Int       @default(1000)
+  email                 String?   @unique
+  password              String?
+  slug                  String?   @unique
+  tiendanubeStoreId     String?   @unique
+  tiendanubeAccessToken String?
+  createdAt             DateTime  @default(now())
   clientes    Cliente[]
   premios     Premio[]
 }
