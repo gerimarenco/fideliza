@@ -32,7 +32,6 @@ export async function POST(request) {
       return NextResponse.json({ received: true }, { status: 200 });
     }
 
-    // Evitar sumar puntos dos veces si MP reenvía la misma notificación
     const negocio = await prisma.negocio.findUnique({
       where: { id: negocio_id },
     });
@@ -40,12 +39,30 @@ export async function POST(request) {
     const puntosXPeso = negocio?.puntosXPeso || 1000;
     const puntosASumar = Math.floor(Number(monto) / puntosXPeso);
 
-    await prisma.cliente.update({
-      where: { id: cliente_id },
-      data: {
-        puntos: { increment: puntosASumar },
-      },
-    });
+    // Marcar el pago como procesado y sumar los puntos en una sola
+    // transacción: si MP reenvía la misma notificación, la restricción
+    // única de WebhookEvento hace fallar la transacción entera (P2002) y
+    // no se suman los puntos una segunda vez.
+    try {
+      await prisma.$transaction([
+        prisma.webhookEvento.create({
+          data: { proveedor: 'mercadopago', referenciaExterna: String(paymentId) },
+        }),
+        prisma.cliente.update({
+          where: { id: cliente_id },
+          data: { puntos: { increment: puntosASumar } },
+        }),
+        prisma.movimientoPuntos.create({
+          data: { clienteId: cliente_id, negocioId: negocio_id, puntos: puntosASumar, origen: 'mercadopago' },
+        }),
+      ]);
+    } catch (error) {
+      if (error.code === 'P2002') {
+        console.log('Webhook MP: pago ya procesado, se ignora el reenvío', paymentId);
+        return NextResponse.json({ received: true, duplicado: true }, { status: 200 });
+      }
+      throw error;
+    }
 
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {

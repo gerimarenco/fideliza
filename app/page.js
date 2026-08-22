@@ -17,10 +17,13 @@ export default function Home() {
   const [negocioDelCliente, setNegocioDelCliente] = useState(null);
   const [montoPago, setMontoPago] = useState('');
   const [generandoPago, setGenerandoPago] = useState(false);
+  const [estadisticas, setEstadisticas] = useState(null);
 
   const isAdmin = session?.user?.role === 'admin';
   const isNegocio = session?.user?.role === 'negocio';
   const isCliente = session?.user?.role === 'cliente';
+
+  const negocioMostrado = isAdmin ? negocioActivo : (isNegocio ? negocioPropio : null);
 
   const cargarNegocios = () => {
     fetch('/api/negocios')
@@ -54,6 +57,18 @@ export default function Home() {
     if (session) cargarNegocios();
   }, [session]);
 
+  const cargarEstadisticas = (negocioId) => {
+    if (!negocioId) { setEstadisticas(null); return; }
+    fetch(`/api/negocios/estadisticas?negocioId=${negocioId}`)
+      .then(res => res.json())
+      .then(setEstadisticas)
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    cargarEstadisticas(negocioMostrado?.id);
+  }, [negocioMostrado?.id]);
+
   const pts = Math.floor((parseFloat(monto) || 0) / 1000);
 
   const sumarPuntos = async (negId) => {
@@ -69,6 +84,7 @@ export default function Home() {
     setMonto('');
     setClienteSeleccionado('');
     cargarNegocios();
+    cargarEstadisticas(negocio.id);
   };
 
   const agregarCliente = async () => {
@@ -91,6 +107,7 @@ export default function Home() {
     setNuevoCliente({ nombre: '', telefono: '', email: '' });
     setMostrarFormCliente(false);
     cargarNegocios();
+    cargarEstadisticas(negocio.id);
   };
 
   // Genera el link de pago de Mercado Pago y redirige al cliente ahí
@@ -175,6 +192,22 @@ export default function Home() {
           <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
             <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Puntos en circulación</div>
             <div style={{ fontSize: 22, fontWeight: 600 }}>{negocio.clientes?.reduce((a, c) => a + c.puntos, 0) || 0}</div>
+          </div>
+        </div>
+
+        <div style={{ fontSize: 12, color: '#999', fontWeight: 500, marginBottom: 8 }}>Este mes</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
+            <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Clientes activos</div>
+            <div style={{ fontSize: 22, fontWeight: 600 }}>{estadisticas?.clientesActivos ?? '—'}</div>
+          </div>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
+            <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Puntos otorgados</div>
+            <div style={{ fontSize: 22, fontWeight: 600 }}>{estadisticas?.puntosOtorgadosEsteMes ?? '—'}</div>
+          </div>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
+            <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Canjes realizados</div>
+            <div style={{ fontSize: 22, fontWeight: 600 }}>{estadisticas?.canjesEsteMes ?? '—'}</div>
           </div>
         </div>
 

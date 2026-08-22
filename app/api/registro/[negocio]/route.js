@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { hashPassword } from '@/lib/password';
 
 export async function POST(request, { params }) {
   try {
@@ -48,7 +49,7 @@ export async function POST(request, { params }) {
     const nuevoCliente = await prisma.cliente.create({
       data: {
         email,
-        password,
+        password: await hashPassword(password),
         negocioId: negocioEncontrado.id,
         puntos: 0,
       },

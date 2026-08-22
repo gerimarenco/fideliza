@@ -8,17 +8,19 @@ datasource db {
 }
 
 model Negocio {
-  id          String    @id @default(cuid())
-  nombre      String
-  tipo        String
-  ciudad      String
-  emoji       String
-  activo      Boolean   @default(true)
-  puntosXPeso Int       @default(1000)
-  email       String?   @unique
-  password    String?
-  slug        String?   @unique
-  createdAt   DateTime  @default(now())
+  id                    String    @id @default(cuid())
+  nombre                String
+  tipo                  String
+  ciudad                String
+  emoji                 String
+  activo                Boolean   @default(true)
+  puntosXPeso           Int       @default(1000)
+  email                 String?   @unique
+  password              String?
+  slug                  String?   @unique
+  tiendanubeStoreId     String?   @unique
+  tiendanubeAccessToken String?
+  createdAt             DateTime  @default(now())
   clientes    Cliente[]
   premios     Premio[]
 }
@@ -34,6 +36,8 @@ model Cliente {
   negocio   Negocio  @relation(fields: [negocioId], references: [id])
   createdAt DateTime @default(now())
   canjes    Canje[]
+
+  @@index([negocioId])
 }
 
 model Premio {
@@ -44,6 +48,8 @@ model Premio {
   negocioId String
   negocio   Negocio @relation(fields: [negocioId], references: [id])
   canjes    Canje[]
+
+  @@index([negocioId])
 }
 
 model Canje {
@@ -54,4 +60,33 @@ model Canje {
   premio    Premio   @relation(fields: [premioId], references: [id])
   createdAt DateTime @default(now())
   entregado Boolean  @default(false)
+
+  @@index([clienteId])
+  @@index([premioId])
+}
+
+// Idempotencia de webhooks: guarda qué notificaciones ya procesamos para no
+// sumar puntos dos veces si un proveedor (Mercado Pago, Tiendanube, Dragon
+// Fish) reenvía la misma notificación.
+model WebhookEvento {
+  id                String   @id @default(cuid())
+  proveedor         String
+  referenciaExterna String
+  createdAt         DateTime @default(now())
+
+  @@unique([proveedor, referenciaExterna])
+}
+
+// Historial de cada vez que se otorgan puntos (compra manual o webhook).
+// Cliente.puntos sigue siendo el contador acumulado; esto es lo que permite
+// calcular estadísticas por rango de fechas (ej. puntos otorgados este mes).
+model MovimientoPuntos {
+  id        String   @id @default(cuid())
+  clienteId String
+  negocioId String   // denormalizado a propósito, para no tener que hacer join en las consultas de stats
+  puntos    Int
+  origen    String   // "manual" | "mercadopago" | "tiendanube" | "dragonfish"
+  createdAt DateTime @default(now())
+
+  @@index([negocioId, createdAt])
 }
