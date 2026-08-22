@@ -17,14 +17,25 @@ export async function GET(request) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  const clientes = await prisma.cliente.findMany({
-    where: negocioId ? { negocioId } : {},
-    select: {
-      id: true, nombre: true, telefono: true, email: true, puntos: true,
-      negocioId: true, createdAt: true, canjes: true,
-    }
-  })
-  return NextResponse.json(clientes)
+  const page = Math.max(1, parseInt(searchParams.get('page')) || 1)
+  const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize')) || 20))
+  const where = negocioId ? { negocioId } : {}
+
+  const [total, items] = await Promise.all([
+    prisma.cliente.count({ where }),
+    prisma.cliente.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: {
+        id: true, nombre: true, telefono: true, email: true, puntos: true,
+        negocioId: true, createdAt: true,
+      }
+    })
+  ])
+
+  return NextResponse.json({ items, page, pageSize, total, totalPages: Math.ceil(total / pageSize) || 1 })
 }
 
 export async function POST(request) {
