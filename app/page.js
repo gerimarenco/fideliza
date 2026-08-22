@@ -18,6 +18,11 @@ export default function Home() {
   const [montoPago, setMontoPago] = useState('');
   const [generandoPago, setGenerandoPago] = useState(false);
   const [estadisticas, setEstadisticas] = useState(null);
+  const [seccionActiva, setSeccionActiva] = useState('inicio');
+  const [clientesPagina, setClientesPagina] = useState(1);
+  const [clientesData, setClientesData] = useState(null);
+  const [canjesPagina, setCanjesPagina] = useState(1);
+  const [canjesData, setCanjesData] = useState(null);
 
   const isAdmin = session?.user?.role === 'admin';
   const isNegocio = session?.user?.role === 'negocio';
@@ -69,6 +74,38 @@ export default function Home() {
     cargarEstadisticas(negocioMostrado?.id);
   }, [negocioMostrado?.id]);
 
+  const cargarClientes = (negocioId, page = 1) => {
+    if (!negocioId) { setClientesData(null); return; }
+    fetch(`/api/clientes?negocioId=${negocioId}&page=${page}&pageSize=10`)
+      .then(res => res.json())
+      .then(setClientesData)
+      .catch(() => {});
+  };
+
+  const cargarCanjes = (negocioId, page = 1) => {
+    if (!negocioId) { setCanjesData(null); return; }
+    fetch(`/api/canjes?negocioId=${negocioId}&page=${page}&pageSize=10`)
+      .then(res => res.json())
+      .then(setCanjesData)
+      .catch(() => {});
+  };
+
+  // Al cambiar de negocio, arrancar de nuevo desde la página 1 y desde Inicio
+  useEffect(() => {
+    setClientesPagina(1);
+    setCanjesPagina(1);
+    setSeccionActiva('inicio');
+  }, [negocioMostrado?.id]);
+
+  useEffect(() => {
+    cargarClientes(negocioMostrado?.id, clientesPagina);
+  }, [negocioMostrado?.id, clientesPagina]);
+
+  useEffect(() => {
+    if (seccionActiva !== 'canjes') return;
+    cargarCanjes(negocioMostrado?.id, canjesPagina);
+  }, [negocioMostrado?.id, canjesPagina, seccionActiva]);
+
   const pts = Math.floor((parseFloat(monto) || 0) / 1000);
 
   const sumarPuntos = async (negId) => {
@@ -85,6 +122,7 @@ export default function Home() {
     setClienteSeleccionado('');
     cargarNegocios();
     cargarEstadisticas(negocio.id);
+    cargarClientes(negocio.id, clientesPagina);
   };
 
   const agregarCliente = async () => {
@@ -108,6 +146,8 @@ export default function Home() {
     setMostrarFormCliente(false);
     cargarNegocios();
     cargarEstadisticas(negocio.id);
+    cargarClientes(negocio.id, 1);
+    setClientesPagina(1);
   };
 
   // Genera el link de pago de Mercado Pago y redirige al cliente ahí
@@ -144,6 +184,50 @@ export default function Home() {
     }
   };
 
+  // Controles de "Anterior / Página X de Y / Siguiente", reutilizados en Clientes y Canjes
+  const Paginador = ({ pagina, totalPages, onCambiar }) => {
+    if (!totalPages || totalPages <= 1) return null;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 12 }}>
+        <button
+          onClick={() => onCambiar(pagina - 1)}
+          disabled={pagina <= 1}
+          style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #eee', background: '#fff', fontSize: 12, cursor: pagina <= 1 ? 'not-allowed' : 'pointer', opacity: pagina <= 1 ? 0.5 : 1 }}
+        >← Anterior</button>
+        <span style={{ fontSize: 12, color: '#555' }}>Página {pagina} de {totalPages}</span>
+        <button
+          onClick={() => onCambiar(pagina + 1)}
+          disabled={pagina >= totalPages}
+          style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #eee', background: '#fff', fontSize: 12, cursor: pagina >= totalPages ? 'not-allowed' : 'pointer', opacity: pagina >= totalPages ? 0.5 : 1 }}
+        >Siguiente →</button>
+      </div>
+    );
+  };
+
+  // Historial de canjes del negocio completo (pantalla nueva)
+  const VistaCanjes = () => (
+    <div style={{ padding: 24 }}>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Historial de canjes</div>
+        {!canjesData && <div style={{ fontSize: 13, color: '#999' }}>Cargando...</div>}
+        {canjesData && canjesData.items.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Todavía no hay canjes.</div>}
+        {canjesData?.items.map(c => (
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{c.premio.emoji}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 500 }}>{c.premio.nombre}</div>
+              <div style={{ fontSize: 11, color: '#999' }}>{c.cliente.nombre || c.cliente.email} · {new Date(c.createdAt).toLocaleDateString('es-AR')}</div>
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 500, background: '#eef2ff', color: '#6366f1', padding: '4px 10px', borderRadius: 20 }}>
+              {c.premio.puntos} pts
+            </div>
+          </div>
+        ))}
+        <Paginador pagina={canjesData?.page || 1} totalPages={canjesData?.totalPages} onCambiar={setCanjesPagina} />
+      </div>
+    </div>
+  );
+
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
   const PanelNegocio = ({ negocio, onVolver }) => (
     <div style={{ flex: 1, overflow: 'auto' }}>
@@ -151,11 +235,13 @@ export default function Home() {
         <div style={{ fontSize: 15, fontWeight: 600 }}>Bienvenida, {negocio.nombre} {negocio.emoji}</div>
         <div style={{ display: 'flex', gap: 8 }}>
           {onVolver && <button onClick={onVolver} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 12, cursor: 'pointer' }}>← Volver</button>}
-          <button onClick={() => setMostrarFormCliente(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 12, cursor: 'pointer' }}>+ Nuevo cliente</button>
+          {seccionActiva === 'inicio' && <button onClick={() => setMostrarFormCliente(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 12, cursor: 'pointer' }}>+ Nuevo cliente</button>}
         </div>
       </div>
 
-      {mostrarFormCliente && (
+      {seccionActiva === 'canjes' && <VistaCanjes />}
+
+      {seccionActiva === 'inicio' && mostrarFormCliente && (
         <div style={{ margin: '20px 24px 0', background: '#fff', borderRadius: 12, border: '1px solid #6366f1', padding: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Agregar nuevo cliente</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
@@ -179,7 +265,7 @@ export default function Home() {
         </div>
       )}
 
-      <div style={{ padding: 24 }}>
+      {seccionActiva === 'inicio' && <div style={{ padding: 24 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
           <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
             <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Clientes activos</div>
@@ -215,8 +301,8 @@ export default function Home() {
           <div>
             <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Clientes</div>
-              {negocio.clientes?.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Aún no hay clientes</div>}
-              {negocio.clientes?.map(c => (
+              {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Aún no hay clientes</div>}
+              {clientesData?.items.map(c => (
                 <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
                   <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#6366f1' }}>
                     {c.email.slice(0, 2).toUpperCase()}
@@ -229,6 +315,7 @@ export default function Home() {
                   </div>
                 </div>
               ))}
+              <Paginador pagina={clientesData?.page || 1} totalPages={clientesData?.totalPages} onCambiar={setClientesPagina} />
             </div>
           </div>
 
@@ -264,7 +351,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 
@@ -360,8 +447,12 @@ export default function Home() {
               <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Panel del negocio</div>
             </div>
             <div style={{ padding: '12px 8px', flex: 1 }}>
-              {[['🏠', 'Inicio'], ['🏪', 'Negocios'], ['👥', 'Clientes'], ['⭐', 'Puntos y canjes'], ['🔌', 'Integraciones'], ['⚙️', 'Ajustes']].map(([icon, label]) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: label === 'Inicio' ? '#6366f1' : '#555', background: label === 'Inicio' ? '#eef2ff' : 'transparent', cursor: 'pointer', marginBottom: 2 }}>
+              {[['🏠', 'Inicio', 'inicio'], ['🏪', 'Negocios', null], ['👥', 'Clientes', null], ['⭐', 'Puntos y canjes', 'canjes'], ['🔌', 'Integraciones', null], ['⚙️', 'Ajustes', null]].map(([icon, label, id]) => (
+                <div
+                  key={label}
+                  onClick={id ? () => setSeccionActiva(id) : undefined}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: seccionActiva === id ? '#6366f1' : '#555', background: seccionActiva === id ? '#eef2ff' : 'transparent', cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
+                >
                   {icon} {label}
                 </div>
               ))}
@@ -420,7 +511,7 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            <PanelNegocio negocio={negocioActivo} onVolver={() => { setNegocioActivo(null); setMostrarFormCliente(false); }} />
+            <PanelNegocio negocio={negocioActivo} onVolver={() => { setNegocioActivo(null); setMostrarFormCliente(false); setSeccionActiva('inicio'); }} />
           )}
         </div>
       )}
@@ -434,8 +525,12 @@ export default function Home() {
               <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Panel del negocio</div>
             </div>
             <div style={{ padding: '12px 8px', flex: 1 }}>
-              {[['🏠', 'Inicio'], ['👥', 'Mis clientes'], ['🎁', 'Premios'], ['🔄', 'Canjes'], ['🔌', 'Integraciones']].map(([icon, label]) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: label === 'Inicio' ? '#6366f1' : '#555', background: label === 'Inicio' ? '#eef2ff' : 'transparent', cursor: 'pointer', marginBottom: 2 }}>
+              {[['🏠', 'Inicio', 'inicio'], ['👥', 'Mis clientes', null], ['🎁', 'Premios', null], ['🔄', 'Canjes', 'canjes'], ['🔌', 'Integraciones', null]].map(([icon, label, id]) => (
+                <div
+                  key={label}
+                  onClick={id ? () => setSeccionActiva(id) : undefined}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: seccionActiva === id ? '#6366f1' : '#555', background: seccionActiva === id ? '#eef2ff' : 'transparent', cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
+                >
                   {icon} {label}
                 </div>
               ))}
