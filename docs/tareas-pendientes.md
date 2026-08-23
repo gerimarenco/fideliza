@@ -92,13 +92,12 @@
       antes era decorativo.
 - [ ] **PR #2 abierto**, pendiente de mergear a `main`.
 
-## Otros cabos sueltos observados en el código (no discutidos a fondo todavía)
+## Otros cabos sueltos observados en el código
 
-- [ ] El panel de cliente (`PanelCliente`) muestra qué premios puede
-      canjear ("¡Ya podés canjearlo!") pero **no hay ningún botón
-      conectado** a `POST /api/canjes` — el endpoint funciona (probado),
-      pero nadie lo llama desde esa pantalla. Falta el botón + su
-      `onClick`.
+- [x] El panel de cliente (`PanelCliente`) ahora tiene un botón "Canjear"
+      conectado a `POST /api/canjes` en cada premio disponible. Probado en
+      el navegador: descuenta puntos, refresca la lista, y el canje queda
+      registrado (visible en el historial de canjes del negocio).
 - [ ] El botón "+ Nuevo negocio" (panel admin) y el botón "Editar" de cada
       tarjeta de negocio no tienen ninguna acción conectada.
 - [ ] `borrar-cliente.sql` sigue en la raíz del repo, sin usarse — no se

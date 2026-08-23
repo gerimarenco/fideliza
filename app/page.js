@@ -17,6 +17,7 @@ export default function Home() {
   const [negocioDelCliente, setNegocioDelCliente] = useState(null);
   const [montoPago, setMontoPago] = useState('');
   const [generandoPago, setGenerandoPago] = useState(false);
+  const [canjeandoId, setCanjeandoId] = useState(null);
   const [estadisticas, setEstadisticas] = useState(null);
   const [seccionActiva, setSeccionActiva] = useState('inicio');
   const [clientesPagina, setClientesPagina] = useState(1);
@@ -181,6 +182,30 @@ export default function Home() {
     } catch (err) {
       alert('❌ Ocurrió un error al generar el pago.');
       setGenerandoPago(false);
+    }
+  };
+
+  // El cliente canjea un premio para sí mismo (el backend ya valida que
+  // tenga puntos suficientes y que el canje sea siempre a su propio nombre)
+  const canjearPremio = async (premio) => {
+    setCanjeandoId(premio.id);
+    try {
+      const res = await fetch('/api/canjes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ premioId: premio.id })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ ${data.error || 'No se pudo canjear el premio'}`);
+        return;
+      }
+      alert(`✅ ¡Canjeaste "${premio.nombre}"! Mostrale esto al negocio para retirarlo.`);
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al canjear el premio.');
+    } finally {
+      setCanjeandoId(null);
     }
   };
 
@@ -415,8 +440,15 @@ export default function Home() {
               <div style={{ width: 36, height: 36, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{p.emoji}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
-                <div style={{ fontSize: 11, color: '#16a34a' }}>{p.puntos} puntos · ¡Ya podés canjearlo!</div>
+                <div style={{ fontSize: 11, color: '#16a34a' }}>{p.puntos} puntos</div>
               </div>
+              <button
+                onClick={() => canjearPremio(p)}
+                disabled={canjeandoId === p.id}
+                style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#22c55e', color: '#fff', fontSize: 12, fontWeight: 600, cursor: canjeandoId === p.id ? 'not-allowed' : 'pointer', opacity: canjeandoId === p.id ? 0.7 : 1 }}
+              >
+                {canjeandoId === p.id ? 'Canjeando...' : 'Canjear'}
+              </button>
             </div>
           ))}
 
