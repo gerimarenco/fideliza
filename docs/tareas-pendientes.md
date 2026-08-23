@@ -108,12 +108,11 @@
       nombre/tipo/ciudad/emoji, antes solo aceptaba credenciales de
       Tiendanube). Probado en el navegador con Postgres real: negocio creado,
       logueado con la contraseña generada, y editado correctamente.
-- [ ] `borrar-cliente.sql` sigue en la raíz del repo, sin usarse — no se
-      llegó a discutir si conviene borrarlo (similar a lo que se hizo con
-      `fix.js`, que sí se borró por consenso).
-
 ## Cerrado / ya no aplica
 
 - [x] `fix.js` (script de un solo uso, con IDs hardcodeados de un negocio
       ya borrado) — eliminado.
+- [x] `borrar-cliente.sql` (`DELETE FROM "Cliente"` sin `WHERE`, resto de una
+      tarea ya cerrada, no referenciado desde ningún lado del código) —
+      eliminado por el mismo motivo que `fix.js`.
 - [x] Integración de Vercel — desconectada (el deploy real es Netlify).
