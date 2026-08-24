@@ -202,6 +202,13 @@ export default function Home() {
     cargarNegocios();
   };
 
+  // El admin vuelve de un negocio puntual a la grilla general
+  const volverANegocios = () => {
+    setNegocioActivo(null);
+    setMostrarFormCliente(false);
+    setSeccionActiva('inicio');
+  };
+
   // Genera el link de pago de Mercado Pago y redirige al cliente ahí
   const iniciarPago = async () => {
     if (!montoPago || parseFloat(montoPago) <= 0) {
@@ -304,6 +311,32 @@ export default function Home() {
     </div>
   );
 
+  // Listado completo de clientes del negocio (pantalla nueva)
+  const VistaClientes = () => (
+    <div style={{ padding: 24 }}>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Clientes</div>
+        {!clientesData && <div style={{ fontSize: 13, color: '#999' }}>Cargando...</div>}
+        {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Todavía no hay clientes.</div>}
+        {clientesData?.items.map(c => (
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#6366f1' }}>
+              {(c.nombre || c.email).slice(0, 2).toUpperCase()}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 500 }}>{c.nombre || c.email}</div>
+              <div style={{ fontSize: 11, color: '#999' }}>{c.email}{c.telefono ? ` · ${c.telefono}` : ''}</div>
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 500, background: '#eef2ff', color: '#6366f1', padding: '4px 10px', borderRadius: 20 }}>
+              {c.puntos} pts
+            </div>
+          </div>
+        ))}
+        <Paginador pagina={clientesData?.page || 1} totalPages={clientesData?.totalPages} onCambiar={setClientesPagina} />
+      </div>
+    </div>
+  );
+
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
   const PanelNegocio = ({ negocio, onVolver }) => (
     <div style={{ flex: 1, overflow: 'auto' }}>
@@ -311,13 +344,14 @@ export default function Home() {
         <div style={{ fontSize: 15, fontWeight: 600 }}>Bienvenida, {negocio.nombre} {negocio.emoji}</div>
         <div style={{ display: 'flex', gap: 8 }}>
           {onVolver && <button onClick={onVolver} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 12, cursor: 'pointer' }}>← Volver</button>}
-          {seccionActiva === 'inicio' && <button onClick={() => setMostrarFormCliente(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 12, cursor: 'pointer' }}>+ Nuevo cliente</button>}
+          {(seccionActiva === 'inicio' || seccionActiva === 'clientes') && <button onClick={() => setMostrarFormCliente(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 12, cursor: 'pointer' }}>+ Nuevo cliente</button>}
         </div>
       </div>
 
       {seccionActiva === 'canjes' && <VistaCanjes />}
+      {seccionActiva === 'clientes' && <VistaClientes />}
 
-      {seccionActiva === 'inicio' && mostrarFormCliente && (
+      {(seccionActiva === 'inicio' || seccionActiva === 'clientes') && mostrarFormCliente && (
         <div style={{ margin: '20px 24px 0', background: '#fff', borderRadius: 12, border: '1px solid #6366f1', padding: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Agregar nuevo cliente</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
@@ -530,15 +564,18 @@ export default function Home() {
               <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Panel del negocio</div>
             </div>
             <div style={{ padding: '12px 8px', flex: 1 }}>
-              {[['🏠', 'Inicio', 'inicio'], ['🏪', 'Negocios', null], ['👥', 'Clientes', null], ['⭐', 'Puntos y canjes', 'canjes'], ['🔌', 'Integraciones', null], ['⚙️', 'Ajustes', null]].map(([icon, label, id]) => (
-                <div
-                  key={label}
-                  onClick={id ? () => setSeccionActiva(id) : undefined}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: seccionActiva === id ? '#6366f1' : '#555', background: seccionActiva === id ? '#eef2ff' : 'transparent', cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
-                >
-                  {icon} {label}
-                </div>
-              ))}
+              {[['🏠', 'Inicio', 'inicio'], ['🏪', 'Negocios', 'negocios'], ['👥', 'Clientes', 'clientes'], ['⭐', 'Puntos y canjes', 'canjes'], ['🔌', 'Integraciones', null], ['⚙️', 'Ajustes', null]].map(([icon, label, id]) => {
+                const activo = id === 'negocios' ? !negocioActivo : (!!id && seccionActiva === id);
+                return (
+                  <div
+                    key={label}
+                    onClick={id ? () => (id === 'negocios' ? volverANegocios() : setSeccionActiva(id)) : undefined}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: activo ? '#6366f1' : '#555', background: activo ? '#eef2ff' : 'transparent', cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
+                  >
+                    {icon} {label}
+                  </div>
+                );
+              })}
             </div>
             <div style={{ padding: '12px 16px', borderTop: '1px solid #eee', fontSize: 12, color: '#999' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -657,7 +694,7 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            <PanelNegocio negocio={negocioActivo} onVolver={() => { setNegocioActivo(null); setMostrarFormCliente(false); setSeccionActiva('inicio'); }} />
+            <PanelNegocio negocio={negocioActivo} onVolver={volverANegocios} />
           )}
         </div>
       )}
@@ -671,7 +708,7 @@ export default function Home() {
               <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Panel del negocio</div>
             </div>
             <div style={{ padding: '12px 8px', flex: 1 }}>
-              {[['🏠', 'Inicio', 'inicio'], ['👥', 'Mis clientes', null], ['🎁', 'Premios', null], ['🔄', 'Canjes', 'canjes'], ['🔌', 'Integraciones', null]].map(([icon, label, id]) => (
+              {[['🏠', 'Inicio', 'inicio'], ['👥', 'Mis clientes', 'clientes'], ['🎁', 'Premios', null], ['🔄', 'Canjes', 'canjes'], ['🔌', 'Integraciones', null]].map(([icon, label, id]) => (
                 <div
                   key={label}
                   onClick={id ? () => setSeccionActiva(id) : undefined}
