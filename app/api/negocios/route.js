@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { hashPassword } from '@/lib/password'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
@@ -49,15 +50,28 @@ export async function POST(request) {
   }
 
   const body = await request.json()
-  const negocio = await prisma.negocio.create({
+
+  if (!body.nombre || !body.tipo || !body.ciudad || !body.emoji || !body.email) {
+    return NextResponse.json({ error: 'Nombre, tipo, ciudad, emoji y email son obligatorios' }, { status: 400 })
+  }
+
+  const passwordGenerada = Math.random().toString(36).slice(-8)
+
+  const { password, ...negocio } = await prisma.negocio.create({
     data: {
       nombre: body.nombre,
       tipo: body.tipo,
       ciudad: body.ciudad,
       emoji: body.emoji,
+      email: body.email,
+      password: await hashPassword(passwordGenerada),
     }
   })
-  return NextResponse.json(negocio)
+
+  // passwordGenerada va en texto plano en la respuesta: el admin la
+  // necesita para pasársela al negocio. El hash (password) se descarta acá,
+  // en la base queda solo el hash.
+  return NextResponse.json({ ...negocio, passwordGenerada })
 }
 
 export async function PATCH(request) {
@@ -75,12 +89,24 @@ export async function PATCH(request) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
+  const data = {
+    tiendanubeStoreId: body.tiendanubeStoreId,
+    tiendanubeAccessToken: body.tiendanubeAccessToken,
+  }
+
+  // Nombre/tipo/ciudad/emoji son datos básicos del negocio: solo el admin
+  // los edita (el negocio, desde su propio panel, solo carga credenciales
+  // de Tiendanube).
+  if (esAdmin) {
+    if (body.nombre !== undefined) data.nombre = body.nombre
+    if (body.tipo !== undefined) data.tipo = body.tipo
+    if (body.ciudad !== undefined) data.ciudad = body.ciudad
+    if (body.emoji !== undefined) data.emoji = body.emoji
+  }
+
   const negocio = await prisma.negocio.update({
     where: { id: body.id },
-    data: {
-      tiendanubeStoreId: body.tiendanubeStoreId,
-      tiendanubeAccessToken: body.tiendanubeAccessToken,
-    }
+    data,
   })
   return NextResponse.json(negocio)
 }

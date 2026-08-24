@@ -98,14 +98,21 @@
       conectado a `POST /api/canjes` en cada premio disponible. Probado en
       el navegador: descuenta puntos, refresca la lista, y el canje queda
       registrado (visible en el historial de canjes del negocio).
-- [ ] El botón "+ Nuevo negocio" (panel admin) y el botón "Editar" de cada
-      tarjeta de negocio no tienen ninguna acción conectada.
-- [ ] `borrar-cliente.sql` sigue en la raíz del repo, sin usarse — no se
-      llegó a discutir si conviene borrarlo (similar a lo que se hizo con
-      `fix.js`, que sí se borró por consenso).
-
+- [x] El botón "+ Nuevo negocio" (panel admin) y el botón "Editar" de cada
+      tarjeta de negocio no tenían ninguna acción conectada. Ahora
+      "+ Nuevo negocio" abre un formulario que llama a `POST /api/negocios`
+      (se extendió para pedir email y generar una contraseña, igual que ya
+      pasaba en `POST /api/clientes` — antes no se podía loguear un negocio
+      creado por acá) y "Editar" abre edición inline en la tarjeta que llama
+      a `PATCH /api/negocios` (se extendió para permitir que el admin edite
+      nombre/tipo/ciudad/emoji, antes solo aceptaba credenciales de
+      Tiendanube). Probado en el navegador con Postgres real: negocio creado,
+      logueado con la contraseña generada, y editado correctamente.
 ## Cerrado / ya no aplica
 
 - [x] `fix.js` (script de un solo uso, con IDs hardcodeados de un negocio
       ya borrado) — eliminado.
+- [x] `borrar-cliente.sql` (`DELETE FROM "Cliente"` sin `WHERE`, resto de una
+      tarea ya cerrada, no referenciado desde ningún lado del código) —
+      eliminado por el mismo motivo que `fix.js`.
 - [x] Integración de Vercel — desconectada (el deploy real es Netlify).

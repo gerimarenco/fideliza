@@ -13,6 +13,10 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [mostrarFormCliente, setMostrarFormCliente] = useState(false);
   const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', telefono: '', email: '' });
+  const [mostrarFormNegocio, setMostrarFormNegocio] = useState(false);
+  const [nuevoNegocio, setNuevoNegocio] = useState({ nombre: '', tipo: '', ciudad: '', emoji: '', email: '' });
+  const [negocioEditandoId, setNegocioEditandoId] = useState(null);
+  const [formEdicionNegocio, setFormEdicionNegocio] = useState({ nombre: '', tipo: '', ciudad: '', emoji: '' });
   const [clientePropio, setClientePropio] = useState(null);
   const [negocioDelCliente, setNegocioDelCliente] = useState(null);
   const [montoPago, setMontoPago] = useState('');
@@ -149,6 +153,53 @@ export default function Home() {
     cargarEstadisticas(negocio.id);
     cargarClientes(negocio.id, 1);
     setClientesPagina(1);
+  };
+
+  const crearNegocio = async () => {
+    const { nombre, tipo, ciudad, emoji, email } = nuevoNegocio;
+    if (!nombre || !tipo || !ciudad || !emoji || !email) {
+      alert('Nombre, tipo, ciudad, emoji y email son obligatorios');
+      return;
+    }
+    const res = await fetch('/api/negocios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nuevoNegocio)
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`❌ Error: ${data.error || 'no se pudo crear el negocio'}`);
+      return;
+    }
+    alert(`✅ Negocio ${nombre} creado!\n\nEmail: ${email}\nContraseña: ${data.passwordGenerada}\n\n(Guardá esta contraseña para pasársela al negocio)`);
+    setNuevoNegocio({ nombre: '', tipo: '', ciudad: '', emoji: '', email: '' });
+    setMostrarFormNegocio(false);
+    cargarNegocios();
+  };
+
+  const iniciarEdicionNegocio = (neg) => {
+    setNegocioEditandoId(neg.id);
+    setFormEdicionNegocio({ nombre: neg.nombre, tipo: neg.tipo, ciudad: neg.ciudad, emoji: neg.emoji });
+  };
+
+  const guardarEdicionNegocio = async () => {
+    const { nombre, tipo, ciudad, emoji } = formEdicionNegocio;
+    if (!nombre || !tipo || !ciudad || !emoji) {
+      alert('Nombre, tipo, ciudad y emoji son obligatorios');
+      return;
+    }
+    const res = await fetch('/api/negocios', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: negocioEditandoId, ...formEdicionNegocio })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`❌ Error: ${data.error || 'no se pudo editar el negocio'}`);
+      return;
+    }
+    setNegocioEditandoId(null);
+    cargarNegocios();
   };
 
   // Genera el link de pago de Mercado Pago y redirige al cliente ahí
@@ -502,8 +553,39 @@ export default function Home() {
             <div style={{ flex: 1, overflow: 'auto' }}>
               <div style={{ padding: '14px 24px', background: '#fff', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ fontSize: 15, fontWeight: 600 }}>Inicio</div>
-                <button style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 13, cursor: 'pointer' }}>+ Nuevo negocio</button>
+                <button onClick={() => setMostrarFormNegocio(true)} style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 13, cursor: 'pointer' }}>+ Nuevo negocio</button>
               </div>
+              {mostrarFormNegocio && (
+                <div style={{ margin: '20px 24px 0', background: '#fff', borderRadius: 12, border: '1px solid #6366f1', padding: 20 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Nuevo negocio</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 80px 1fr', gap: 12, marginBottom: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Nombre *</label>
+                      <input value={nuevoNegocio.nombre} onChange={e => setNuevoNegocio({...nuevoNegocio, nombre: e.target.value})} placeholder="Café Central" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Tipo *</label>
+                      <input value={nuevoNegocio.tipo} onChange={e => setNuevoNegocio({...nuevoNegocio, tipo: e.target.value})} placeholder="Cafetería" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Ciudad *</label>
+                      <input value={nuevoNegocio.ciudad} onChange={e => setNuevoNegocio({...nuevoNegocio, ciudad: e.target.value})} placeholder="Chacabuco" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Emoji *</label>
+                      <input value={nuevoNegocio.emoji} onChange={e => setNuevoNegocio({...nuevoNegocio, emoji: e.target.value})} placeholder="☕" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Email *</label>
+                      <input value={nuevoNegocio.email} onChange={e => setNuevoNegocio({...nuevoNegocio, email: e.target.value})} placeholder="negocio@email.com" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={crearNegocio} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar negocio</button>
+                    <button onClick={() => setMostrarFormNegocio(false)} style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+                  </div>
+                </div>
+              )}
               <div style={{ padding: 24 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
                   <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
@@ -523,20 +605,52 @@ export default function Home() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   {negocios.map((neg, i) => (
                     <div key={neg.id} style={{ background: '#fff', border: '1px solid #eee', borderRadius: 12, padding: 20 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 8, background: '#FBEAF0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{neg.emoji}</div>
-                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#dcfce7', color: '#16a34a', fontWeight: 500 }}>Activo</span>
-                      </div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{neg.nombre}</div>
-                      <div style={{ fontSize: 12, color: '#999' }}>{neg.tipo} · {neg.ciudad}</div>
-                      <div style={{ display: 'flex', gap: 16, marginTop: 12, paddingTop: 12, borderTop: '1px solid #eee' }}>
-                        <span style={{ fontSize: 12, color: '#555' }}><strong>{neg.clientes?.length || 0}</strong> clientes</span>
-                        <span style={{ fontSize: 12, color: '#555' }}><strong>{neg.premios?.length || 0}</strong> premios</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                        <button onClick={() => { setNegocioActivo(neg); setMostrarFormCliente(false); }} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: 'none', background: '#eef2ff', color: '#6366f1', cursor: 'pointer' }}>Ver panel</button>
-                        <button style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Editar</button>
-                      </div>
+                      {negocioEditandoId === neg.id ? (
+                        <>
+                          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Editar negocio</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 10, marginBottom: 10 }}>
+                            <div>
+                              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Nombre</label>
+                              <input value={formEdicionNegocio.nombre} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, nombre: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Emoji</label>
+                              <input value={formEdicionNegocio.emoji} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, emoji: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                            </div>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                            <div>
+                              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Tipo</label>
+                              <input value={formEdicionNegocio.tipo} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tipo: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Ciudad</label>
+                              <input value={formEdicionNegocio.ciudad} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, ciudad: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button onClick={guardarEdicionNegocio} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+                            <button onClick={() => setNegocioEditandoId(null)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Cancelar</button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                            <div style={{ width: 36, height: 36, borderRadius: 8, background: '#FBEAF0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{neg.emoji}</div>
+                            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#dcfce7', color: '#16a34a', fontWeight: 500 }}>Activo</span>
+                          </div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{neg.nombre}</div>
+                          <div style={{ fontSize: 12, color: '#999' }}>{neg.tipo} · {neg.ciudad}</div>
+                          <div style={{ display: 'flex', gap: 16, marginTop: 12, paddingTop: 12, borderTop: '1px solid #eee' }}>
+                            <span style={{ fontSize: 12, color: '#555' }}><strong>{neg.clientes?.length || 0}</strong> clientes</span>
+                            <span style={{ fontSize: 12, color: '#555' }}><strong>{neg.premios?.length || 0}</strong> premios</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                            <button onClick={() => { setNegocioActivo(neg); setMostrarFormCliente(false); }} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: 'none', background: '#eef2ff', color: '#6366f1', cursor: 'pointer' }}>Ver panel</button>
+                            <button onClick={() => iniciarEdicionNegocio(neg)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Editar</button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
