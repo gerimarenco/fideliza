@@ -45,6 +45,7 @@ model Premio {
   nombre    String
   puntos    Int
   emoji     String
+  activo    Boolean @default(true)
   negocioId String
   negocio   Negocio @relation(fields: [negocioId], references: [id])
   canjes    Canje[]

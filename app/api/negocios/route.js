@@ -18,6 +18,7 @@ const NEGOCIO_SELECT = {
     select: { id: true, nombre: true, email: true, puntos: true }
   },
   premios: {
+    where: { activo: true },
     select: { id: true, nombre: true, puntos: true, emoji: true }
   },
 }
