@@ -161,6 +161,25 @@
         el admin viendo el panel de un negocio puntual.
   - [ ] "Ajustes" (admin) — sin backend ni alcance definido, requiere
         decisión de producto.
+  - [x] "Ajustes" (negocio) — conectado (este ítem no existía en el
+        sidebar de Negocio, se agregó de cero; es distinto del "Ajustes"
+        del admin de arriba, que sigue sin definir). Tres bloques:
+        cambio de contraseña (endpoint nuevo, `POST
+        /api/negocios/password`, verifica la contraseña actual con
+        `verifyPassword` antes de aceptar la nueva, mínimo 6
+        caracteres, siempre sobre la propia cuenta — el id sale de la
+        sesión, nunca del body), `puntosXPeso` editable (se agregó a
+        `PATCH /api/negocios`, entero positivo, mismo criterio de
+        autorización que `slug`/Tiendanube: admin o el propio negocio),
+        y un dato de cuenta de solo lectura (el email de acceso, ya
+        disponible en la sesión, sin costo de backend). El precio en
+        puntos de un premio individual ya se podía editar desde la
+        pantalla "Premios" (edición inline, `PATCH /api/premios` ya
+        aceptaba `puntos`) — no hizo falta duplicarlo acá. Probado en
+        el navegador con Postgres real: error claro con la contraseña
+        actual incorrecta, error cuando la confirmación no coincide,
+        cambio exitoso verificado logueándose con la contraseña nueva,
+        y persistencia de `puntosXPeso` en la base.
   - [x] **Bug encontrado en producción** (reportado por Cecilia, no en
         el relevamiento original): en el panel admin, con la grilla de
         negocios a la vista (sin ningún negocio elegido), tocar

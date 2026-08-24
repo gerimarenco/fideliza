@@ -35,6 +35,8 @@ export default function Home() {
   const [premioEditandoId, setPremioEditandoId] = useState(null);
   const [formEdicionPremio, setFormEdicionPremio] = useState({ nombre: '', puntos: '', emoji: '' });
   const [formIntegraciones, setFormIntegraciones] = useState({ tiendanubeStoreId: '', tiendanubeAccessToken: '', slug: '' });
+  const [formPassword, setFormPassword] = useState({ actual: '', nueva: '', confirmar: '' });
+  const [formPuntosXPeso, setFormPuntosXPeso] = useState('');
 
   const isAdmin = session?.user?.role === 'admin';
   const isNegocio = session?.user?.role === 'negocio';
@@ -141,6 +143,13 @@ export default function Home() {
       tiendanubeAccessToken: '',
       slug: negocioMostrado?.slug || '',
     });
+  }, [negocioMostrado?.id, seccionActiva]);
+
+  // Al entrar a Ajustes se precarga puntosXPeso; la contraseña arranca vacía
+  useEffect(() => {
+    if (seccionActiva !== 'ajustes') return;
+    setFormPuntosXPeso(negocioMostrado?.puntosXPeso ? String(negocioMostrado.puntosXPeso) : '');
+    setFormPassword({ actual: '', nueva: '', confirmar: '' });
   }, [negocioMostrado?.id, seccionActiva]);
 
   const pts = Math.floor((parseFloat(monto) || 0) / 1000);
@@ -329,6 +338,49 @@ export default function Home() {
     alert('✅ Integraciones actualizadas');
     setFormIntegraciones(f => ({ ...f, tiendanubeAccessToken: '' }));
     cargarNegocios();
+  };
+
+  const guardarPuntosXPeso = async () => {
+    if (!formPuntosXPeso || parseInt(formPuntosXPeso) <= 0) {
+      alert('Puntos por peso tiene que ser un número entero mayor a 0');
+      return;
+    }
+    const res = await fetch('/api/negocios', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: negocioMostrado.id, puntosXPeso: formPuntosXPeso })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
+      return;
+    }
+    alert('✅ Puntos por peso actualizados');
+    cargarNegocios();
+  };
+
+  const cambiarPassword = async () => {
+    const { actual, nueva, confirmar } = formPassword;
+    if (!actual || !nueva || !confirmar) {
+      alert('Completá los tres campos');
+      return;
+    }
+    if (nueva !== confirmar) {
+      alert('La nueva contraseña y su confirmación no coinciden');
+      return;
+    }
+    const res = await fetch('/api/negocios/password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passwordActual: actual, passwordNueva: nueva })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`❌ Error: ${data.error || 'no se pudo cambiar la contraseña'}`);
+      return;
+    }
+    alert('✅ Contraseña actualizada');
+    setFormPassword({ actual: '', nueva: '', confirmar: '' });
   };
 
   // Genera el link de pago de Mercado Pago y redirige al cliente ahí
@@ -579,6 +631,42 @@ export default function Home() {
     </div>
   );
 
+  // Cuenta del negocio: cambio de contraseña y configuración de puntos
+  const VistaAjustes = () => (
+    <div style={{ padding: 24, display: 'grid', gap: 16, maxWidth: 480 }}>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Cuenta</div>
+        <div style={{ fontSize: 13, color: '#555' }}>Email de acceso: <strong>{session?.user?.email}</strong></div>
+      </div>
+
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Cambiar contraseña</div>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Contraseña actual</label>
+          <input type="password" value={formPassword.actual} onChange={e => setFormPassword({...formPassword, actual: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div>
+            <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Nueva contraseña</label>
+            <input type="password" value={formPassword.nueva} onChange={e => setFormPassword({...formPassword, nueva: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Confirmar nueva contraseña</label>
+            <input type="password" value={formPassword.confirmar} onChange={e => setFormPassword({...formPassword, confirmar: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+        </div>
+        <button onClick={cambiarPassword} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Cambiar contraseña</button>
+      </div>
+
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Puntos por peso</div>
+        <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Cuántos pesos gastados equivalen a 1 punto</label>
+        <input type="number" min="1" value={formPuntosXPeso} onChange={e => setFormPuntosXPeso(e.target.value)} placeholder="1000" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box', marginBottom: 12 }} />
+        <button onClick={guardarPuntosXPeso} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+      </div>
+    </div>
+  );
+
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
   const PanelNegocio = ({ negocio, onVolver }) => (
     <div style={{ flex: 1, overflow: 'auto' }}>
@@ -595,6 +683,7 @@ export default function Home() {
       {seccionActiva === 'clientes' && <VistaClientes />}
       {seccionActiva === 'premios' && <VistaPremios />}
       {seccionActiva === 'integraciones' && <VistaIntegraciones />}
+      {seccionActiva === 'ajustes' && <VistaAjustes />}
 
       {(seccionActiva === 'inicio' || seccionActiva === 'clientes') && mostrarFormCliente && (
         <div style={{ margin: '20px 24px 0', background: '#fff', borderRadius: 12, border: '1px solid #6366f1', padding: 20 }}>
@@ -958,7 +1047,7 @@ export default function Home() {
               <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Panel del negocio</div>
             </div>
             <div style={{ padding: '12px 8px', flex: 1 }}>
-              {[['🏠', 'Inicio', 'inicio'], ['👥', 'Mis clientes', 'clientes'], ['🎁', 'Premios', 'premios'], ['🔄', 'Canjes', 'canjes'], ['🔌', 'Integraciones', 'integraciones']].map(([icon, label, id]) => (
+              {[['🏠', 'Inicio', 'inicio'], ['👥', 'Mis clientes', 'clientes'], ['🎁', 'Premios', 'premios'], ['🔄', 'Canjes', 'canjes'], ['🔌', 'Integraciones', 'integraciones'], ['⚙️', 'Ajustes', 'ajustes']].map(([icon, label, id]) => (
                 <div
                   key={label}
                   onClick={id ? () => setSeccionActiva(id) : undefined}
