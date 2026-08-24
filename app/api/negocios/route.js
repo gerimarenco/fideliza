@@ -116,6 +116,16 @@ export async function PATCH(request) {
     data.slug = body.slug
   }
 
+  // Cuántos pesos gastados equivalen a 1 punto: lo edita el admin o el
+  // propio negocio, igual que el resto de la configuración de la cuenta.
+  if (body.puntosXPeso !== undefined) {
+    const puntosXPeso = parseInt(body.puntosXPeso)
+    if (!Number.isInteger(puntosXPeso) || puntosXPeso <= 0) {
+      return NextResponse.json({ error: 'Puntos por peso tiene que ser un número entero mayor a 0' }, { status: 400 })
+    }
+    data.puntosXPeso = puntosXPeso
+  }
+
   // Nombre/tipo/ciudad/emoji son datos básicos del negocio: solo el admin
   // los edita (el negocio, desde su propio panel, solo carga integraciones).
   if (esAdmin) {
