@@ -28,6 +28,12 @@ export default function Home() {
   const [clientesData, setClientesData] = useState(null);
   const [canjesPagina, setCanjesPagina] = useState(1);
   const [canjesData, setCanjesData] = useState(null);
+  const [premiosPagina, setPremiosPagina] = useState(1);
+  const [premiosData, setPremiosData] = useState(null);
+  const [mostrarFormPremio, setMostrarFormPremio] = useState(false);
+  const [nuevoPremio, setNuevoPremio] = useState({ nombre: '', puntos: '', emoji: '' });
+  const [premioEditandoId, setPremioEditandoId] = useState(null);
+  const [formEdicionPremio, setFormEdicionPremio] = useState({ nombre: '', puntos: '', emoji: '' });
 
   const isAdmin = session?.user?.role === 'admin';
   const isNegocio = session?.user?.role === 'negocio';
@@ -95,10 +101,19 @@ export default function Home() {
       .catch(() => {});
   };
 
+  const cargarPremios = (negocioId, page = 1) => {
+    if (!negocioId) { setPremiosData(null); return; }
+    fetch(`/api/premios?negocioId=${negocioId}&page=${page}&pageSize=10`)
+      .then(res => res.json())
+      .then(setPremiosData)
+      .catch(() => {});
+  };
+
   // Al cambiar de negocio, arrancar de nuevo desde la página 1 y desde Inicio
   useEffect(() => {
     setClientesPagina(1);
     setCanjesPagina(1);
+    setPremiosPagina(1);
     setSeccionActiva('inicio');
   }, [negocioMostrado?.id]);
 
@@ -110,6 +125,11 @@ export default function Home() {
     if (seccionActiva !== 'canjes') return;
     cargarCanjes(negocioMostrado?.id, canjesPagina);
   }, [negocioMostrado?.id, canjesPagina, seccionActiva]);
+
+  useEffect(() => {
+    if (seccionActiva !== 'premios') return;
+    cargarPremios(negocioMostrado?.id, premiosPagina);
+  }, [negocioMostrado?.id, premiosPagina, seccionActiva]);
 
   const pts = Math.floor((parseFloat(monto) || 0) / 1000);
 
@@ -207,6 +227,72 @@ export default function Home() {
     setNegocioActivo(null);
     setMostrarFormCliente(false);
     setSeccionActiva('inicio');
+  };
+
+  const crearPremio = async () => {
+    const negocio = isAdmin ? negocioActivo : negocioPropio;
+    const { nombre, puntos, emoji } = nuevoPremio;
+    if (!nombre || !puntos || !emoji) {
+      alert('Nombre, puntos y emoji son obligatorios');
+      return;
+    }
+    const res = await fetch('/api/premios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...nuevoPremio, negocioId: negocio.id })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`❌ Error: ${data.error || 'no se pudo crear el premio'}`);
+      return;
+    }
+    setNuevoPremio({ nombre: '', puntos: '', emoji: '' });
+    setMostrarFormPremio(false);
+    cargarPremios(negocio.id, premiosPagina);
+    cargarNegocios();
+  };
+
+  const iniciarEdicionPremio = (p) => {
+    setPremioEditandoId(p.id);
+    setFormEdicionPremio({ nombre: p.nombre, puntos: p.puntos, emoji: p.emoji });
+  };
+
+  const guardarEdicionPremio = async () => {
+    const { nombre, puntos, emoji } = formEdicionPremio;
+    if (!nombre || !puntos || !emoji) {
+      alert('Nombre, puntos y emoji son obligatorios');
+      return;
+    }
+    const res = await fetch('/api/premios', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: premioEditandoId, ...formEdicionPremio })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`❌ Error: ${data.error || 'no se pudo editar el premio'}`);
+      return;
+    }
+    setPremioEditandoId(null);
+    cargarPremios((isAdmin ? negocioActivo : negocioPropio)?.id, premiosPagina);
+    cargarNegocios();
+  };
+
+  // Desactivar un premio no lo borra: lo saca de "Premios disponibles" del
+  // cliente y de nuevos canjes, pero conserva el historial de canjes previos.
+  const togglePremioActivo = async (p) => {
+    const res = await fetch('/api/premios', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: p.id, activo: !p.activo })
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(`❌ Error: ${data.error || 'no se pudo actualizar el premio'}`);
+      return;
+    }
+    cargarPremios((isAdmin ? negocioActivo : negocioPropio)?.id, premiosPagina);
+    cargarNegocios();
   };
 
   // Genera el link de pago de Mercado Pago y redirige al cliente ahí
@@ -337,6 +423,76 @@ export default function Home() {
     </div>
   );
 
+  // Alta, edición y activar/desactivar premios del negocio (pantalla nueva)
+  const VistaPremios = () => (
+    <div style={{ padding: 24 }}>
+      {mostrarFormPremio && (
+        <div style={{ marginBottom: 20, background: '#fff', borderRadius: 12, border: '1px solid #6366f1', padding: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Nuevo premio</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Nombre *</label>
+              <input value={nuevoPremio.nombre} onChange={e => setNuevoPremio({...nuevoPremio, nombre: e.target.value})} placeholder="Café gratis" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Puntos *</label>
+              <input type="number" value={nuevoPremio.puntos} onChange={e => setNuevoPremio({...nuevoPremio, puntos: e.target.value})} placeholder="100" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Emoji *</label>
+              <input value={nuevoPremio.emoji} onChange={e => setNuevoPremio({...nuevoPremio, emoji: e.target.value})} placeholder="☕" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={crearPremio} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar premio</button>
+            <button onClick={() => setMostrarFormPremio(false)} style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Premios</div>
+        {!premiosData && <div style={{ fontSize: 13, color: '#999' }}>Cargando...</div>}
+        {premiosData && premiosData.items.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Todavía no hay premios.</div>}
+        {premiosData?.items.map(p => (
+          <div key={p.id} style={{ padding: '10px 0', borderBottom: '1px solid #f3f4f6', opacity: p.activo ? 1 : 0.6 }}>
+            {premioEditandoId === p.id ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px auto', gap: 10, alignItems: 'end' }}>
+                <div>
+                  <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Nombre</label>
+                  <input value={formEdicionPremio.nombre} onChange={e => setFormEdicionPremio({...formEdicionPremio, nombre: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Puntos</label>
+                  <input type="number" value={formEdicionPremio.puntos} onChange={e => setFormEdicionPremio({...formEdicionPremio, puntos: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Emoji</label>
+                  <input value={formEdicionPremio.emoji} onChange={e => setFormEdicionPremio({...formEdicionPremio, emoji: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={guardarEdicionPremio} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+                  <button onClick={() => setPremioEditandoId(null)} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Cancelar</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{p.emoji}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{p.nombre}{!p.activo && <span style={{ marginLeft: 8, fontSize: 11, color: '#999' }}>(desactivado)</span>}</div>
+                  <div style={{ fontSize: 11, color: '#999' }}>{p.puntos} puntos</div>
+                </div>
+                <button onClick={() => iniciarEdicionPremio(p)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Editar</button>
+                <button onClick={() => togglePremioActivo(p)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: p.activo ? '#ef4444' : '#16a34a', cursor: 'pointer' }}>{p.activo ? 'Desactivar' : 'Reactivar'}</button>
+              </div>
+            )}
+          </div>
+        ))}
+        <Paginador pagina={premiosData?.page || 1} totalPages={premiosData?.totalPages} onCambiar={setPremiosPagina} />
+      </div>
+    </div>
+  );
+
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
   const PanelNegocio = ({ negocio, onVolver }) => (
     <div style={{ flex: 1, overflow: 'auto' }}>
@@ -345,11 +501,13 @@ export default function Home() {
         <div style={{ display: 'flex', gap: 8 }}>
           {onVolver && <button onClick={onVolver} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 12, cursor: 'pointer' }}>← Volver</button>}
           {(seccionActiva === 'inicio' || seccionActiva === 'clientes') && <button onClick={() => setMostrarFormCliente(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 12, cursor: 'pointer' }}>+ Nuevo cliente</button>}
+          {seccionActiva === 'premios' && <button onClick={() => setMostrarFormPremio(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 12, cursor: 'pointer' }}>+ Nuevo premio</button>}
         </div>
       </div>
 
       {seccionActiva === 'canjes' && <VistaCanjes />}
       {seccionActiva === 'clientes' && <VistaClientes />}
+      {seccionActiva === 'premios' && <VistaPremios />}
 
       {(seccionActiva === 'inicio' || seccionActiva === 'clientes') && mostrarFormCliente && (
         <div style={{ margin: '20px 24px 0', background: '#fff', borderRadius: 12, border: '1px solid #6366f1', padding: 20 }}>
@@ -708,7 +866,7 @@ export default function Home() {
               <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Panel del negocio</div>
             </div>
             <div style={{ padding: '12px 8px', flex: 1 }}>
-              {[['🏠', 'Inicio', 'inicio'], ['👥', 'Mis clientes', 'clientes'], ['🎁', 'Premios', null], ['🔄', 'Canjes', 'canjes'], ['🔌', 'Integraciones', null]].map(([icon, label, id]) => (
+              {[['🏠', 'Inicio', 'inicio'], ['👥', 'Mis clientes', 'clientes'], ['🎁', 'Premios', 'premios'], ['🔄', 'Canjes', 'canjes'], ['🔌', 'Integraciones', null]].map(([icon, label, id]) => (
                 <div
                   key={label}
                   onClick={id ? () => setSeccionActiva(id) : undefined}

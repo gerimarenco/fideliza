@@ -63,6 +63,10 @@ export async function POST(request) {
     where: { id: clienteId }
   })
 
+  if (!premio.activo) {
+    return NextResponse.json({ error: 'Este premio ya no está disponible' }, { status: 400 })
+  }
+
   if (cliente.puntos < premio.puntos) {
     return NextResponse.json({ error: 'Puntos insuficientes' }, { status: 400 })
   }

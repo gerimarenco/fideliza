@@ -118,11 +118,23 @@
         pantalla dedicada con el listado paginado completo, mismo patrón
         que "Canjes" (el backend, `GET /api/clientes`, ya soportaba
         paginación).
-  - [ ] "Premios" (negocio) — **sin backend**. No existe `/api/premios`
-        (ni GET paginado ni POST/PATCH/DELETE); hoy los premios solo se
-        crean a mano en `prisma/seed.js`. Si el objetivo es que el
-        negocio los administre desde acá, hay que construir el CRUD
-        completo, no alcanza con conectar el botón.
+  - [x] "Premios" (negocio) — conectado. Se construyó el CRUD completo
+        que faltaba: `GET/POST/PATCH /api/premios` (mismo patrón de
+        autorización y paginación que clientes), con `activo Boolean`
+        agregado al modelo `Premio` para borrado lógico — "Desactivar"
+        no borra la fila, solo la saca de "Premios disponibles" del
+        cliente y de nuevos canjes; conserva el historial de canjes
+        pasados intacto (`Canje.premioId` nunca queda huérfano).
+        `GET /api/negocios` y `POST /api/canjes` filtran/validan por
+        `activo` (defensa en profundidad además del filtro de UI).
+        Decidido con el negocio: solo el negocio administra sus propios
+        premios (el admin sigue viendo la lista de solo lectura como
+        hoy, sin ítem de sidebar propio); alcanza con nombre/puntos/
+        emoji, sin descripción ni límite de stock por ahora. Probado en
+        el navegador con Postgres real: alta, edición, desactivar/
+        reactivar, y verificado que un canje contra un premio
+        desactivado es rechazado por el backend aunque se lo llame
+        directo (bypaseando la UI).
   - [ ] "Integraciones" (admin y negocio) — backend parcial. `PATCH
         /api/negocios` ya acepta `tiendanubeStoreId`/
         `tiendanubeAccessToken`, pero `GET /api/negocios` no expone esos
