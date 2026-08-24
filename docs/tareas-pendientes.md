@@ -90,7 +90,7 @@
 - [x] Frontend: paginación numerada en la lista de "Clientes", pantalla
       nueva de "Historial de canjes" conectada al ítem de sidebar que
       antes era decorativo.
-- [ ] **PR #2 abierto**, pendiente de mergear a `main`.
+- [x] PR #2 mergeado a `main`.
 
 ## Otros cabos sueltos observados en el código
 
@@ -108,6 +108,39 @@
       nombre/tipo/ciudad/emoji, antes solo aceptaba credenciales de
       Tiendanube). Probado en el navegador con Postgres real: negocio creado,
       logueado con la contraseña generada, y editado correctamente.
+- [ ] **Relevamiento de ítems del menú lateral sin conectar** (los tres
+      paneles): solo "Inicio" andaba de fábrica; "Canjes" y los botones
+      de negocio ya se conectaron en items anteriores. Estado actual:
+  - [x] "Negocios" (admin) — conectado: vuelve a la grilla general de
+        negocios (no tenía backend nuevo, ya existía la vista, solo
+        faltaba cablear el click).
+  - [x] "Clientes" (admin) y "Mis clientes" (negocio) — conectados:
+        pantalla dedicada con el listado paginado completo, mismo patrón
+        que "Canjes" (el backend, `GET /api/clientes`, ya soportaba
+        paginación).
+  - [ ] "Premios" (negocio) — **sin backend**. No existe `/api/premios`
+        (ni GET paginado ni POST/PATCH/DELETE); hoy los premios solo se
+        crean a mano en `prisma/seed.js`. Si el objetivo es que el
+        negocio los administre desde acá, hay que construir el CRUD
+        completo, no alcanza con conectar el botón.
+  - [ ] "Integraciones" (admin y negocio) — backend parcial. `PATCH
+        /api/negocios` ya acepta `tiendanubeStoreId`/
+        `tiendanubeAccessToken`, pero `GET /api/negocios` no expone esos
+        campos (a propósito, para no filtrar el token) ni un flag de
+        "conectado o no". Falta agregar un booleano seguro tipo
+        `tiendanubeConectado: !!tiendanubeStoreId` al `NEGOCIO_SELECT` y
+        la pantalla con el formulario. En el panel admin además queda
+        ambiguo a qué negocio se refiere si no hay uno seleccionado
+        (definir antes de construir).
+  - [ ] "Ajustes" (admin) — sin backend ni alcance definido, requiere
+        decisión de producto.
+  - [ ] Hallazgo colateral: el campo `slug` del negocio (habilita
+        Mercado Pago) solo se puede setear hoy desde el seed script — no
+        hay ningún endpoint que lo escriba. Cualquier negocio creado con
+        "+ Nuevo negocio" queda sin Mercado Pago habilitado y sin forma
+        de arreglarlo desde la UI. Relevante para cuando se aborde
+        "Integraciones".
+
 ## Cerrado / ya no aplica
 
 - [x] `fix.js` (script de un solo uso, con IDs hardcodeados de un negocio
