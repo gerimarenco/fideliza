@@ -161,6 +161,19 @@
         el admin viendo el panel de un negocio puntual.
   - [ ] "Ajustes" (admin) — sin backend ni alcance definido, requiere
         decisión de producto.
+  - [x] **Bug encontrado en producción** (reportado por Cecilia, no en
+        el relevamiento original): en el panel admin, con la grilla de
+        negocios a la vista (sin ningún negocio elegido), tocar
+        "Clientes", "Puntos y canjes" o "Integraciones" resaltaba el
+        ítem del sidebar pero la pantalla seguía mostrando la grilla —
+        esas secciones viven dentro del panel de un negocio puntual y
+        el contenido no reaccionaba a `seccionActiva` mientras no había
+        ninguno elegido. Se agrega un mensaje "Elegí un negocio para ver
+        sus [clientes/canjes/integraciones]" con un botón que lleva de
+        vuelta a la grilla, en vez de quedarse en silencio. Probado en
+        el navegador reproduciendo el flujo exacto (Negocios → Clientes
+        sin elegir ninguno) y verificado que dentro del panel de un
+        negocio sigue andando igual que antes.
 
 ## Cerrado / ya no aplica
 

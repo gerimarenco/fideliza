@@ -831,7 +831,12 @@ export default function Home() {
             </div>
           </div>
 
-          {!negocioActivo ? (
+          {!negocioActivo && seccionActiva !== 'inicio' && seccionActiva !== 'negocios' ? (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: '#999' }}>
+              <div style={{ fontSize: 14 }}>Elegí un negocio para ver sus {seccionActiva}</div>
+              <button onClick={() => setSeccionActiva('negocios')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer' }}>Ver negocios</button>
+            </div>
+          ) : !negocioActivo ? (
             <div style={{ flex: 1, overflow: 'auto' }}>
               <div style={{ padding: '14px 24px', background: '#fff', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ fontSize: 15, fontWeight: 600 }}>Inicio</div>
