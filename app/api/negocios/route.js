@@ -4,8 +4,9 @@ import { hashPassword } from '@/lib/password'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
-// Nunca incluir password/tiendanubeAccessToken acá: esta respuesta viaja
-// tal cual al navegador de negocio y cliente.
+// Nunca incluir password/tiendanubeAccessToken tal cual acá: esta respuesta
+// viaja al navegador de negocio y cliente. tiendanubeAccessToken se selecciona
+// solo para calcular tiendanubeConectado y se descarta antes de responder.
 const NEGOCIO_SELECT = {
   id: true,
   nombre: true,
@@ -14,6 +15,8 @@ const NEGOCIO_SELECT = {
   emoji: true,
   puntosXPeso: true,
   slug: true,
+  tiendanubeStoreId: true,
+  tiendanubeAccessToken: true,
   clientes: {
     select: { id: true, nombre: true, email: true, puntos: true }
   },
@@ -22,6 +25,10 @@ const NEGOCIO_SELECT = {
     select: { id: true, nombre: true, puntos: true, emoji: true }
   },
 }
+
+// Formato del slug: minúsculas, números y guiones simples, sin espacios ni
+// guiones al principio/final (va en la URL pública de pagos).
+const SLUG_VALIDO = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -41,7 +48,11 @@ export async function GET() {
   }
 
   const negocios = await prisma.negocio.findMany({ where, select: NEGOCIO_SELECT })
-  return NextResponse.json(negocios)
+  const negociosSeguros = negocios.map(({ tiendanubeAccessToken, ...negocio }) => ({
+    ...negocio,
+    tiendanubeConectado: !!tiendanubeAccessToken,
+  }))
+  return NextResponse.json(negociosSeguros)
 }
 
 export async function POST(request) {
@@ -95,9 +106,18 @@ export async function PATCH(request) {
     tiendanubeAccessToken: body.tiendanubeAccessToken,
   }
 
+  // El slug habilita Mercado Pago (va en la URL pública de pagos): igual que
+  // las credenciales de Tiendanube, lo puede cargar el admin o el propio
+  // negocio.
+  if (body.slug !== undefined) {
+    if (!SLUG_VALIDO.test(body.slug)) {
+      return NextResponse.json({ error: 'El identificador solo puede tener minúsculas, números y guiones simples, sin espacios' }, { status: 400 })
+    }
+    data.slug = body.slug
+  }
+
   // Nombre/tipo/ciudad/emoji son datos básicos del negocio: solo el admin
-  // los edita (el negocio, desde su propio panel, solo carga credenciales
-  // de Tiendanube).
+  // los edita (el negocio, desde su propio panel, solo carga integraciones).
   if (esAdmin) {
     if (body.nombre !== undefined) data.nombre = body.nombre
     if (body.tipo !== undefined) data.tipo = body.tipo
@@ -105,9 +125,16 @@ export async function PATCH(request) {
     if (body.emoji !== undefined) data.emoji = body.emoji
   }
 
-  const negocio = await prisma.negocio.update({
-    where: { id: body.id },
-    data,
-  })
-  return NextResponse.json(negocio)
+  let negocio
+  try {
+    negocio = await prisma.negocio.update({ where: { id: body.id }, data })
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return NextResponse.json({ error: 'Ese identificador ya está en uso por otro negocio' }, { status: 409 })
+    }
+    throw error
+  }
+
+  const { password, tiendanubeAccessToken, ...negocioSeguro } = negocio
+  return NextResponse.json({ ...negocioSeguro, tiendanubeConectado: !!tiendanubeAccessToken })
 }

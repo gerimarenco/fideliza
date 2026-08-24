@@ -135,23 +135,45 @@
         reactivar, y verificado que un canje contra un premio
         desactivado es rechazado por el backend aunque se lo llame
         directo (bypaseando la UI).
-  - [ ] "Integraciones" (admin y negocio) — backend parcial. `PATCH
-        /api/negocios` ya acepta `tiendanubeStoreId`/
-        `tiendanubeAccessToken`, pero `GET /api/negocios` no expone esos
-        campos (a propósito, para no filtrar el token) ni un flag de
-        "conectado o no". Falta agregar un booleano seguro tipo
-        `tiendanubeConectado: !!tiendanubeStoreId` al `NEGOCIO_SELECT` y
-        la pantalla con el formulario. En el panel admin además queda
-        ambiguo a qué negocio se refiere si no hay uno seleccionado
-        (definir antes de construir).
+  - [x] "Integraciones" (admin y negocio) — conectado. `GET /api/negocios`
+        ahora expone `tiendanubeStoreId` (no es secreto) y un booleano
+        calculado `tiendanubeConectado` (nunca el `tiendanubeAccessToken`
+        en sí). `PATCH /api/negocios` gana soporte para `slug` (con
+        validación de formato y manejo del error de unicidad de Prisma,
+        `P2002`, con un mensaje claro en vez de un 500) — antes el `slug`
+        que habilita Mercado Pago solo se podía cargar a mano en la base
+        (era el hallazgo colateral anotado más abajo, ya resuelto). De
+        paso se corrige que `PATCH /api/negocios` devolvía el objeto
+        crudo del negocio, incluyendo el hash de password y el
+        `tiendanubeAccessToken` en texto plano — ahora responde con la
+        misma forma segura que el resto de los endpoints. Pantalla nueva
+        con tres bloques: Tiendanube (Store ID + Access Token, éste
+        último nunca precargado), Mercado Pago (el `slug`, con aviso de
+        que cambiarlo rompe links ya compartidos), y Dragon Fish (card
+        fija "Bloqueada", sin campos, mientras se espera a Zoo Logic).
+        Decidido con el negocio: el propio negocio también puede editar
+        su `slug` (no solo el admin). Probado en el navegador con
+        Postgres real: carga de credenciales de Tiendanube y del slug,
+        badges "Conectada"/"No conectada" correctos, validación de
+        formato del slug, error 409 al repetir un slug ya usado por otro
+        negocio, persistencia tras recargar la página (con el Access
+        Token siempre en blanco), y la misma pantalla funcionando para
+        el admin viendo el panel de un negocio puntual.
   - [ ] "Ajustes" (admin) — sin backend ni alcance definido, requiere
         decisión de producto.
-  - [ ] Hallazgo colateral: el campo `slug` del negocio (habilita
-        Mercado Pago) solo se puede setear hoy desde el seed script — no
-        hay ningún endpoint que lo escriba. Cualquier negocio creado con
-        "+ Nuevo negocio" queda sin Mercado Pago habilitado y sin forma
-        de arreglarlo desde la UI. Relevante para cuando se aborde
-        "Integraciones".
+  - [x] **Bug encontrado en producción** (reportado por Cecilia, no en
+        el relevamiento original): en el panel admin, con la grilla de
+        negocios a la vista (sin ningún negocio elegido), tocar
+        "Clientes", "Puntos y canjes" o "Integraciones" resaltaba el
+        ítem del sidebar pero la pantalla seguía mostrando la grilla —
+        esas secciones viven dentro del panel de un negocio puntual y
+        el contenido no reaccionaba a `seccionActiva` mientras no había
+        ninguno elegido. Se agrega un mensaje "Elegí un negocio para ver
+        sus [clientes/canjes/integraciones]" con un botón que lleva de
+        vuelta a la grilla, en vez de quedarse en silencio. Probado en
+        el navegador reproduciendo el flujo exacto (Negocios → Clientes
+        sin elegir ninguno) y verificado que dentro del panel de un
+        negocio sigue andando igual que antes.
 
 ## Cerrado / ya no aplica
 

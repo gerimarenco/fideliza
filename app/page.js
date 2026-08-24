@@ -34,6 +34,7 @@ export default function Home() {
   const [nuevoPremio, setNuevoPremio] = useState({ nombre: '', puntos: '', emoji: '' });
   const [premioEditandoId, setPremioEditandoId] = useState(null);
   const [formEdicionPremio, setFormEdicionPremio] = useState({ nombre: '', puntos: '', emoji: '' });
+  const [formIntegraciones, setFormIntegraciones] = useState({ tiendanubeStoreId: '', tiendanubeAccessToken: '', slug: '' });
 
   const isAdmin = session?.user?.role === 'admin';
   const isNegocio = session?.user?.role === 'negocio';
@@ -130,6 +131,17 @@ export default function Home() {
     if (seccionActiva !== 'premios') return;
     cargarPremios(negocioMostrado?.id, premiosPagina);
   }, [negocioMostrado?.id, premiosPagina, seccionActiva]);
+
+  // Al entrar a Integraciones se precarga lo que ya está cargado
+  // (tiendanubeAccessToken nunca viaja del backend, ese campo arranca vacío)
+  useEffect(() => {
+    if (seccionActiva !== 'integraciones') return;
+    setFormIntegraciones({
+      tiendanubeStoreId: negocioMostrado?.tiendanubeStoreId || '',
+      tiendanubeAccessToken: '',
+      slug: negocioMostrado?.slug || '',
+    });
+  }, [negocioMostrado?.id, seccionActiva]);
 
   const pts = Math.floor((parseFloat(monto) || 0) / 1000);
 
@@ -292,6 +304,30 @@ export default function Home() {
       return;
     }
     cargarPremios((isAdmin ? negocioActivo : negocioPropio)?.id, premiosPagina);
+    cargarNegocios();
+  };
+
+  const guardarIntegraciones = async () => {
+    const negocio = negocioMostrado;
+    const body = { id: negocio.id };
+    // Solo se manda lo que se tipeó: si el Access Token queda en blanco no
+    // hay que pisar el que ya está guardado.
+    if (formIntegraciones.tiendanubeStoreId) body.tiendanubeStoreId = formIntegraciones.tiendanubeStoreId;
+    if (formIntegraciones.tiendanubeAccessToken) body.tiendanubeAccessToken = formIntegraciones.tiendanubeAccessToken;
+    if (formIntegraciones.slug) body.slug = formIntegraciones.slug;
+
+    const res = await fetch('/api/negocios', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
+      return;
+    }
+    alert('✅ Integraciones actualizadas');
+    setFormIntegraciones(f => ({ ...f, tiendanubeAccessToken: '' }));
     cargarNegocios();
   };
 
@@ -493,6 +529,56 @@ export default function Home() {
     </div>
   );
 
+  // Badge "Conectada"/"No conectada" reutilizado en cada integración
+  const BadgeConexion = ({ conectada }) => (
+    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 500, background: conectada ? '#dcfce7' : '#f5f5f5', color: conectada ? '#16a34a' : '#999' }}>
+      {conectada ? 'Conectada' : 'No conectada'}
+    </span>
+  );
+
+  // Alta/edición de las integraciones del negocio (Tiendanube, Mercado Pago,
+  // Dragon Fish)
+  const VistaIntegraciones = () => (
+    <div style={{ padding: 24, display: 'grid', gap: 16, maxWidth: 640 }}>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Tiendanube</div>
+          <BadgeConexion conectada={negocioMostrado?.tiendanubeConectado} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+          <div>
+            <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Store ID</label>
+            <input value={formIntegraciones.tiendanubeStoreId} onChange={e => setFormIntegraciones({...formIntegraciones, tiendanubeStoreId: e.target.value})} placeholder="123456" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Access Token</label>
+            <input type="password" value={formIntegraciones.tiendanubeAccessToken} onChange={e => setFormIntegraciones({...formIntegraciones, tiendanubeAccessToken: e.target.value})} placeholder={negocioMostrado?.tiendanubeConectado ? '•••••••• (ya cargado)' : 'Pegar token acá'} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Mercado Pago</div>
+          <BadgeConexion conectada={!!negocioMostrado?.slug} />
+        </div>
+        <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Identificador del negocio (slug)</label>
+        <input value={formIntegraciones.slug} onChange={e => setFormIntegraciones({...formIntegraciones, slug: e.target.value})} placeholder="mi-negocio" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+        <div style={{ fontSize: 11, color: '#999', marginTop: 6 }}>Solo minúsculas, números y guiones. Cambiarlo rompe links de pago ya compartidos.</div>
+      </div>
+
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20, opacity: 0.7 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Dragon Fish</div>
+          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 500, background: '#f5f5f5', color: '#999' }}>Bloqueada</span>
+        </div>
+        <div style={{ fontSize: 12, color: '#999', marginTop: 8 }}>En espera de soporte de Zoo Logic.</div>
+      </div>
+
+      <button onClick={guardarIntegraciones} style={{ padding: '10px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar integraciones</button>
+    </div>
+  );
+
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
   const PanelNegocio = ({ negocio, onVolver }) => (
     <div style={{ flex: 1, overflow: 'auto' }}>
@@ -508,6 +594,7 @@ export default function Home() {
       {seccionActiva === 'canjes' && <VistaCanjes />}
       {seccionActiva === 'clientes' && <VistaClientes />}
       {seccionActiva === 'premios' && <VistaPremios />}
+      {seccionActiva === 'integraciones' && <VistaIntegraciones />}
 
       {(seccionActiva === 'inicio' || seccionActiva === 'clientes') && mostrarFormCliente && (
         <div style={{ margin: '20px 24px 0', background: '#fff', borderRadius: 12, border: '1px solid #6366f1', padding: 20 }}>
@@ -722,7 +809,7 @@ export default function Home() {
               <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Panel del negocio</div>
             </div>
             <div style={{ padding: '12px 8px', flex: 1 }}>
-              {[['🏠', 'Inicio', 'inicio'], ['🏪', 'Negocios', 'negocios'], ['👥', 'Clientes', 'clientes'], ['⭐', 'Puntos y canjes', 'canjes'], ['🔌', 'Integraciones', null], ['⚙️', 'Ajustes', null]].map(([icon, label, id]) => {
+              {[['🏠', 'Inicio', 'inicio'], ['🏪', 'Negocios', 'negocios'], ['👥', 'Clientes', 'clientes'], ['⭐', 'Puntos y canjes', 'canjes'], ['🔌', 'Integraciones', 'integraciones'], ['⚙️', 'Ajustes', null]].map(([icon, label, id]) => {
                 const activo = id === 'negocios' ? !negocioActivo : (!!id && seccionActiva === id);
                 return (
                   <div
@@ -744,7 +831,12 @@ export default function Home() {
             </div>
           </div>
 
-          {!negocioActivo ? (
+          {!negocioActivo && seccionActiva !== 'inicio' && seccionActiva !== 'negocios' ? (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: '#999' }}>
+              <div style={{ fontSize: 14 }}>Elegí un negocio para ver sus {seccionActiva}</div>
+              <button onClick={() => setSeccionActiva('negocios')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer' }}>Ver negocios</button>
+            </div>
+          ) : !negocioActivo ? (
             <div style={{ flex: 1, overflow: 'auto' }}>
               <div style={{ padding: '14px 24px', background: '#fff', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ fontSize: 15, fontWeight: 600 }}>Inicio</div>
@@ -866,7 +958,7 @@ export default function Home() {
               <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Panel del negocio</div>
             </div>
             <div style={{ padding: '12px 8px', flex: 1 }}>
-              {[['🏠', 'Inicio', 'inicio'], ['👥', 'Mis clientes', 'clientes'], ['🎁', 'Premios', 'premios'], ['🔄', 'Canjes', 'canjes'], ['🔌', 'Integraciones', null]].map(([icon, label, id]) => (
+              {[['🏠', 'Inicio', 'inicio'], ['👥', 'Mis clientes', 'clientes'], ['🎁', 'Premios', 'premios'], ['🔄', 'Canjes', 'canjes'], ['🔌', 'Integraciones', 'integraciones']].map(([icon, label, id]) => (
                 <div
                   key={label}
                   onClick={id ? () => setSeccionActiva(id) : undefined}
