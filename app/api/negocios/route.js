@@ -69,16 +69,26 @@ export async function POST(request) {
 
   const passwordGenerada = Math.random().toString(36).slice(-8)
 
-  const { password, ...negocio } = await prisma.negocio.create({
-    data: {
-      nombre: body.nombre,
-      tipo: body.tipo,
-      ciudad: body.ciudad,
-      emoji: body.emoji,
-      email: body.email,
-      password: await hashPassword(passwordGenerada),
+  let negocioCreado
+  try {
+    negocioCreado = await prisma.negocio.create({
+      data: {
+        nombre: body.nombre,
+        tipo: body.tipo,
+        ciudad: body.ciudad,
+        emoji: body.emoji,
+        email: body.email,
+        password: await hashPassword(passwordGenerada),
+      }
+    })
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return NextResponse.json({ error: 'Ya existe un negocio con ese email' }, { status: 409 })
     }
-  })
+    throw error
+  }
+
+  const { password, ...negocio } = negocioCreado
 
   // passwordGenerada va en texto plano en la respuesta: el admin la
   // necesita para pasársela al negocio. El hash (password) se descarta acá,
