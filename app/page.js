@@ -44,14 +44,18 @@ export default function Home() {
 
   const negocioMostrado = isAdmin ? negocioActivo : (isNegocio ? negocioPropio : null);
 
-  const cargarNegocios = () => {
+  // esCargaInicial solo es true la primera vez (justo después del login):
+  // ahí sí conviene pararse directo en un negocio. Las recargas que dispara
+  // cualquier acción (crear/editar/desactivar) no deben sacar al admin de la
+  // grilla si ya estaba parado ahí a propósito (negocioActivo en null).
+  const cargarNegocios = (esCargaInicial = false) => {
     fetch('/api/negocios')
       .then(res => res.json())
       .then(data => {
         setNegocios(data);
         if (isAdmin) {
-          if (data.length > 0 && !negocioActivo) setNegocioActivo(data[0]);
-          else if (negocioActivo) setNegocioActivo(data.find(n => n.id === negocioActivo.id) || data[0]);
+          if (esCargaInicial && data.length > 0 && !negocioActivo) setNegocioActivo(data[0]);
+          else if (negocioActivo) setNegocioActivo(data.find(n => n.id === negocioActivo.id) || null);
         }
         if (isNegocio && session?.user?.id) {
           const propio = data.find(n => n.id === session.user.id);
@@ -73,7 +77,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (session) cargarNegocios();
+    if (session) cargarNegocios(true);
   }, [session]);
 
   const cargarEstadisticas = (negocioId) => {
@@ -260,6 +264,24 @@ export default function Home() {
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al editar el negocio. Probá de nuevo.');
+    }
+  };
+
+  const toggleNegocioActivo = async (neg) => {
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: neg.id, activo: !neg.activo })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo actualizar el negocio'}`);
+        return;
+      }
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al actualizar el negocio. Probá de nuevo.');
     }
   };
 
@@ -1010,7 +1032,7 @@ export default function Home() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
                   <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
                     <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Negocios activos</div>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: '#1a1a1a' }}>{negocios.length}</div>
+                    <div style={{ fontSize: 24, fontWeight: 600, color: '#1a1a1a' }}>{negocios.filter(n => n.activo).length}</div>
                   </div>
                   <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
                     <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Clientes registrados</div>
@@ -1057,7 +1079,7 @@ export default function Home() {
                         <>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                             <div style={{ width: 36, height: 36, borderRadius: 8, background: '#FBEAF0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{neg.emoji}</div>
-                            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#dcfce7', color: '#16a34a', fontWeight: 500 }}>Activo</span>
+                            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: neg.activo ? '#dcfce7' : '#f3f4f6', color: neg.activo ? '#16a34a' : '#999', fontWeight: 500 }}>{neg.activo ? 'Activo' : 'Inactivo'}</span>
                           </div>
                           <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{neg.nombre}</div>
                           <div style={{ fontSize: 12, color: '#999' }}>{neg.tipo} · {neg.ciudad}</div>
@@ -1068,6 +1090,7 @@ export default function Home() {
                           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                             <button onClick={() => { setNegocioActivo(neg); setMostrarFormCliente(false); }} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: 'none', background: '#eef2ff', color: '#6366f1', cursor: 'pointer' }}>Ver panel</button>
                             <button onClick={() => iniciarEdicionNegocio(neg)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Editar</button>
+                            <button onClick={() => toggleNegocioActivo(neg)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: neg.activo ? '#ef4444' : '#16a34a', cursor: 'pointer' }}>{neg.activo ? 'Desactivar' : 'Reactivar'}</button>
                           </div>
                         </>
                       )}
