@@ -13,6 +13,7 @@ const NEGOCIO_SELECT = {
   tipo: true,
   ciudad: true,
   emoji: true,
+  activo: true,
   puntosXPeso: true,
   slug: true,
   tiendanubeStoreId: true,
@@ -136,13 +137,16 @@ export async function PATCH(request) {
     data.puntosXPeso = puntosXPeso
   }
 
-  // Nombre/tipo/ciudad/emoji son datos básicos del negocio: solo el admin
-  // los edita (el negocio, desde su propio panel, solo carga integraciones).
+  // Nombre/tipo/ciudad/emoji/activo son datos administrativos del negocio:
+  // solo el admin los edita (el negocio, desde su propio panel, solo carga
+  // integraciones). Desactivar es borrado lógico, igual que Premio.activo:
+  // no borra clientes/premios/canjes históricos, solo lo saca de circulación.
   if (esAdmin) {
     if (body.nombre !== undefined) data.nombre = body.nombre
     if (body.tipo !== undefined) data.tipo = body.tipo
     if (body.ciudad !== undefined) data.ciudad = body.ciudad
     if (body.emoji !== undefined) data.emoji = body.emoji
+    if (body.activo !== undefined) data.activo = !!body.activo
   }
 
   let negocio
