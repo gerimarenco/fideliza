@@ -94,4 +94,43 @@ Sesión extensa de trabajo con Claude Code que terminó en el PR #1
 
 ## 2026-08-22 — Paginación de listados (PR #2)
 
-Ver `sesion-actual.md` para el detalle completo.
+Diseño del agente local de Dragon Fish (sin código, quedó bloqueado
+esperando a Zoo Logic). Auditoría de las consultas Prisma de los paneles:
+se agregaron paginación a `GET /api/clientes` y un `GET /api/canjes`
+nuevo (antes solo existía el `POST`), y se conectó la lista de clientes y
+una pantalla nueva de "Historial de canjes" (el ítem de sidebar
+"Canjes"/"Puntos y canjes", hasta entonces decorativo) a esos endpoints.
+**PR #2 mergeado.**
+
+## 2026-08-22 (tarde) — Documentación de contexto (PR #3)
+
+Se creó esta carpeta `docs/` (`contexto-proyecto.md`, `progreso.md`,
+`sesion-actual.md`, `tareas-pendientes.md`) para poder retomar el
+proyecto entre sesiones sin releer todo el código. **PR #3 mergeado.**
+
+## 2026-08-23/24 — Conectar todo el sidebar + Ajustes de negocio (PRs #4-#9)
+
+Sesión larga retomando el proyecto: se conectó, uno por uno, cada ítem
+decorativo que quedaba en los tres paneles, más el "Ajustes" del panel
+de negocio (que no existía). Ver `sesion-actual.md` para el detalle
+completo de cada PR, lo probado, y las decisiones tomadas con el negocio
+antes de construir cada pantalla. En orden:
+
+1. **PR #4** (ya estaba abierto de una sesión previa): botón "Canjear" en
+   el panel de cliente, conectado a `POST /api/canjes`.
+2. **PR #5**: "+ Nuevo negocio" y "Editar" en el panel admin; se borró
+   `borrar-cliente.sql` (resto sin uso de una tarea ya cerrada).
+3. **PR #6**: "Negocios" y "Clientes"/"Mis clientes" del sidebar.
+4. **PR #7**: "Premios" del panel de negocio — CRUD completo nuevo
+   (`/api/premios`), con borrado lógico (`Premio.activo`).
+5. **PR #8**: "Integraciones" (Tiendanube + Mercado Pago + Dragon Fish) en
+   ambos paneles, más un bug real encontrado en producción (el contenido
+   del panel admin no reaccionaba a `seccionActiva` sin un negocio
+   elegido) y arreglado en el mismo PR.
+6. **PR #9**: "Ajustes" del panel de negocio (ítem nuevo): cambio de
+   contraseña, `puntosXPeso` editable.
+7. Manejo de errores agregado a los botones de guardado (`try/catch` +
+   mensaje visible) — pusheado a la rama, **sin PR abierto todavía**.
+8. Se descubrió que la cuenta de Netlify se quedó sin créditos operativos
+   — deploys de producción pausados hasta que se resuelva (ver
+   `contexto-proyecto.md` y `tareas-futuras.md`). No es un bug de código.
