@@ -939,7 +939,7 @@ export default function Home() {
           <div style={{ width: 210, background: '#fff', borderRight: '1px solid #eee', padding: '20px 0', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '0 20px 16px', borderBottom: '1px solid #eee' }}>
               <div style={{ fontSize: 18, fontWeight: 600, color: '#1a1a1a' }}>Fideliza</div>
-              <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Panel del negocio</div>
+              <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Panel de administrador</div>
             </div>
             <div style={{ padding: '12px 8px', flex: 1 }}>
               {[['🏠', 'Inicio', 'inicio'], ['🏪', 'Negocios', 'negocios'], ['👥', 'Clientes', 'clientes'], ['⭐', 'Puntos y canjes', 'canjes'], ['🔌', 'Integraciones', 'integraciones'], ['⚙️', 'Ajustes', null]].map(([icon, label, id]) => {
