@@ -1,8 +1,9 @@
 # Tareas pendientes — Fideliza
 
-> Última actualización: 2026-08-22. Marca lo hecho (`[x]`) y lo que falta
+> Última actualización: 2026-08-24. Marca lo hecho (`[x]`) y lo que falta
 > (`[ ]`), agrupado por área. Ver `contexto-proyecto.md` para el porqué de
-> cada cosa y `progreso.md`/`sesion-actual.md` para cuándo se hizo.
+> cada cosa y `progreso.md`/`sesion-actual.md` para cuándo se hizo. Ver
+> `tareas-futuras.md` para lo que sigue después de esta sesión.
 
 ## Dragon Fish
 
@@ -193,6 +194,32 @@
         el navegador reproduciendo el flujo exacto (Negocios → Clientes
         sin elegir ninguno) y verificado que dentro del panel de un
         negocio sigue andando igual que antes.
+
+## Deploy / Netlify
+
+- [ ] **Bloqueante actual**: la cuenta de Netlify (`gerimarenco`) se quedó
+      sin créditos operativos del ciclo de facturación. El sitio publicado
+      sigue en línea, pero **los deploys de producción y los Agent
+      Runners están pausados** — cualquier PR que se fusione a `main` de
+      acá en adelante no se va a publicar solo hasta que se resuelva esto
+      (upgradear el plan, o esperar al próximo ciclo). Confirmado con el
+      propio dashboard de Netlify (`Deploys` → banner "running on
+      operational credits"). Cecilia dijo que va a hacer el upgrade.
+      Ver `tareas-futuras.md`.
+- [x] Manejo de errores en los botones de guardado del frontend: varias
+      funciones (`crearNegocio`, `guardarEdicionNegocio`, `crearPremio`,
+      `guardarEdicionPremio`, `togglePremioActivo`, `guardarIntegraciones`,
+      `guardarPuntosXPeso`, `cambiarPassword`, `agregarCliente`,
+      `sumarPuntos`) llamaban a `fetch` sin `try/catch`. Si el servidor
+      devolvía algo que no era JSON válido (error 500/502 de la función
+      serverless, problema de red), la promesa se rechazaba en silencio y
+      el botón "no hacía nada" a los ojos de quien lo usa — sin ningún
+      mensaje de error. Se detectó al intentar diagnosticar por qué
+      "Guardar negocio" no reaccionaba en producción (posiblemente
+      relacionado con el bloqueo de Netlify de arriba, no confirmado
+      todavía). Ahora todos esos casos muestran un `alert()` claro.
+      **Pusheado a la rama de trabajo, sin PR abierto todavía** — no tenía
+      sentido abrir/mergear mientras los deploys estaban pausados.
 
 ## Cerrado / ya no aplica
 

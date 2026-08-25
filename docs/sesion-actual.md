@@ -1,107 +1,215 @@
-# Sesión actual — 2026-08-22
+# Sesión actual — 2026-08-23/24
 
-> Continuación directa del PR #1 (mergeado). Esta sesión cubre: la
-> discusión de arquitectura para Dragon Fish, la revisión de consultas de
-> Prisma, y la paginación de listados (PR #2). Reconstruido de `git log`
-> más el propio hilo de la conversación.
+> Continuación directa del PR #3 (documentación de contexto, mergeado).
+> Esta sesión cubre: fusión de PR #4 (canje de cliente, ya estaba
+> probado), y luego un relevamiento completo del menú lateral de los tres
+> paneles — casi todos sus ítems eran decorativos — conectando uno por
+> uno (PRs #5 a #9), más el descubrimiento de un problema real de cuenta
+> en Netlify. Reconstruido del propio hilo de la conversación.
 
-## 1. Diseño del agente local para Dragon Fish (sin código todavía)
+## 1. Fusión del PR #4 (arrastrado de una sesión previa)
 
-Se recibió el payload real del webhook de Dragon Fish (confirmando que no
-trae datos de la venta, solo un `Codigo`) y se discutió cómo resolverlo
-sin exponer la PC del negocio a internet. Se acordó un agente local con
-**polling** (nunca escucha conexiones entrantes, solo hace llamadas
-salientes hacia Fideliza y hacia la API REST local de Dragon Fish). Ver
-el diseño completo en `contexto-proyecto.md` y las tareas concretas en
-`tareas-pendientes.md`. **No se escribió código** — quedó bloqueado
-esperando la respuesta de soporte de Zoo Logic sobre el formato real de
-la consulta por `Codigo`.
+El PR #4 ("Conectar el botón de canjear en el panel del cliente") ya
+estaba abierto, probado y en verde al arrancar esta sesión. Se confirmó
+CI verde y se fusionó sin cambios adicionales.
 
-## 2. Revisión de consultas de Prisma en los paneles de Admin/Negocio
+## 2. Relevamiento del menú lateral
 
-Se pidió revisar los `findMany`/`findFirst` de los paneles buscando
-over-fetching, índices faltantes y problemas de escala. Hallazgos:
+A pedido explícito ("antes de tocar código, hacé un relevamiento
+completo"), se revisaron los tres paneles ítem por ítem: qué estaba
+conectado, qué no, y si el backend necesario ya existía o había que
+construirlo. Resultado resumido (detalle completo en el historial de
+`tareas-pendientes.md` de ese momento):
 
-- **Crítico**: `GET /api/negocios` y `GET /api/clientes` no tenían
-  ningún chequeo de auth (el middleware excluye `/api/*`), exponiendo
-  hashes de password y el `tiendanubeAccessToken` en texto plano a
-  cualquiera sin loguearse. **Se arregló primero, por ser lo más urgente**
-  (agregando sesión + autorización por rol a todos los endpoints, más
-  `select` en vez de `include` para nunca devolver esos campos).
-- **Índices faltantes** en las foreign keys usadas por esas consultas.
-  Se agregaron y se verificó con `EXPLAIN ANALYZE` (20.000 clientes de
-  prueba) que el planner pasó de sequential scan a bitmap index scan.
-- **Listados sin paginar**: la lista de clientes de un negocio, y (una
-  vez identificado que no existía) un historial de canjes. Esto se
-  encaró en dos fases, ver más abajo.
+- **Admin**: Inicio ✅, Negocios ❌, Clientes ❌, Puntos y canjes ✅,
+  Integraciones ❌, Ajustes ❌ (sin alcance definido).
+- **Negocio**: Inicio ✅, Mis clientes ❌, Premios ❌, Canjes ✅,
+  Integraciones ❌ (no tenía ítem "Ajustes" todavía).
+- **Cliente**: sin sidebar, ya todo conectado.
 
-## 3. Paginación de listados (PR #2)
+A partir de ahí se encaró de a un ítem por vez, charlando el diseño antes
+de tocar código en los casos con alcance ambiguo (Premios, Integraciones,
+Ajustes).
 
-Se acordó paginación numerada (no infinite scroll, para ser consistente
-con el resto del panel, que es tipo tabla de administración) y encarar
-primero el backend, después el frontend.
+## 3. PR #5 — "+ Nuevo negocio" y "Editar" (panel admin)
 
-### Fase 1 — Backend (`80e317c`)
+- `POST /api/negocios` extendido para pedir `email` y generar una
+  contraseña (mismo patrón que `POST /api/clientes`) — antes un negocio
+  creado por acá no tenía forma de loguearse.
+- `PATCH /api/negocios` extendido para que el admin edite
+  nombre/tipo/ciudad/emoji (antes solo aceptaba credenciales de
+  Tiendanube).
+- Se borró `borrar-cliente.sql` (resto sin uso de una tarea ya cerrada,
+  mismo caso que `fix.js`).
+- Probado en el navegador con Postgres real. **Mergeado.**
 
-- `GET /api/clientes?negocioId=X&page=&pageSize=`: agrega `skip`/`take`
-  (default `pageSize=20`, tope 100), devuelve
-  `{ items, page, pageSize, total, totalPages }` en vez de un array
-  pelado. Se le sacó el `canjes: true` del `select` (se movió a su propio
-  endpoint). Este endpoint no lo usaba el frontend todavía, así que
-  cambiar la forma de la respuesta no rompió nada.
-- `GET /api/canjes?negocioId=X&page=&pageSize=` (**nuevo** — antes solo
-  existía el `POST`): historial de canjes del negocio completo, cruzando
-  por `premio.negocioId`, mismo esquema de auth que el resto. No existía
-  ninguna pantalla ni endpoint de listado de canjes hasta ahora.
-- Se decidió explícitamente **no tocar** `GET /api/negocios`: el array
-  `negocio.clientes` sigue completo a propósito, porque lo necesita el
-  selector de "Registrar compra manual" en el panel.
-- Probado contra Postgres real con 45 clientes / 25 canjes: conteos y
-  `totalPages` exactos, límites de auth (sin sesión, cliente, negocio
-  ajeno) verificados.
+## 4. PR #6 — "Negocios" y "Clientes"/"Mis clientes"
 
-### Fase 2 — Frontend (`d5c75db`)
+- "Negocios" (admin) vuelve a la grilla general (`setNegocioActivo(null)`,
+  extraído a una función `volverANegocios` para no duplicar la lógica que
+  ya tenía "← Volver").
+- "Clientes" (admin) y "Mis clientes" (negocio): pantalla dedicada con el
+  listado paginado completo, mismo patrón que ya tenía "Canjes" — el
+  backend (`GET /api/clientes`) ya soportaba paginación desde el PR #2.
+- Probado con 11 clientes de prueba (paginación de a 10) en ambos roles.
+  **Mergeado.**
 
-- La lista "Clientes" del panel pasó a consumir `/api/clientes` paginado
-  (10 por página), con controles "Anterior / Página X de Y / Siguiente".
-  El selector de compra manual y la tarjeta "Clientes activos" siguen
-  usando `negocio.clientes` completo, sin tocar.
-- Pantalla nueva "Historial de canjes": se conectó el ítem de sidebar
-  "Canjes" (negocio) / "Puntos y canjes" (admin) — hasta ahora
-  decorativo — a una vista real y paginada. Aparece tanto para el negocio
-  logueado como para el admin viendo un negocio puntual (comparten
-  `PanelNegocio`).
-- La lista de clientes se refresca automáticamente después de sumar
-  puntos o agregar un cliente nuevo.
-- Probado en el navegador con Playwright (23 clientes / 14 canjes),
-  logueado como negocio y como admin: paginación numerada funcionando en
-  ambas listas, selector de compra manual con la lista completa intacta,
-  "Sumar puntos" refrescando lista y estadísticas correctamente.
+## 5. PR #7 — "Premios" (panel de negocio)
 
-## 4. Corrección de rama tras el merge del PR #1
+Charlado antes de construir (tres decisiones tomadas con el negocio):
+borrado lógico en vez de bloquear o borrar físicamente, solo el negocio
+administra sus propios premios (no el admin), y alcanza con
+nombre/puntos/emoji sin campos extra por ahora.
 
-Al pushear la Fase 1, se detectó que el PR #1 ya había sido mergeado
-(mientras se trabajaba) y que la rama remota había sido borrada por
-GitHub al mergear. El push inicial recreó la rama parada sobre historial
-viejo (pre-merge) en vez del `main` actualizado. Se corrigió: se reinició
-la rama desde el `main` actual y se reaplicó (`cherry-pick`) el único
-commit que no estaba todavía en `main`, con `push --force-with-lease`
-(seguro porque la rama recién recreada no tenía trabajo de nadie más).
+- Backend nuevo completo: `GET/POST/PATCH /api/premios` (mismo patrón de
+  paginación y autorización que clientes).
+- `Premio.activo` (Boolean, default `true`) agregado al schema —
+  "Desactivar" es borrado lógico: no rompe la referencia de
+  `Canje.premioId` en canjes históricos.
+- `GET /api/negocios` filtra el `premios` embebido por `activo: true`
+  (afecta el mini-listado de "Inicio" y lo que ve el cliente).
+  `POST /api/canjes` rechaza el canje si el premio está desactivado
+  (defensa además del filtro de UI).
+- Probado en el navegador: alta, edición, desactivar (verificado que
+  desaparece de "Inicio" y del panel del cliente), reactivar, canje
+  rechazado contra un premio desactivado incluso llamando la API
+  directo, canje exitoso una vez reactivado. **Mergeado.**
 
-## 5. PR #2 abierto y en monitoreo
+## 6. PR #8 — "Integraciones" (ambos paneles) + bug real de navegación
 
-**PR #2**: <https://github.com/gerimarenco/fideliza/pull/2> — "Paginar
-listados de clientes y agregar historial de canjes". Contiene los dos
-commits de la Fase 1 y Fase 2, bien basado sobre `main`. Estado al cierre
-de esta sesión: CI en verde (Netlify Deploy Preview), sin comentarios de
-revisión pendientes, `mergeable_state: clean`. Queda un check-in
-programado para seguir monitoreando CI/comentarios hasta que se mergee o
-cierre.
+Charlado antes de construir: sí incluir el `slug` de Mercado Pago en esta
+pantalla (hallazgo colateral de una sesión anterior: no había forma de
+cargarlo salvo a mano en la base), el propio negocio también puede
+editar su `slug` (no solo el admin), y Dragon Fish se muestra con
+estado fijo "Bloqueada".
+
+- `GET /api/negocios` expone `tiendanubeStoreId` (no es secreto) y un
+  booleano calculado `tiendanubeConectado`, sin exponer nunca el
+  `tiendanubeAccessToken`.
+- `PATCH /api/negocios` gana soporte para `slug` (validación de formato,
+  manejo del error de unicidad `P2002` de Prisma con un 409 en vez de un
+  500).
+- **Corrección de seguridad de paso**: `PATCH /api/negocios` devolvía el
+  objeto crudo del negocio (hash de password y access token de
+  Tiendanube en texto plano incluidos) pese a que el comentario del
+  propio archivo decía lo contrario. Corregido para responder con la
+  misma forma segura que el resto de los endpoints.
+- Pantalla nueva con tres bloques: Tiendanube, Mercado Pago, Dragon Fish.
+- **Bug real encontrado en producción** (reportado por Cecilia, probando
+  en el sitio real): en el panel admin, con la grilla de negocios a la
+  vista (sin ninguno elegido), tocar "Clientes"/"Puntos y canjes"/
+  "Integraciones" resaltaba el ítem del sidebar pero la pantalla seguía
+  mostrando la grilla — esas secciones viven dentro del panel de un
+  negocio puntual y el contenido no reaccionaba a `seccionActiva`
+  mientras no había ninguno elegido. Se agregó un mensaje "Elegí un
+  negocio para ver sus..." con un botón de vuelta a la grilla.
+- Probado en el navegador (credenciales de Tiendanube, slug, badges de
+  conexión, error 409 por slug repetido, reproducción exacta del bug de
+  navegación). **Mergeado** (dos commits: la feature + el fix de
+  navegación, agregado al mismo PR porque todavía estaba abierto).
+
+## 7. PR #9 — "Ajustes" (panel de negocio, ítem nuevo)
+
+Charlado antes de construir: confirmado que el precio en puntos de un
+premio individual ya se podía editar desde "Premios" (no hacía falta
+duplicarlo acá), borrado lógico de más alcance no hacía falta.
+
+- `POST /api/negocios/password` (nuevo): cambia la contraseña del propio
+  negocio, verificando la actual con `verifyPassword` antes de aceptar
+  la nueva (mínimo 6 caracteres). El id sale de la sesión, nunca del
+  body — nunca se puede cambiar la contraseña de otro.
+- `puntosXPeso` agregado a `PATCH /api/negocios` (entero positivo, mismo
+  criterio de autorización que `slug`/Tiendanube).
+- Extra agregado por iniciativa propia (el negocio dio el visto bueno):
+  un dato de cuenta de solo lectura (email de acceso, ya en la sesión).
+- Probado: error claro con contraseña actual incorrecta, error si la
+  confirmación no coincide, cambio verificado logueándose con la
+  contraseña nueva, persistencia de `puntosXPeso`. **Mergeado.**
+
+## 8. Diagnóstico largo: "los botones no andan" en producción
+
+Después de fusionar el PR #9, Cecilia reportó que en el panel de negocio
+no podía "tocar" ni Mis clientes, ni Premios, ni Canjes, ni
+Integraciones. Diagnóstico paso a paso (relevante para no repetirlo):
+
+1. Se confirmó que el problema no estaba en el código: se reprodujo el
+   mismo flujo en local, tanto en modo desarrollo (`next dev`) como con
+   un build de producción real (`next build` + `next start`) contra
+   Postgres real — todo funcionó perfecto en ambos casos.
+2. Se descubrió que Cecilia estaba probando, en un momento, un link de
+   **Deploy Preview viejo** (congelado desde que ese PR se cerró) en vez
+   del sitio de producción real.
+3. Ya en el sitio de producción real, reportó el mismo síntoma. Se pidió
+   una captura de la consola del navegador (F12) para diagnosticar sin
+   acceso directo al entorno de Netlify (el sandbox de esta sesión tiene
+   el tráfico de salida bloqueado — no se puede hacer `curl` ni
+   `WebFetch` contra dominios externos).
+4. La consola mostró mensajes `[HMR] connected` / `[Fast Refresh]` —
+   exclusivos de `next dev`. Se determinó que la URL en la barra de
+   direcciones era **`localhost:3000`**, no el sitio real — un servidor
+   de desarrollo corriendo en otra máquina/ventana, con datos de prueba
+   viejos ("Peperina", sin el ítem "Ajustes"), sin relación con lo que se
+   venía publicando.
+5. Al entrar de verdad a la URL de producción, apareció el panel Admin
+   real con "Negocios activos: 0" — **no había ningún negocio real
+   cargado en la base de producción** (el "negocio de prueba" que
+   Cecilia tenía en mente era el de la instancia de `localhost`, una
+   base completamente distinta).
+6. Al intentar crear un negocio de prueba real (botón "+ Nuevo negocio"),
+   Cecilia reportó que tampoco reaccionaba. Se sospechó falta de manejo
+   de errores en el frontend (`fetch` sin `try/catch`: si el servidor
+   responde algo que no es JSON, la promesa se rechaza en silencio y el
+   botón "no hace nada" sin ningún aviso) — confirmado como un problema
+   real independientemente de la causa de fondo, y corregido (ver más
+   abajo).
+7. En paralelo, Cecilia encontró que la cuenta de Netlify se había
+   quedado sin créditos operativos del ciclo de facturación — el
+   dashboard de Netlify muestra "production deploys...are paused". Se
+   verificó que el último deploy publicado correspondía igual al merge
+   del PR #9 (`main@bec2deb`), así que el trabajo de esta sesión sí
+   llegó a producción antes de que se pausaran los deploys — el freno
+   afecta a lo que se fusione de acá en adelante, no a lo ya publicado.
+
+**Conclusión al cierre de la sesión**: no quedó 100% confirmado si el
+síntoma original de "los botones no andan" era por el corte de créditos
+de Netlify (que podría afectar la ejecución de funciones serverless, no
+solo los deploys nuevos) o por otra causa — el manejo de errores recién
+agregado va a ser clave para el próximo diagnóstico, en cuanto Cecilia
+haga el upgrade del plan. Ver `tareas-futuras.md`.
+
+## 9. Manejo de errores en los botones de guardado (sin PR todavía)
+
+Se detectó que varias funciones del frontend (`crearNegocio`,
+`guardarEdicionNegocio`, `crearPremio`, `guardarEdicionPremio`,
+`togglePremioActivo`, `guardarIntegraciones`, `guardarPuntosXPeso`,
+`cambiarPassword`, `agregarCliente`, `sumarPuntos`) llamaban a `fetch`
+sin `try/catch`, a diferencia de `iniciarPago`/`canjearPremio` que sí lo
+tenían. Se agregó manejo de errores consistente a todas — commit
+pusheado a la rama de trabajo, **PR sin abrir** (no tenía sentido
+mientras los deploys de Netlify estaban pausados).
 
 ## Archivos nuevos/tocados en esta sesión
 
-- `app/api/clientes/route.js` — paginación en `GET`.
-- `app/api/canjes/route.js` — `GET` nuevo, paginado.
-- `app/page.js` — paginación visual + pantalla de canjes.
-- `docs/` (esta carpeta) — documentación de contexto para retomar el
-  trabajo.
+- `app/api/premios/route.js` — nuevo (CRUD completo).
+- `app/api/negocios/password/route.js` — nuevo.
+- `app/api/negocios/route.js` — `puntosXPeso`/`slug` en `PATCH`,
+  `tiendanubeStoreId`/`tiendanubeConectado` en `GET`, respuesta segura.
+- `app/api/canjes/route.js` — valida `premio.activo`.
+- `app/page.js` — el archivo más tocado de la sesión: sidebars de los
+  tres paneles, pantallas nuevas (Clientes/Premios/Integraciones/
+  Ajustes), manejo de errores.
+- `prisma/schema.prisma` + migración — `Premio.activo`.
+- `borrar-cliente.sql` — eliminado.
+- `docs/` — esta actualización.
+
+## Estado al cierre de esta sesión
+
+- PRs #4 a #9: todos mergeados a `main`.
+- Un commit más (manejo de errores) pusheado a la rama de trabajo, sin
+  PR abierto.
+- Bloqueante activo: créditos de Netlify agotados, deploys de producción
+  pausados. Cecilia dijo que iba a actualizar el plan.
+- Pendiente no resuelto: confirmar si el síntoma de "botones que no
+  hacen nada" en producción tenía relación con lo de Netlify, una vez
+  que se resuelva y se pueda volver a probar con mensajes de error
+  visibles.

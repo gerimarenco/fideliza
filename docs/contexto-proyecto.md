@@ -1,9 +1,10 @@
 # Contexto del proyecto — Fideliza
 
-> Última actualización: 2026-08-22. Este documento es la foto general del
+> Última actualización: 2026-08-24. Este documento es la foto general del
 > proyecto para arrancar cualquier sesión de trabajo sin tener que releer
 > todo el código. Para el detalle de qué falta, ver `tareas-pendientes.md`.
 > Para el historial de cambios, ver `progreso.md` y `sesion-actual.md`.
+> Para lo que sigue, ver `tareas-futuras.md`.
 
 ## Qué es Fideliza
 
@@ -45,25 +46,43 @@ No hay routing real entre pantallas — todo vive en un único componente
   de "Registrar compra manual", y una pantalla de "Historial de canjes".
 - **Cliente** (`role: 'cliente'`): panel de solo lectura mobile-friendly
   (`PanelCliente`): sus puntos, botón para cargar puntos vía Mercado Pago,
-  y la lista de premios disponibles/próximos (ver limitación en
-  `tareas-pendientes.md` sobre el canje real).
+  y la lista de premios disponibles/próximos, con botón "Canjear" que
+  llama a `POST /api/canjes` (conectado; antes solo mostraba la lista).
 
 Dentro de `PanelNegocio` hay un estado `seccionActiva` (`'inicio'` |
-`'canjes'`) que decide qué se muestra — es la única "navegación" real que
-existe hoy; el resto de los ítems del sidebar (Premios, Integraciones,
-Ajustes, Negocios, Clientes en el caso admin) son decorativos, no hacen
-nada al clickearlos.
+`'clientes'` | `'premios'` | `'canjes'` | `'integraciones'` | `'ajustes'`)
+que decide qué se muestra. **Todos los ítems del sidebar de los tres
+paneles ya están conectados**, salvo uno: "Ajustes" del panel **Admin**
+(sigue sin backend ni alcance definido — no confundir con "Ajustes" del
+panel **Negocio**, que es una cosa distinta y sí está conectado). Detalle
+de cada uno en `tareas-pendientes.md`.
+
+Un detalle de layout del panel Admin: cuando no hay ningún negocio
+elegido (la grilla de "Mis negocios"), el contenido se rige por
+`negocioActivo` (no por `seccionActiva`) — si en ese estado se toca un
+ítem que vive dentro del panel de un negocio puntual (Clientes, Premios,
+Canjes, Integraciones), se muestra un mensaje "Elegí un negocio para ver
+sus..." con un botón de vuelta a la grilla, en vez de no reaccionar.
 
 ## Modelo de datos (`prisma/schema.prisma`)
 
 - **`Negocio`**: `nombre`, `tipo`, `ciudad`, `emoji`, `puntosXPeso`
-  (default 1000), `email`/`password` (login propio), `slug` (para el link
-  público de auto-registro y para Mercado Pago), `tiendanubeStoreId` /
-  `tiendanubeAccessToken` (credenciales de Tiendanube, ver más abajo).
+  (default 1000, editable desde "Ajustes" del propio negocio o por el
+  admin), `email`/`password` (login propio, password cambiable desde
+  "Ajustes" vía `POST /api/negocios/password`), `slug` (para el link
+  público de auto-registro y para Mercado Pago — editable desde
+  "Integraciones"), `tiendanubeStoreId` / `tiendanubeAccessToken`
+  (credenciales de Tiendanube, ver más abajo). `GET /api/negocios` nunca
+  expone `tiendanubeAccessToken` ni `password` tal cual — sí expone
+  `tiendanubeStoreId` (no es secreto) y un booleano calculado
+  `tiendanubeConectado`.
 - **`Cliente`**: `nombre`, `telefono`, `email` (único), `password`,
   `puntos` (contador acumulado), pertenece a un `Negocio`.
-- **`Premio`**: `nombre`, `puntos` (costo), `emoji`, pertenece a un
-  `Negocio`.
+- **`Premio`**: `nombre`, `puntos` (costo, editable desde la pantalla
+  "Premios"), `emoji`, `activo` (Boolean, default `true` — borrado
+  lógico: "Desactivar" no borra la fila, solo lo saca de "Premios
+  disponibles" del cliente y de nuevos canjes, para no perder el
+  historial de canjes que ya lo referencian), pertenece a un `Negocio`.
 - **`Canje`**: un cliente cambia puntos por un premio. `entregado`
   (boolean, no se usa activamente en la UI todavía).
 - **`MovimientoPuntos`** (agregado 2026-08-22): historial de cada vez que
@@ -172,7 +191,28 @@ del lado de Fideliza.
 ## Repositorio y ramas
 
 - Repo: `gerimarenco/fideliza`.
-- Rama de trabajo de esta sesión: `claude/fideliza-xmf7ee` (PR #1, ya
-  mergeado a `main`; luego PR #2 con paginación, ver `sesion-actual.md`).
-- Deploy: Netlify, conectado directo al repo. Hay Deploy Previews
-  automáticos por cada PR.
+- Rama de trabajo activa: `claude/fideliza-retomada-af1eus` — se abrió un
+  PR nuevo por cada tanda de trabajo (PR #4 a #9, todos mergeados a
+  `main`; ver `sesion-actual.md`/`progreso.md` para el detalle de cada
+  uno), siempre desde la misma rama.
+- Deploy: Netlify (cuenta `gerimarenco`), conectado directo al repo. Hay
+  Deploy Previews automáticos por cada PR (`deploy-preview-N--
+  incomparable-zabaione-b58c21.netlify.app`) — **importante**: un link de
+  preview queda congelado en el momento en que ese PR se cierra/mergea,
+  no se actualiza más aunque seguamos mergeando código a `main` después.
+  El sitio de producción real (el que hay que usar para probar el estado
+  actual) es **`https://incomparable-zabaione-b58c21.netlify.app`**, sin
+  ningún prefijo.
+
+### ⚠️ Estado de la cuenta de Netlify (2026-08-24)
+
+La cuenta se quedó sin créditos operativos del ciclo de facturación
+actual. El sitio publicado **sigue en línea** (el último deploy exitoso
+quedó publicado, confirmado al día de esta nota que correspondía al
+merge del PR #9 — o sea que sí tenía todo el trabajo de esta sesión),
+pero **los deploys de producción nuevos y los Agent Runners están
+pausados** hasta que se actualice el plan o empiece el próximo ciclo de
+facturación. Mientras esto no se resuelva, fusionar un PR a `main` no
+alcanza para que el cambio llegue al sitio real. Cecilia (dueña de la
+cuenta junto con Genaro Marenco) dijo que iba a hacer el upgrade. Ver
+`tareas-futuras.md`.

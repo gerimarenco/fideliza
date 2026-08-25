@@ -157,18 +157,26 @@ export default function Home() {
   const sumarPuntos = async (negId) => {
     if (!monto || !clienteSeleccionado) { alert('Seleccioná un cliente y un monto'); return; }
     const negocio = isAdmin ? negocioActivo : negocioPropio;
-    const res = await fetch('/api/compras', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clienteId: clienteSeleccionado, monto: parseFloat(monto), negocioId: negocio.id })
-    });
-    const data = await res.json();
-    alert(`✅ +${data.puntosASumados} puntos acreditados a ${negocio.clientes.find(c => c.id === clienteSeleccionado)?.nombre}!`);
-    setMonto('');
-    setClienteSeleccionado('');
-    cargarNegocios();
-    cargarEstadisticas(negocio.id);
-    cargarClientes(negocio.id, clientesPagina);
+    try {
+      const res = await fetch('/api/compras', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clienteId: clienteSeleccionado, monto: parseFloat(monto), negocioId: negocio.id })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudieron sumar los puntos'}`);
+        return;
+      }
+      alert(`✅ +${data.puntosASumados} puntos acreditados a ${negocio.clientes.find(c => c.id === clienteSeleccionado)?.nombre}!`);
+      setMonto('');
+      setClienteSeleccionado('');
+      cargarNegocios();
+      cargarEstadisticas(negocio.id);
+      cargarClientes(negocio.id, clientesPagina);
+    } catch (err) {
+      alert('❌ Ocurrió un error al sumar los puntos. Probá de nuevo.');
+    }
   };
 
   const agregarCliente = async () => {
@@ -177,23 +185,27 @@ export default function Home() {
       alert('Nombre, teléfono y email son obligatorios');
       return;
     }
-    const res = await fetch('/api/clientes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...nuevoCliente, negocioId: negocio.id })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(`❌ Error: ${data.error || 'no se pudo crear el cliente'}`);
-      return;
+    try {
+      const res = await fetch('/api/clientes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...nuevoCliente, negocioId: negocio.id })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo crear el cliente'}`);
+        return;
+      }
+      alert(`✅ Cliente ${nuevoCliente.nombre} agregado!\n\nEmail: ${nuevoCliente.email}\nContraseña: ${data.passwordGenerada}\n\n(Guardá esta contraseña para pasársela al cliente)`);
+      setNuevoCliente({ nombre: '', telefono: '', email: '' });
+      setMostrarFormCliente(false);
+      cargarNegocios();
+      cargarEstadisticas(negocio.id);
+      cargarClientes(negocio.id, 1);
+      setClientesPagina(1);
+    } catch (err) {
+      alert('❌ Ocurrió un error al crear el cliente. Probá de nuevo.');
     }
-    alert(`✅ Cliente ${nuevoCliente.nombre} agregado!\n\nEmail: ${nuevoCliente.email}\nContraseña: ${data.passwordGenerada}\n\n(Guardá esta contraseña para pasársela al cliente)`);
-    setNuevoCliente({ nombre: '', telefono: '', email: '' });
-    setMostrarFormCliente(false);
-    cargarNegocios();
-    cargarEstadisticas(negocio.id);
-    cargarClientes(negocio.id, 1);
-    setClientesPagina(1);
   };
 
   const crearNegocio = async () => {
@@ -202,20 +214,24 @@ export default function Home() {
       alert('Nombre, tipo, ciudad, emoji y email son obligatorios');
       return;
     }
-    const res = await fetch('/api/negocios', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(nuevoNegocio)
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(`❌ Error: ${data.error || 'no se pudo crear el negocio'}`);
-      return;
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nuevoNegocio)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo crear el negocio'}`);
+        return;
+      }
+      alert(`✅ Negocio ${nombre} creado!\n\nEmail: ${email}\nContraseña: ${data.passwordGenerada}\n\n(Guardá esta contraseña para pasársela al negocio)`);
+      setNuevoNegocio({ nombre: '', tipo: '', ciudad: '', emoji: '', email: '' });
+      setMostrarFormNegocio(false);
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al crear el negocio. Probá de nuevo.');
     }
-    alert(`✅ Negocio ${nombre} creado!\n\nEmail: ${email}\nContraseña: ${data.passwordGenerada}\n\n(Guardá esta contraseña para pasársela al negocio)`);
-    setNuevoNegocio({ nombre: '', tipo: '', ciudad: '', emoji: '', email: '' });
-    setMostrarFormNegocio(false);
-    cargarNegocios();
   };
 
   const iniciarEdicionNegocio = (neg) => {
@@ -229,18 +245,22 @@ export default function Home() {
       alert('Nombre, tipo, ciudad y emoji son obligatorios');
       return;
     }
-    const res = await fetch('/api/negocios', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: negocioEditandoId, ...formEdicionNegocio })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(`❌ Error: ${data.error || 'no se pudo editar el negocio'}`);
-      return;
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: negocioEditandoId, ...formEdicionNegocio })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo editar el negocio'}`);
+        return;
+      }
+      setNegocioEditandoId(null);
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al editar el negocio. Probá de nuevo.');
     }
-    setNegocioEditandoId(null);
-    cargarNegocios();
   };
 
   // El admin vuelve de un negocio puntual a la grilla general
@@ -257,20 +277,24 @@ export default function Home() {
       alert('Nombre, puntos y emoji son obligatorios');
       return;
     }
-    const res = await fetch('/api/premios', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...nuevoPremio, negocioId: negocio.id })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(`❌ Error: ${data.error || 'no se pudo crear el premio'}`);
-      return;
+    try {
+      const res = await fetch('/api/premios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...nuevoPremio, negocioId: negocio.id })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo crear el premio'}`);
+        return;
+      }
+      setNuevoPremio({ nombre: '', puntos: '', emoji: '' });
+      setMostrarFormPremio(false);
+      cargarPremios(negocio.id, premiosPagina);
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al crear el premio. Probá de nuevo.');
     }
-    setNuevoPremio({ nombre: '', puntos: '', emoji: '' });
-    setMostrarFormPremio(false);
-    cargarPremios(negocio.id, premiosPagina);
-    cargarNegocios();
   };
 
   const iniciarEdicionPremio = (p) => {
@@ -284,36 +308,44 @@ export default function Home() {
       alert('Nombre, puntos y emoji son obligatorios');
       return;
     }
-    const res = await fetch('/api/premios', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: premioEditandoId, ...formEdicionPremio })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(`❌ Error: ${data.error || 'no se pudo editar el premio'}`);
-      return;
+    try {
+      const res = await fetch('/api/premios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: premioEditandoId, ...formEdicionPremio })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo editar el premio'}`);
+        return;
+      }
+      setPremioEditandoId(null);
+      cargarPremios((isAdmin ? negocioActivo : negocioPropio)?.id, premiosPagina);
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al editar el premio. Probá de nuevo.');
     }
-    setPremioEditandoId(null);
-    cargarPremios((isAdmin ? negocioActivo : negocioPropio)?.id, premiosPagina);
-    cargarNegocios();
   };
 
   // Desactivar un premio no lo borra: lo saca de "Premios disponibles" del
   // cliente y de nuevos canjes, pero conserva el historial de canjes previos.
   const togglePremioActivo = async (p) => {
-    const res = await fetch('/api/premios', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: p.id, activo: !p.activo })
-    });
-    if (!res.ok) {
+    try {
+      const res = await fetch('/api/premios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: p.id, activo: !p.activo })
+      });
       const data = await res.json();
-      alert(`❌ Error: ${data.error || 'no se pudo actualizar el premio'}`);
-      return;
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo actualizar el premio'}`);
+        return;
+      }
+      cargarPremios((isAdmin ? negocioActivo : negocioPropio)?.id, premiosPagina);
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al actualizar el premio. Probá de nuevo.');
     }
-    cargarPremios((isAdmin ? negocioActivo : negocioPropio)?.id, premiosPagina);
-    cargarNegocios();
   };
 
   const guardarIntegraciones = async () => {
@@ -325,19 +357,23 @@ export default function Home() {
     if (formIntegraciones.tiendanubeAccessToken) body.tiendanubeAccessToken = formIntegraciones.tiendanubeAccessToken;
     if (formIntegraciones.slug) body.slug = formIntegraciones.slug;
 
-    const res = await fetch('/api/negocios', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
-      return;
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
+        return;
+      }
+      alert('✅ Integraciones actualizadas');
+      setFormIntegraciones(f => ({ ...f, tiendanubeAccessToken: '' }));
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al guardar las integraciones. Probá de nuevo.');
     }
-    alert('✅ Integraciones actualizadas');
-    setFormIntegraciones(f => ({ ...f, tiendanubeAccessToken: '' }));
-    cargarNegocios();
   };
 
   const guardarPuntosXPeso = async () => {
@@ -345,18 +381,22 @@ export default function Home() {
       alert('Puntos por peso tiene que ser un número entero mayor a 0');
       return;
     }
-    const res = await fetch('/api/negocios', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: negocioMostrado.id, puntosXPeso: formPuntosXPeso })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
-      return;
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: negocioMostrado.id, puntosXPeso: formPuntosXPeso })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
+        return;
+      }
+      alert('✅ Puntos por peso actualizados');
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
     }
-    alert('✅ Puntos por peso actualizados');
-    cargarNegocios();
   };
 
   const cambiarPassword = async () => {
@@ -369,18 +409,22 @@ export default function Home() {
       alert('La nueva contraseña y su confirmación no coinciden');
       return;
     }
-    const res = await fetch('/api/negocios/password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ passwordActual: actual, passwordNueva: nueva })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      alert(`❌ Error: ${data.error || 'no se pudo cambiar la contraseña'}`);
-      return;
+    try {
+      const res = await fetch('/api/negocios/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passwordActual: actual, passwordNueva: nueva })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo cambiar la contraseña'}`);
+        return;
+      }
+      alert('✅ Contraseña actualizada');
+      setFormPassword({ actual: '', nueva: '', confirmar: '' });
+    } catch (err) {
+      alert('❌ Ocurrió un error al cambiar la contraseña. Probá de nuevo.');
     }
-    alert('✅ Contraseña actualizada');
-    setFormPassword({ actual: '', nueva: '', confirmar: '' });
   };
 
   // Genera el link de pago de Mercado Pago y redirige al cliente ahí
