@@ -1,6 +1,6 @@
 # Contexto del proyecto — Fideliza
 
-> Última actualización: 2026-08-24. Este documento es la foto general del
+> Última actualización: 2026-08-26. Este documento es la foto general del
 > proyecto para arrancar cualquier sesión de trabajo sin tener que releer
 > todo el código. Para el detalle de qué falta, ver `tareas-pendientes.md`.
 > Para el historial de cambios, ver `progreso.md` y `sesion-actual.md`.
@@ -26,7 +26,12 @@ configura.
 - **Pagos**: SDK oficial de Mercado Pago (`mercadopago` npm package).
 - **Estilos**: Tailwind 4 configurado, pero la UI actual (`app/page.js`)
   está escrita con inline styles (objetos `style={{...}}`), no con clases
-  de Tailwind.
+  de Tailwind. `app/globals.css` fuerza `color-scheme: light` a
+  propósito — el template inicial traía una regla de modo oscuro
+  automático (`prefers-color-scheme: dark`) que nunca se usó, y que hacía
+  que el texto tipeado en los `<input>` quedara invisible (texto claro
+  sobre el fondo blanco por defecto del navegador) si el sistema/
+  navegador de quien usaba la app estaba en modo oscuro.
 - **Deploy**: Netlify (`netlify.toml`, plugin `@netlify/plugin-nextjs`).
   Hay también una integración de Vercel que se desconectó por no ser el
   destino real de deploy (ver `progreso.md`).
@@ -64,6 +69,45 @@ elegido (la grilla de "Mis negocios"), el contenido se rige por
 Canjes, Integraciones), se muestra un mensaje "Elegí un negocio para ver
 sus..." con un botón de vuelta a la grilla, en vez de no reaccionar.
 
+## Marca propia por negocio (tema visual)
+
+Pensando en revender Fideliza a otros comercios a futuro, un negocio puede
+tener su propia identidad visual — hoy en uso por Peperina. Vive en
+`Negocio.tema` (`Json?`, opcional): si es `null`, todo se ve con la
+paleta clara neutra de siempre (cero impacto para negocios que no lo
+configuren).
+
+- **Tokens de color**: `fondo`, `superficie`, `borde`, `texto`,
+  `textoSecundario`, `primario`, `primarioTexto`, `resaltado` (un segundo
+  acento para chips de puntos/avatares, para no reducir toda la marca a
+  un solo color). Validados como hex en `PATCH /api/negocios` (admin-only).
+- **Tipografía**: `fuenteTitulo` (string libre, ej. `Georgia, serif`) — se
+  aplica solo a los títulos más visibles (el saludo "Bienvenida, X", el
+  nombre del negocio en su propio sidebar, el saludo y "Tus puntos" del
+  cliente), no al resto del texto, para no perder legibilidad en tablas y
+  formularios.
+- **Imagen de portada**: `imagenPortada` (URL de una imagen ya alojada en
+  otro lado — Google Drive, Imgur, Instagram; la app no tiene sistema
+  propio de carga de archivos). Se muestra como banner de ancho completo
+  arriba de todo, estilo foto de portada de Facebook, tanto en el panel
+  del negocio como en el del cliente.
+- **Dónde se aplica**: `resolverTema(negocio)` en `app/page.js` mezcla
+  estos tokens sobre una paleta clara por defecto (`TEMA_DEFAULT`) y solo
+  afecta `PanelNegocio` (compartido entre "Ver panel" del admin y el
+  negocio logueado, con todas sus secciones) y `PanelCliente`. El chrome
+  del Admin (su propio sidebar, la grilla de "Negocios") nunca lee el
+  tema.
+- **Quién lo edita**: por ahora solo el admin, desde "Editar negocio"
+  (7 selectores de color + 2 campos de texto). No hay autogestión propia
+  del negocio todavía.
+- La paleta actual de Peperina (negro/gris oscuro inicial, después
+  reemplazada por la real de la marca a pedido de la dueña: fondo
+  `#F6EFE9`, bordes `#EBDAC6`, texto secundario `#A99886`, acento
+  `#877152`, resaltado `#F4D9D1`, tipografía `Georgia, serif`) se carga
+  vía migraciones de datos (no de esquema) en `prisma/migrations/`, ya
+  que no hay pantalla de autogestión — ver `progreso.md` para el detalle
+  de cada ajuste.
+
 ## Modelo de datos (`prisma/schema.prisma`)
 
 - **`Negocio`**: `nombre`, `tipo`, `ciudad`, `emoji`, `puntosXPeso`
@@ -72,10 +116,14 @@ sus..." con un botón de vuelta a la grilla, en vez de no reaccionar.
   "Ajustes" vía `POST /api/negocios/password`), `slug` (para el link
   público de auto-registro y para Mercado Pago — editable desde
   "Integraciones"), `tiendanubeStoreId` / `tiendanubeAccessToken`
-  (credenciales de Tiendanube, ver más abajo). `GET /api/negocios` nunca
-  expone `tiendanubeAccessToken` ni `password` tal cual — sí expone
-  `tiendanubeStoreId` (no es secreto) y un booleano calculado
-  `tiendanubeConectado`.
+  (credenciales de Tiendanube, ver más abajo), `activo` (Boolean, default
+  `true` — borrado lógico igual que `Premio.activo`: "Desactivar" un
+  negocio no borra sus clientes/premios/canjes, solo lo saca de
+  circulación; admin-only, editable desde la grilla de "Negocios"),
+  `tema` (`Json?`, marca propia — ver sección de arriba). `GET
+  /api/negocios` nunca expone `tiendanubeAccessToken` ni `password` tal
+  cual — sí expone `tiendanubeStoreId` (no es secreto) y un booleano
+  calculado `tiendanubeConectado`.
 - **`Cliente`**: `nombre`, `telefono`, `email` (único), `password`,
   `puntos` (contador acumulado), pertenece a un `Negocio`.
 - **`Premio`**: `nombre`, `puntos` (costo, editable desde la pantalla
@@ -192,7 +240,7 @@ del lado de Fideliza.
 
 - Repo: `gerimarenco/fideliza`.
 - Rama de trabajo activa: `claude/fideliza-retomada-af1eus` — se abrió un
-  PR nuevo por cada tanda de trabajo (PR #4 a #9, todos mergeados a
+  PR nuevo por cada tanda de trabajo (PR #4 a #17, todos mergeados a
   `main`; ver `sesion-actual.md`/`progreso.md` para el detalle de cada
   uno), siempre desde la misma rama.
 - Deploy: Netlify (cuenta `gerimarenco`), conectado directo al repo. Hay
@@ -204,15 +252,28 @@ del lado de Fideliza.
   actual) es **`https://incomparable-zabaione-b58c21.netlify.app`**, sin
   ningún prefijo.
 
-### ⚠️ Estado de la cuenta de Netlify (2026-08-24)
+### Estado de la cuenta de Netlify (resuelto el 2026-08-25)
 
-La cuenta se quedó sin créditos operativos del ciclo de facturación
-actual. El sitio publicado **sigue en línea** (el último deploy exitoso
-quedó publicado, confirmado al día de esta nota que correspondía al
-merge del PR #9 — o sea que sí tenía todo el trabajo de esta sesión),
-pero **los deploys de producción nuevos y los Agent Runners están
-pausados** hasta que se actualice el plan o empiece el próximo ciclo de
-facturación. Mientras esto no se resuelva, fusionar un PR a `main` no
-alcanza para que el cambio llegue al sitio real. Cecilia (dueña de la
-cuenta junto con Genaro Marenco) dijo que iba a hacer el upgrade. Ver
-`tareas-futuras.md`.
+La cuenta se había quedado sin créditos operativos del ciclo de
+facturación, pausando deploys de producción nuevos — Cecilia actualizó el
+plan y los deploys volvieron a funcionar con normalidad.
+
+**Build command** (`netlify.toml`): `prisma migrate deploy && prisma
+generate && npm run build`. Esto no estaba así desde el principio — se
+descubrió, durante el diagnóstico de "los botones no andan" en
+producción, que el build nunca corría las migraciones de Prisma contra la
+base real (solo `prisma generate`), así que la base de producción se
+había quedado atrás de varias migraciones (la más grave: la base no tenía
+la columna `Premio.activo`, y cualquier consulta que la pidiera —
+`GET /api/negocios`— rompía con un 500 sin cuerpo). Ya corregido: cada
+deploy aplica las migraciones pendientes antes de buildear.
+
+**Limitación conocida y no bloqueante**: `DATABASE_URL` solo está
+configurada para el contexto de Producción en Netlify, no para "Deploy
+Previews" — cualquier PR desde el que agregó `prisma migrate deploy`
+muestra el check de deploy-preview en rojo (`P1012`, variable vacía). Es
+esperable, no afecta al sitio real, y ya quedó documentado como tal en
+cada PR que lo atraviesa. Si en algún momento se quiere que los previews
+también funcionen, hay que agregar `DATABASE_URL` a ese contexto en
+Netlify (con cuidado: eso le daría a cualquier preview acceso a la base
+de producción real).

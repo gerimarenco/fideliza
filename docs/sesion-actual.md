@@ -1,215 +1,227 @@
-# Sesión actual — 2026-08-23/24
+# Sesión actual — 2026-08-25/26
 
-> Continuación directa del PR #3 (documentación de contexto, mergeado).
-> Esta sesión cubre: fusión de PR #4 (canje de cliente, ya estaba
-> probado), y luego un relevamiento completo del menú lateral de los tres
-> paneles — casi todos sus ítems eran decorativos — conectando uno por
-> uno (PRs #5 a #9), más el descubrimiento de un problema real de cuenta
-> en Netlify. Reconstruido del propio hilo de la conversación.
+> Continuación directa de la sesión anterior (PRs #4 a #9, ver
+> `progreso.md`). Arrancó retomando el bloqueante de créditos de Netlify
+> y terminó en una funcionalidad nueva grande: marca propia por negocio,
+> a pedido de Cecilia mientras le mostraba el panel a su mamá (dueña de
+> Peperina). Reconstruido del propio hilo de la conversación.
 
-## 1. Fusión del PR #4 (arrastrado de una sesión previa)
+## 1. Netlify pago, PR #10 y el diagnóstico real del bug de producción
 
-El PR #4 ("Conectar el botón de canjear en el panel del cliente") ya
-estaba abierto, probado y en verde al arrancar esta sesión. Se confirmó
-CI verde y se fusionó sin cambios adicionales.
+Cecilia confirmó que había pagado/actualizado el plan de Netlify. Se
+abrió y fusionó el **PR #10** (manejo de errores en los botones de
+guardado, que había quedado pusheado sin PR desde la sesión anterior).
 
-## 2. Relevamiento del menú lateral
+Con eso en producción, Cecilia probó crear un negocio de prueba real y
+esta vez sí apareció un error visible en vez de "no pasa nada":
+`❌ Ocurrió un error al crear el negocio`. Se le pidió revisar la pestaña
+Network del navegador, y ahí apareció la pista real: **`GET
+/api/negocios` devolvía 500 con el cuerpo vacío**, de forma consistente
+— no un error manejado por la app, sino la función cayéndose antes de
+poder responder.
 
-A pedido explícito ("antes de tocar código, hacé un relevamiento
-completo"), se revisaron los tres paneles ítem por ítem: qué estaba
-conectado, qué no, y si el backend necesario ya existía o había que
-construirlo. Resultado resumido (detalle completo en el historial de
-`tareas-pendientes.md` de ese momento):
+Revisando `netlify.toml` se encontró la causa: el build command era
+`prisma generate && npm run build` — **nunca corría `prisma migrate
+deploy`**. La base de producción se había quedado atrás de varias
+migraciones desde el principio del proyecto. La sospechosa más probable:
+`Premio.activo` (agregada en el PR #7), que `GET /api/negocios` necesita
+para el `where: { activo: true }` del listado de premios embebido. Esto
+explicaba el síntoma de "Negocios activos: 0" de la sesión anterior — no
+es que la base estuviera vacía, es que esta consulta venía rompiendo
+desde hacía rato.
 
-- **Admin**: Inicio ✅, Negocios ❌, Clientes ❌, Puntos y canjes ✅,
-  Integraciones ❌, Ajustes ❌ (sin alcance definido).
-- **Negocio**: Inicio ✅, Mis clientes ❌, Premios ❌, Canjes ✅,
-  Integraciones ❌ (no tenía ítem "Ajustes" todavía).
-- **Cliente**: sin sidebar, ya todo conectado.
+**PR #11**: build command corregido a `prisma migrate deploy && prisma
+generate && npm run build`. Confirmado con Cecilia que `DATABASE_URL`
+está disponible también en el contexto de Build en Netlify (no solo
+Functions/Runtime), así que no hacía falta tocar nada ahí. De paso, se
+encontró y arregló que `POST /api/negocios` tampoco capturaba el error de
+email duplicado (`P2002`), dejándolo explotar igual que el problema de
+arriba.
 
-A partir de ahí se encaró de a un ítem por vez, charlando el diseño antes
-de tocar código en los casos con alcance ambiguo (Premios, Integraciones,
-Ajustes).
+El deploy preview de este PR (y de todos los siguientes) falló
+consistentemente con `P1012` (`DATABASE_URL` vacía) — se determinó que es
+porque esa variable solo está configurada para el contexto de Producción
+en Netlify, no para Deploy Previews. Se decidió fusionar directo a
+producción en cada caso, dejando la explicación documentada en cada PR.
 
-## 3. PR #5 — "+ Nuevo negocio" y "Editar" (panel admin)
+## 2. Confirmación y bug de "Panel del negocio" (PR #12)
 
-- `POST /api/negocios` extendido para pedir `email` y generar una
-  contraseña (mismo patrón que `POST /api/clientes`) — antes un negocio
-  creado por acá no tenía forma de loguearse.
-- `PATCH /api/negocios` extendido para que el admin edite
-  nombre/tipo/ciudad/emoji (antes solo aceptaba credenciales de
-  Tiendanube).
-- Se borró `borrar-cliente.sql` (resto sin uso de una tarea ya cerrada,
-  mismo caso que `fix.js`).
-- Probado en el navegador con Postgres real. **Mergeado.**
+Ya con las migraciones aplicándose solas, Cecilia probó crear el negocio
+de prueba de nuevo y esta vez funcionó. Al revisar la grilla, apareció
+"Peperina" **duplicado** (dos tarjetas, una con 0 clientes) — Peperina es
+el negocio real de la mamá de Cecilia, cargado en algún momento anterior;
+el duplicado con 0 clientes era un resto de un intento fallido previo.
 
-## 4. PR #6 — "Negocios" y "Clientes"/"Mis clientes"
+Mientras se investigaba cómo desactivar el duplicado, Cecilia reportó
+confusión real: navegando como Admin, el encabezado decía "Panel del
+negocio" en vez de algo relacionado a Admin. Se encontró que ese texto
+estaba **copiado por error** dentro del bloque de renderizado del panel
+Admin (`{isAdmin && (...)}`), un resto de copiar/pegar de otra parte del
+código. **PR #12**: corregido a "Panel de administrador".
 
-- "Negocios" (admin) vuelve a la grilla general (`setNegocioActivo(null)`,
-  extraído a una función `volverANegocios` para no duplicar la lógica que
-  ya tenía "← Volver").
-- "Clientes" (admin) y "Mis clientes" (negocio): pantalla dedicada con el
-  listado paginado completo, mismo patrón que ya tenía "Canjes" — el
-  backend (`GET /api/clientes`) ya soportaba paginación desde el PR #2.
-- Probado con 11 clientes de prueba (paginación de a 10) en ambos roles.
-  **Mergeado.**
+## 3. Desactivar/reactivar negocio + bug de navegación fantasma (PR #13)
 
-## 5. PR #7 — "Premios" (panel de negocio)
+Para poder desactivar el "Peperina" duplicado sin borrar nada (tiene
+clientes/premios enganchados), se encontró que `Negocio.activo` **ya
+existía en el schema desde hacía tiempo, sin usar** — el cartelito verde
+"Activo" de cada tarjeta era fijo, no leía el dato real, y no había botón
+para cambiarlo.
 
-Charlado antes de construir (tres decisiones tomadas con el negocio):
-borrado lógico en vez de bloquear o borrar físicamente, solo el negocio
-administra sus propios premios (no el admin), y alcanza con
-nombre/puntos/emoji sin campos extra por ahora.
+**PR #13**: se conectó `Negocio.activo` con el mismo patrón de borrado
+lógico que `Premio.activo` — botón "Desactivar"/"Reactivar", badge real,
+"Negocios activos" filtrando por el campo. Probándolo con Playwright
+contra Postgres local se encontró otro bug real: **cualquier acción que
+recargaba la lista de negocios** (crear, editar, y ahora desactivar)
+sacaba al admin de la grilla y lo mandaba de golpe al panel de un negocio
+cualquiera, incluso parado en "Negocios" a propósito — el auto-selección
+del primer negocio de la lista corría en cada recarga, no solo en el
+login inicial. Arreglado en el mismo PR.
 
-- Backend nuevo completo: `GET/POST/PATCH /api/premios` (mismo patrón de
-  paginación y autorización que clientes).
-- `Premio.activo` (Boolean, default `true`) agregado al schema —
-  "Desactivar" es borrado lógico: no rompe la referencia de
-  `Canje.premioId` en canjes históricos.
-- `GET /api/negocios` filtra el `premios` embebido por `activo: true`
-  (afecta el mini-listado de "Inicio" y lo que ve el cliente).
-  `POST /api/canjes` rechaza el canje si el premio está desactivado
-  (defensa además del filtro de UI).
-- Probado en el navegador: alta, edición, desactivar (verificado que
-  desaparece de "Inicio" y del panel del cliente), reactivar, canje
-  rechazado contra un premio desactivado incluso llamando la API
-  directo, canje exitoso una vez reactivado. **Mergeado.**
+Con esto ya andando, Cecilia desactivó ella misma el "Peperina"
+duplicado desde la interfaz real, confirmando que todo el flujo
+funcionaba de punta a punta en producción.
 
-## 6. PR #8 — "Integraciones" (ambos paneles) + bug real de navegación
+## 4. Marca propia por negocio: charla, decisión y primera paleta (PR #14)
 
-Charlado antes de construir: sí incluir el `slug` de Mercado Pago en esta
-pantalla (hallazgo colateral de una sesión anterior: no había forma de
-cargarlo salvo a mano en la base), el propio negocio también puede
-editar su `slug` (no solo el admin), y Dragon Fish se muestra con
-estado fijo "Bloqueada".
+Cecilia pidió empezar a trabajar el diseño visual del panel pensado para
+la marca de Peperina — "una paleta más oscura/negra". Antes de tocar
+código se charló el enfoque:
 
-- `GET /api/negocios` expone `tiendanubeStoreId` (no es secreto) y un
-  booleano calculado `tiendanubeConectado`, sin exponer nunca el
-  `tiendanubeAccessToken`.
-- `PATCH /api/negocios` gana soporte para `slug` (validación de formato,
-  manejo del error de unicidad `P2002` de Prisma con un 409 en vez de un
-  500).
-- **Corrección de seguridad de paso**: `PATCH /api/negocios` devolvía el
-  objeto crudo del negocio (hash de password y access token de
-  Tiendanube en texto plano incluidos) pese a que el comentario del
-  propio archivo decía lo contrario. Corregido para responder con la
-  misma forma segura que el resto de los endpoints.
-- Pantalla nueva con tres bloques: Tiendanube, Mercado Pago, Dragon Fish.
-- **Bug real encontrado en producción** (reportado por Cecilia, probando
-  en el sitio real): en el panel admin, con la grilla de negocios a la
-  vista (sin ninguno elegido), tocar "Clientes"/"Puntos y canjes"/
-  "Integraciones" resaltaba el ítem del sidebar pero la pantalla seguía
-  mostrando la grilla — esas secciones viven dentro del panel de un
-  negocio puntual y el contenido no reaccionaba a `seccionActiva`
-  mientras no había ninguno elegido. Se agregó un mensaje "Elegí un
-  negocio para ver sus..." con un botón de vuelta a la grilla.
-- Probado en el navegador (credenciales de Tiendanube, slug, badges de
-  conexión, error 409 por slug repetido, reproducción exacta del bug de
-  navegación). **Mergeado** (dos commits: la feature + el fix de
-  navegación, agregado al mismo PR porque todavía estaba abierto).
+- **Tokens de color centralizados** (no pantalla por pantalla): un
+  objeto de paleta por defecto + lo que un negocio sobreescriba.
+- **Alcance**: se preguntó si el rediseño era para toda la app o
+  por-negocio — Cecilia eligió **por negocio**, pensando en revender
+  Fideliza a otros comercios a futuro, cada uno con su propia marca.
 
-## 7. PR #9 — "Ajustes" (panel de negocio, ítem nuevo)
+Con el logo de Peperina (Instagram: círculo negro, texto blanco) se
+propuso una paleta negro/blanco con un acento "textil" — Cecilia eligió
+**beige/crudo** entre varias opciones.
 
-Charlado antes de construir: confirmado que el precio en puntos de un
-premio individual ya se podía editar desde "Premios" (no hacía falta
-duplicarlo acá), borrado lógico de más alcance no hacía falta.
+**PR #14**: `Negocio.tema` (JSON, opcional) agregado al schema — si es
+`null`, todo sigue igual que antes (cero impacto en otros negocios).
+Tokens: `fondo`, `superficie`, `borde`, `texto`, `textoSecundario`,
+`primario`, `primarioTexto`, más `fuenteTitulo` (tipografía, aplicada
+solo a títulos visibles, no a todo el texto). Aplicado únicamente a
+`PanelNegocio` (compartido entre "Ver panel" del admin y el negocio
+logueado) y `PanelCliente` — nunca al chrome del Admin. Se agregaron 7
+selectores de color + 1 campo de texto a "Editar negocio" (admin-only),
+ya que no hay forma de que yo cargue esto directo en producción (sin
+acceso al sitio en vivo ni credenciales). Probado extensamente en el
+navegador con Playwright contra Postgres real, incluyendo un `prisma
+generate` olvidado que causó un "Unknown field" temporal.
 
-- `POST /api/negocios/password` (nuevo): cambia la contraseña del propio
-  negocio, verificando la actual con `verifyPassword` antes de aceptar
-  la nueva (mínimo 6 caracteres). El id sale de la sesión, nunca del
-  body — nunca se puede cambiar la contraseña de otro.
-- `puntosXPeso` agregado a `PATCH /api/negocios` (entero positivo, mismo
-  criterio de autorización que `slug`/Tiendanube).
-- Extra agregado por iniciativa propia (el negocio dio el visto bueno):
-  un dato de cuenta de solo lectura (email de acceso, ya en la sesión).
-- Probado: error claro con contraseña actual incorrecta, error si la
-  confirmación no coincide, cambio verificado logueándose con la
-  contraseña nueva, persistencia de `puntosXPeso`. **Mergeado.**
+Como el dato lo tenía que cargar Cecilia manualmente y no había forma de
+hacerlo desde código sin una pantalla, además se armó una **migración de
+datos** (no de esquema) que carga la paleta directo en la base del
+Peperina activo, apuntando por nombre+activo para no tocar el duplicado.
 
-## 8. Diagnóstico largo: "los botones no andan" en producción
+## 5. La paleta real de la marca (PR #15)
 
-Después de fusionar el PR #9, Cecilia reportó que en el panel de negocio
-no podía "tocar" ni Mis clientes, ni Premios, ni Canjes, ni
-Integraciones. Diagnóstico paso a paso (relevante para no repetirlo):
+Cecilia mandó una captura de peperina.com (la tienda real): fondo
+**crema clarito**, no negro, con acentos marrón/terracota. Aviso
+importante entregado: la paleta armada no combinaba con el sitio real.
+Se le preguntó si prefería mantener el panel oscuro (común para un panel
+de gestión interno) o rehacerlo para combinar — eligió rehacerlo.
 
-1. Se confirmó que el problema no estaba en el código: se reprodujo el
-   mismo flujo en local, tanto en modo desarrollo (`next dev`) como con
-   un build de producción real (`next build` + `next start`) contra
-   Postgres real — todo funcionó perfecto en ambos casos.
-2. Se descubrió que Cecilia estaba probando, en un momento, un link de
-   **Deploy Preview viejo** (congelado desde que ese PR se cerró) en vez
-   del sitio de producción real.
-3. Ya en el sitio de producción real, reportó el mismo síntoma. Se pidió
-   una captura de la consola del navegador (F12) para diagnosticar sin
-   acceso directo al entorno de Netlify (el sandbox de esta sesión tiene
-   el tráfico de salida bloqueado — no se puede hacer `curl` ni
-   `WebFetch` contra dominios externos).
-4. La consola mostró mensajes `[HMR] connected` / `[Fast Refresh]` —
-   exclusivos de `next dev`. Se determinó que la URL en la barra de
-   direcciones era **`localhost:3000`**, no el sitio real — un servidor
-   de desarrollo corriendo en otra máquina/ventana, con datos de prueba
-   viejos ("Peperina", sin el ítem "Ajustes"), sin relación con lo que se
-   venía publicando.
-5. Al entrar de verdad a la URL de producción, apareció el panel Admin
-   real con "Negocios activos: 0" — **no había ningún negocio real
-   cargado en la base de producción** (el "negocio de prueba" que
-   Cecilia tenía en mente era el de la instancia de `localhost`, una
-   base completamente distinta).
-6. Al intentar crear un negocio de prueba real (botón "+ Nuevo negocio"),
-   Cecilia reportó que tampoco reaccionaba. Se sospechó falta de manejo
-   de errores en el frontend (`fetch` sin `try/catch`: si el servidor
-   responde algo que no es JSON, la promesa se rechaza en silencio y el
-   botón "no hace nada" sin ningún aviso) — confirmado como un problema
-   real independientemente de la causa de fondo, y corregido (ver más
-   abajo).
-7. En paralelo, Cecilia encontró que la cuenta de Netlify se había
-   quedado sin créditos operativos del ciclo de facturación — el
-   dashboard de Netlify muestra "production deploys...are paused". Se
-   verificó que el último deploy publicado correspondía igual al merge
-   del PR #9 (`main@bec2deb`), así que el trabajo de esta sesión sí
-   llegó a producción antes de que se pausaran los deploys — el freno
-   afecta a lo que se fusione de acá en adelante, no a lo ya publicado.
+Su mamá le pasó la paleta real de la marca (6 colores; uno,
+`#37A1D`, llegó incompleto —5 dígitos, no es hex válido— y quedó
+pendiente). **PR #15**: nueva migración de datos con los 5 colores
+confirmados (fondo `#F6EFE9`, bordes `#EBDAC6`, texto secundario
+`#A99886`, acento `#877152`, más un nuevo token **`resaltado`**
+(`#F4D9D1`) agregado para los chips de puntos/avatares — antes reusaban
+el mismo tono que los botones, y así se aprovecha más variedad de la
+paleta real en vez de reducir todo a dos colores. Probado de nuevo en el
+navegador antes de fusionar.
 
-**Conclusión al cierre de la sesión**: no quedó 100% confirmado si el
-síntoma original de "los botones no andan" era por el corte de créditos
-de Netlify (que podría afectar la ejecución de funciones serverless, no
-solo los deploys nuevos) o por otra causa — el manejo de errores recién
-agregado va a ser clave para el próximo diagnóstico, en cuanto Cecilia
-haga el upgrade del plan. Ver `tareas-futuras.md`.
+Quedó sin resolver del todo un pedido de Cecilia ("metele los detalles,
+los mini dibujitos") — se interpretó como el color de resaltado nuevo,
+pero no se confirmó si se refería a algo más específico (íconos
+ilustrados u otra decoración del sitio real).
 
-## 9. Manejo de errores en los botones de guardado (sin PR todavía)
+## 6. Imagen de portada tipo "muro" (PR #16)
 
-Se detectó que varias funciones del frontend (`crearNegocio`,
-`guardarEdicionNegocio`, `crearPremio`, `guardarEdicionPremio`,
-`togglePremioActivo`, `guardarIntegraciones`, `guardarPuntosXPeso`,
-`cambiarPassword`, `agregarCliente`, `sumarPuntos`) llamaban a `fetch`
-sin `try/catch`, a diferencia de `iniciarPago`/`canjearPremio` que sí lo
-tenían. Se agregó manejo de errores consistente a todas — commit
-pusheado a la rama de trabajo, **PR sin abrir** (no tenía sentido
-mientras los deploys de Netlify estaban pausados).
+Cecilia pidió agregar una imagen de portada rectangular arriba de todo,
+al estilo de una foto de portada de Facebook. Antes de construir se
+charló: como la app no tiene sistema propio de carga de archivos, se
+acordó que la imagen se carga pegando una URL (subida por el negocio a
+donde quiera — Google Drive, Imgur, Instagram), y que se muestre tanto en
+el panel del negocio como en el del cliente (pedido explícito de
+Cecilia: "que lo vean los dos").
+
+**PR #16**: nuevo token `imagenPortada` (URL), banner de ancho completo
+arriba del header en ambos paneles, campo de texto agregado a "Editar
+negocio". Si no se configura, no se muestra nada. Probado con una imagen
+de prueba (data URI) contra Postgres real, ya que no había forma de
+verificar carga de imágenes externas reales desde este sandbox.
+
+Después de fusionado, se ayudó a Cecilia paso a paso a conseguir el link
+real: confundió la ruta local del archivo (`file:///C:/...`) con una URL,
+después pegó el link de la **página** de imgur (`imgur.com/xxx`) en vez
+del link **directo a la imagen** (`i.imgur.com/xxx.png`) — con ese último
+sí funcionó.
+
+## 7. Bug real: texto invisible en modo oscuro del sistema (PR #17)
+
+Mientras probaba cargar la URL de la imagen, Cecilia reportó que "las
+letras no se ven bien" al llenar campos (la URL, el usuario del login).
+Se encontró que `app/globals.css` tenía una regla `@media
+(prefers-color-scheme: dark)` heredada del template inicial de
+`create-next-app`, **nunca usada a propósito**: si el sistema/navegador
+de quien usaba la app estaba en modo oscuro, el texto del `body` pasaba a
+gris claro, pero los `<input>` seguían con el fondo blanco por defecto
+del navegador (los inputs no heredan `background-color`) — texto claro
+sobre fondo blanco, invisible. Afectaba **cualquier** campo de toda la
+app (login incluido), no algo específico de Peperina.
+
+**PR #17**: se saca esa regla y se agrega `color-scheme: light`
+explícito. Probado con Playwright emulando `prefers-color-scheme: dark`:
+antes, el color de texto computado de un input era `#ededed` (invisible);
+después, `#171717` (el oscuro de siempre).
+
+Encontrar y solucionar esto costó varias vueltas por una complicación
+del propio entorno de trabajo: un patrón de `pkill` seguido de otros
+comandos en la misma llamada terminaba cortando el resto de la cadena de
+comandos (el `rm -rf .next` nunca llegaba a ejecutarse), lo que generó
+resultados de prueba inconsistentes hasta separar esos pasos en llamadas
+distintas.
+
+## 8. Soporte paso a paso a Cecilia (no técnica)
+
+Buena parte de la sesión fue guiar a Cecilia, que no tiene perfil
+técnico, paso a paso por tareas que para alguien con más experiencia
+serían triviales: encontrar dónde estaba mal el link pegado (viendo
+capturas de pantalla), subir una imagen a imgur, copiar la dirección
+directa de una imagen en vez de la de la página. Quedó como patrón para
+sesiones futuras: cuando algo no funcione de su lado, pedir explícitamente
+una captura de la pantalla actual y, de ser posible, el texto exacto de
+lo que escribió/pegó, en vez de asumir.
 
 ## Archivos nuevos/tocados en esta sesión
 
-- `app/api/premios/route.js` — nuevo (CRUD completo).
-- `app/api/negocios/password/route.js` — nuevo.
-- `app/api/negocios/route.js` — `puntosXPeso`/`slug` en `PATCH`,
-  `tiendanubeStoreId`/`tiendanubeConectado` en `GET`, respuesta segura.
-- `app/api/canjes/route.js` — valida `premio.activo`.
-- `app/page.js` — el archivo más tocado de la sesión: sidebars de los
-  tres paneles, pantallas nuevas (Clientes/Premios/Integraciones/
-  Ajustes), manejo de errores.
-- `prisma/schema.prisma` + migración — `Premio.activo`.
-- `borrar-cliente.sql` — eliminado.
+- `netlify.toml` — build command corregido (`prisma migrate deploy`).
+- `app/api/negocios/route.js` — `activo`/`tema` en `NEGOCIO_SELECT`,
+  validación de tema (`validarTema`), captura de `P2002` en `POST`.
+- `app/page.js` — el archivo más tocado: `TEMA_DEFAULT`/`resolverTema`,
+  toggle de `activo` en negocios, banner de imagen, fix de navegación
+  fantasma, selectores de tema en "Editar negocio".
+- `app/globals.css` — se saca el modo oscuro automático, se agrega
+  `color-scheme: light`.
+- `prisma/schema.prisma` + migraciones — `Negocio.activo`, `Negocio.tema`,
+  y dos migraciones de datos (no de esquema) para cargar la paleta de
+  Peperina.
 - `docs/` — esta actualización.
 
 ## Estado al cierre de esta sesión
 
-- PRs #4 a #9: todos mergeados a `main`.
-- Un commit más (manejo de errores) pusheado a la rama de trabajo, sin
-  PR abierto.
-- Bloqueante activo: créditos de Netlify agotados, deploys de producción
-  pausados. Cecilia dijo que iba a actualizar el plan.
-- Pendiente no resuelto: confirmar si el síntoma de "botones que no
-  hacen nada" en producción tenía relación con lo de Netlify, una vez
-  que se resuelva y se pueda volver a probar con mensajes de error
-  visibles.
+- PRs #10 a #17: todos mergeados a `main`, todos con el deploy preview en
+  rojo por la limitación conocida de `DATABASE_URL` (documentada en cada
+  uno), pero probados en el navegador contra Postgres real antes de
+  fusionar.
+- Netlify: créditos pagos, deploys de producción funcionando con
+  normalidad, migraciones aplicándose solas en cada deploy.
+- Peperina en producción: tema visual real cargado (paleta clara +
+  acentos beige + tipografía serif + imagen de portada), confirmado
+  visualmente por Cecilia ("se ve genial").
+- Pendiente sin resolver: el sexto color de la marca (`#37A1D`,
+  incompleto) y la duda sobre "los mini dibujitos". Ver
+  `tareas-futuras.md`.

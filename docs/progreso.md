@@ -130,7 +130,68 @@ antes de construir cada pantalla. En orden:
 6. **PR #9**: "Ajustes" del panel de negocio (ítem nuevo): cambio de
    contraseña, `puntosXPeso` editable.
 7. Manejo de errores agregado a los botones de guardado (`try/catch` +
-   mensaje visible) — pusheado a la rama, **sin PR abierto todavía**.
+   mensaje visible) — pusheado a la rama, sin PR abierto todavía.
 8. Se descubrió que la cuenta de Netlify se quedó sin créditos operativos
-   — deploys de producción pausados hasta que se resuelva (ver
-   `contexto-proyecto.md` y `tareas-futuras.md`). No es un bug de código.
+   — deploys de producción pausados hasta que se resuelva. No es un bug
+   de código.
+
+## 2026-08-25/26 — Créditos de Netlify resueltos, causa de fondo real
+del bug de producción, y marca propia por negocio (PRs #10-#17)
+
+Cecilia actualizó el plan de Netlify y los deploys volvieron a andar.
+Eso permitió retomar el diagnóstico del bug de producción que había
+quedado abierto, y de ahí surgió una sesión larga que terminó en una
+funcionalidad nueva grande (marca propia por negocio) a pedido de la
+dueña de Peperina, que empezó a mostrarle el panel a su mamá.
+
+1. **PR #10**: se fusionó el manejo de errores en los botones de guardado
+   que había quedado pusheado sin PR (ver arriba).
+2. **Causa de fondo real encontrada** (probando "Guardar negocio" en
+   producción con el manejo de errores ya en su lugar): el build de
+   Netlify nunca corría `prisma migrate deploy`, solo `prisma generate`
+   — la base de producción estaba atrasada varias migraciones. La más
+   grave, `Premio.activo` (del PR #7), rompía `GET /api/negocios` con un
+   500 sin cuerpo. **PR #11**: build command corregido a
+   `prisma migrate deploy && prisma generate && npm run build`, más un
+   `catch` para email duplicado en `POST /api/negocios` que también
+   estaba sin capturar.
+3. **PR #12**: bug encontrado por la propia Cecilia al confundirse de
+   cuenta — el panel Admin mostraba "Panel del negocio" como subtítulo
+   (copiado por error de otra parte del código). Corregido a "Panel de
+   administrador".
+4. **PR #13**: se conectó `Negocio.activo` (ya existía en el schema, sin
+   usar) — desactivar/reactivar un negocio desde la grilla, mismo
+   patrón de borrado lógico que `Premio.activo`. Al probarlo se encontró
+   otro bug real: cualquier acción que recargaba la lista de negocios
+   sacaba al admin de la grilla sin avisar y lo mandaba al panel del
+   primer negocio de la lista — arreglado de paso.
+5. **Marca propia por negocio** (a pedido de Cecilia, mostrándole el
+   panel a su mamá, dueña de Peperina): se decidió con ella, antes de
+   escribir código, que el tema es por-negocio (pensando en revender
+   Fideliza a futuro) y que el "chrome" del Admin nunca cambia.
+   - **PR #14**: `Negocio.tema` (JSON), 7 tokens de color + tipografía de
+     títulos, aplicado a `PanelNegocio` y `PanelCliente`. Paleta inicial
+     negro/beige a partir del logo de Instagram de Peperina.
+   - **PR #15**: reemplazo por la paleta real que mandó la dueña de la
+     marca (blanco/crema con acentos en beige) — la inicial no
+     coincidía con el sitio real (peperina.com, mucho más claro). Se
+     agregó un token de "resaltado" (segundo acento, para los chips de
+     puntos/avatares) para aprovechar más colores de la paleta real en
+     vez de reducir todo a dos tonos.
+   - **PR #16**: imagen de portada tipo "muro de Facebook" (URL, ya que
+     la app no tiene carga de archivos propia) — visible en el panel del
+     negocio y en el del cliente.
+   - Probado extensamente en el navegador contra Postgres real en cada
+     paso (incluida una vuelta atrás al descubrir, en medio de una
+     prueba, que había que correr `prisma generate` después de
+     `migrate deploy` — un cliente de Prisma desactualizado tiraba
+     "Unknown field" para el campo nuevo).
+6. **PR #17**: bug real encontrado mientras Cecilia probaba a cargar la
+   imagen de portada — el texto tipeado en los campos de formulario
+   quedaba invisible con el sistema en modo oscuro (`globals.css` traía
+   una regla de modo oscuro automático heredada del template inicial,
+   nunca usada a propósito). Afectaba a toda la app, no solo a Peperina.
+7. Sesión de soporte extensa guiando a Cecilia paso a paso para subir la
+   imagen real a imgur y conseguir el link directo correcto (varios
+   intentos: ruta local de archivo, link de página en vez de imagen
+   directa) — documentado en `sesion-actual.md`.
