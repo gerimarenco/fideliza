@@ -34,13 +34,18 @@ const SLUG_VALIDO = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
 // Tokens de color que un negocio puede personalizar (branding propio, ej.
 // Peperina). Lo que no venga acá usa la paleta clara por defecto de la app.
-const TEMA_CLAVES_VALIDAS = ['fondo', 'superficie', 'borde', 'texto', 'textoSecundario', 'primario', 'primarioTexto']
+const TEMA_CLAVES_COLOR = ['fondo', 'superficie', 'borde', 'texto', 'textoSecundario', 'primario', 'primarioTexto']
+const TEMA_CLAVES_TEXTO = ['fuenteTitulo']
 const COLOR_HEX_VALIDO = /^#[0-9a-fA-F]{3,8}$/
 
 function validarTema(tema) {
   if (tema === null) return true
   if (typeof tema !== 'object' || Array.isArray(tema)) return false
-  return Object.entries(tema).every(([clave, valor]) => TEMA_CLAVES_VALIDAS.includes(clave) && COLOR_HEX_VALIDO.test(valor))
+  return Object.entries(tema).every(([clave, valor]) => {
+    if (TEMA_CLAVES_COLOR.includes(clave)) return COLOR_HEX_VALIDO.test(valor)
+    if (TEMA_CLAVES_TEXTO.includes(clave)) return typeof valor === 'string' && valor.length > 0 && valor.length <= 200
+    return false
+  })
 }
 
 export async function GET() {

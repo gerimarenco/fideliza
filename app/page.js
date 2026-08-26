@@ -14,6 +14,7 @@ const TEMA_DEFAULT = {
   textoSecundario: '#999999',
   primario: '#6366f1',
   primarioTexto: '#ffffff',
+  fuenteTitulo: 'system-ui, sans-serif',
 };
 
 function resolverTema(negocio) {
@@ -758,7 +759,7 @@ export default function Home() {
   const PanelNegocio = ({ negocio, onVolver }) => (
     <div style={{ flex: 1, overflow: 'auto', background: tema.fondo, color: tema.texto }}>
       <div style={{ padding: '14px 24px', background: tema.superficie, borderBottom: `1px solid ${tema.borde}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 15, fontWeight: 600 }}>Bienvenida, {negocio.nombre} {negocio.emoji}</div>
+        <div style={{ fontSize: 15, fontWeight: 600, fontFamily: tema.fuenteTitulo }}>Bienvenida, {negocio.nombre} {negocio.emoji}</div>
         <div style={{ display: 'flex', gap: 8 }}>
           {onVolver && <button onClick={onVolver} style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, fontSize: 12, cursor: 'pointer' }}>← Volver</button>}
           {(seccionActiva === 'inicio' || seccionActiva === 'clientes') && <button onClick={() => setMostrarFormCliente(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 12, cursor: 'pointer' }}>+ Nuevo cliente</button>}
@@ -904,7 +905,7 @@ export default function Home() {
       <div style={{ minHeight: '100vh', background: tema.fondo, color: tema.texto, fontFamily: 'system-ui', maxWidth: 480, margin: '0 auto' }}>
         <div style={{ padding: '20px 20px 16px', background: tema.superficie, borderBottom: `1px solid ${tema.borde}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-          <div style={{ fontSize: 16, fontWeight: 600 }}>Hola, {clientePropio.nombre ? clientePropio.nombre.split(' ')[0] : clientePropio.email.split('@')[0]} 👋</div>
+          <div style={{ fontSize: 16, fontWeight: 600, fontFamily: tema.fuenteTitulo }}>Hola, {clientePropio.nombre ? clientePropio.nombre.split(' ')[0] : clientePropio.email.split('@')[0]} 👋</div>
             <div style={{ fontSize: 12, color: tema.textoSecundario }}>{negocioDelCliente.nombre} {negocioDelCliente.emoji}</div>
           </div>
           <button onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: '#ef4444', cursor: 'pointer' }}>Salir</button>
@@ -913,7 +914,7 @@ export default function Home() {
         <div style={{ padding: 20 }}>
           <div style={{ background: tema.primario, borderRadius: 16, padding: 24, color: tema.primarioTexto, textAlign: 'center', marginBottom: 20 }}>
             <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 4 }}>Tus puntos</div>
-            <div style={{ fontSize: 40, fontWeight: 700 }}>{clientePropio.puntos}</div>
+            <div style={{ fontSize: 40, fontWeight: 700, fontFamily: tema.fuenteTitulo }}>{clientePropio.puntos}</div>
           </div>
 
           <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 16, marginBottom: 20 }}>
@@ -1108,6 +1109,10 @@ export default function Home() {
                               </div>
                             ))}
                           </div>
+                          <div style={{ marginBottom: 12 }}>
+                            <label style={{ fontSize: 10, color: '#555', display: 'block', marginBottom: 4 }}>Tipografía de títulos (ej: Georgia, serif)</label>
+                            <input value={formEdicionNegocio.tema.fuenteTitulo} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, fuenteTitulo: e.target.value}})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                          </div>
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button onClick={guardarEdicionNegocio} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
                             <button onClick={() => setNegocioEditandoId(null)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Cancelar</button>
@@ -1148,7 +1153,7 @@ export default function Home() {
         <div style={{ display: 'flex', minHeight: '100vh' }}>
           <div style={{ width: 210, background: tema.superficie, color: tema.texto, borderRight: `1px solid ${tema.borde}`, padding: '20px 0', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '0 20px 16px', borderBottom: `1px solid ${tema.borde}` }}>
-              <div style={{ fontSize: 17, fontWeight: 600 }}>{negocioPropio?.nombre || session?.user?.name}</div>
+              <div style={{ fontSize: 17, fontWeight: 600, fontFamily: tema.fuenteTitulo }}>{negocioPropio?.nombre || session?.user?.name}</div>
               <div style={{ fontSize: 11, color: tema.textoSecundario, marginTop: 2 }}>Panel del negocio</div>
             </div>
             <div style={{ padding: '12px 8px', flex: 1 }}>
