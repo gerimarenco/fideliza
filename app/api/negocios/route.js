@@ -36,7 +36,9 @@ const SLUG_VALIDO = /^[a-z0-9]+(-[a-z0-9]+)*$/
 // Peperina). Lo que no venga acá usa la paleta clara por defecto de la app.
 const TEMA_CLAVES_COLOR = ['fondo', 'superficie', 'borde', 'texto', 'textoSecundario', 'primario', 'primarioTexto', 'resaltado']
 const TEMA_CLAVES_TEXTO = ['fuenteTitulo']
+const TEMA_CLAVES_URL = ['imagenPortada']
 const COLOR_HEX_VALIDO = /^#[0-9a-fA-F]{3,8}$/
+const URL_HTTP_VALIDA = /^https?:\/\/.+/
 
 function validarTema(tema) {
   if (tema === null) return true
@@ -44,6 +46,8 @@ function validarTema(tema) {
   return Object.entries(tema).every(([clave, valor]) => {
     if (TEMA_CLAVES_COLOR.includes(clave)) return COLOR_HEX_VALIDO.test(valor)
     if (TEMA_CLAVES_TEXTO.includes(clave)) return typeof valor === 'string' && valor.length > 0 && valor.length <= 200
+    // La imagen de portada es opcional: string vacío significa "sin imagen".
+    if (TEMA_CLAVES_URL.includes(clave)) return typeof valor === 'string' && (valor === '' || (valor.length <= 500 && URL_HTTP_VALIDA.test(valor)))
     return false
   })
 }

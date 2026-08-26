@@ -16,6 +16,7 @@ const TEMA_DEFAULT = {
   primarioTexto: '#ffffff',
   resaltado: '#eef2ff',
   fuenteTitulo: 'system-ui, sans-serif',
+  imagenPortada: '',
 };
 
 function resolverTema(negocio) {
@@ -759,6 +760,9 @@ export default function Home() {
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
   const PanelNegocio = ({ negocio, onVolver }) => (
     <div style={{ flex: 1, overflow: 'auto', background: tema.fondo, color: tema.texto }}>
+      {tema.imagenPortada && (
+        <img src={tema.imagenPortada} alt="" style={{ width: '100%', height: 160, objectFit: 'cover', display: 'block' }} />
+      )}
       <div style={{ padding: '14px 24px', background: tema.superficie, borderBottom: `1px solid ${tema.borde}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontSize: 15, fontWeight: 600, fontFamily: tema.fuenteTitulo }}>Bienvenida, {negocio.nombre} {negocio.emoji}</div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -904,6 +908,9 @@ export default function Home() {
 
     return (
       <div style={{ minHeight: '100vh', background: tema.fondo, color: tema.texto, fontFamily: 'system-ui', maxWidth: 480, margin: '0 auto' }}>
+        {tema.imagenPortada && (
+          <img src={tema.imagenPortada} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }} />
+        )}
         <div style={{ padding: '20px 20px 16px', background: tema.superficie, borderBottom: `1px solid ${tema.borde}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
           <div style={{ fontSize: 16, fontWeight: 600, fontFamily: tema.fuenteTitulo }}>Hola, {clientePropio.nombre ? clientePropio.nombre.split(' ')[0] : clientePropio.email.split('@')[0]} 👋</div>
@@ -1114,6 +1121,10 @@ export default function Home() {
                           <div style={{ marginBottom: 12 }}>
                             <label style={{ fontSize: 10, color: '#555', display: 'block', marginBottom: 4 }}>Tipografía de títulos (ej: Georgia, serif)</label>
                             <input value={formEdicionNegocio.tema.fuenteTitulo} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, fuenteTitulo: e.target.value}})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                          </div>
+                          <div style={{ marginBottom: 12 }}>
+                            <label style={{ fontSize: 10, color: '#555', display: 'block', marginBottom: 4 }}>Imagen de portada (URL, tipo muro de Facebook)</label>
+                            <input value={formEdicionNegocio.tema.imagenPortada} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, imagenPortada: e.target.value}})} placeholder="https://..." style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
                           </div>
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button onClick={guardarEdicionNegocio} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
