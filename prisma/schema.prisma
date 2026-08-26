@@ -20,6 +20,7 @@ model Negocio {
   slug                  String?   @unique
   tiendanubeStoreId     String?   @unique
   tiendanubeAccessToken String?
+  tema                  Json?
   createdAt             DateTime  @default(now())
   clientes    Cliente[]
   premios     Premio[]

@@ -3,6 +3,24 @@
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 
+// Paleta por defecto (clara) del panel de negocio y del panel de cliente.
+// Un negocio con marca propia (ej. Peperina) puede sobreescribir cualquiera
+// de estos tokens vía Negocio.tema — lo que no sobreescriba usa este valor.
+const TEMA_DEFAULT = {
+  fondo: '#f5f5f5',
+  superficie: '#ffffff',
+  borde: '#eeeeee',
+  texto: '#1a1a1a',
+  textoSecundario: '#999999',
+  primario: '#6366f1',
+  primarioTexto: '#ffffff',
+  fuenteTitulo: 'system-ui, sans-serif',
+};
+
+function resolverTema(negocio) {
+  return { ...TEMA_DEFAULT, ...(negocio?.tema || {}) };
+}
+
 export default function Home() {
   const { data: session } = useSession();
   const [negocios, setNegocios] = useState([]);
@@ -16,7 +34,7 @@ export default function Home() {
   const [mostrarFormNegocio, setMostrarFormNegocio] = useState(false);
   const [nuevoNegocio, setNuevoNegocio] = useState({ nombre: '', tipo: '', ciudad: '', emoji: '', email: '' });
   const [negocioEditandoId, setNegocioEditandoId] = useState(null);
-  const [formEdicionNegocio, setFormEdicionNegocio] = useState({ nombre: '', tipo: '', ciudad: '', emoji: '' });
+  const [formEdicionNegocio, setFormEdicionNegocio] = useState({ nombre: '', tipo: '', ciudad: '', emoji: '', tema: { ...TEMA_DEFAULT } });
   const [clientePropio, setClientePropio] = useState(null);
   const [negocioDelCliente, setNegocioDelCliente] = useState(null);
   const [montoPago, setMontoPago] = useState('');
@@ -43,6 +61,10 @@ export default function Home() {
   const isCliente = session?.user?.role === 'cliente';
 
   const negocioMostrado = isAdmin ? negocioActivo : (isNegocio ? negocioPropio : null);
+  // Marca propia del negocio (ej. Peperina): si no tiene tema cargado, usa la
+  // paleta clara por defecto. Solo afecta su propio panel y el de sus
+  // clientes, nunca el chrome general del Admin.
+  const tema = resolverTema(isCliente ? negocioDelCliente : negocioMostrado);
 
   // esCargaInicial solo es true la primera vez (justo después del login):
   // ahí sí conviene pararse directo en un negocio. Las recargas que dispara
@@ -240,7 +262,7 @@ export default function Home() {
 
   const iniciarEdicionNegocio = (neg) => {
     setNegocioEditandoId(neg.id);
-    setFormEdicionNegocio({ nombre: neg.nombre, tipo: neg.tipo, ciudad: neg.ciudad, emoji: neg.emoji });
+    setFormEdicionNegocio({ nombre: neg.nombre, tipo: neg.tipo, ciudad: neg.ciudad, emoji: neg.emoji, tema: { ...TEMA_DEFAULT, ...(neg.tema || {}) } });
   };
 
   const guardarEdicionNegocio = async () => {
@@ -515,13 +537,13 @@ export default function Home() {
         <button
           onClick={() => onCambiar(pagina - 1)}
           disabled={pagina <= 1}
-          style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #eee', background: '#fff', fontSize: 12, cursor: pagina <= 1 ? 'not-allowed' : 'pointer', opacity: pagina <= 1 ? 0.5 : 1 }}
+          style={{ padding: '4px 12px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, fontSize: 12, cursor: pagina <= 1 ? 'not-allowed' : 'pointer', opacity: pagina <= 1 ? 0.5 : 1 }}
         >← Anterior</button>
-        <span style={{ fontSize: 12, color: '#555' }}>Página {pagina} de {totalPages}</span>
+        <span style={{ fontSize: 12, color: tema.textoSecundario }}>Página {pagina} de {totalPages}</span>
         <button
           onClick={() => onCambiar(pagina + 1)}
           disabled={pagina >= totalPages}
-          style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #eee', background: '#fff', fontSize: 12, cursor: pagina >= totalPages ? 'not-allowed' : 'pointer', opacity: pagina >= totalPages ? 0.5 : 1 }}
+          style={{ padding: '4px 12px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, fontSize: 12, cursor: pagina >= totalPages ? 'not-allowed' : 'pointer', opacity: pagina >= totalPages ? 0.5 : 1 }}
         >Siguiente →</button>
       </div>
     );
@@ -530,18 +552,18 @@ export default function Home() {
   // Historial de canjes del negocio completo (pantalla nueva)
   const VistaCanjes = () => (
     <div style={{ padding: 24 }}>
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Historial de canjes</div>
-        {!canjesData && <div style={{ fontSize: 13, color: '#999' }}>Cargando...</div>}
-        {canjesData && canjesData.items.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Todavía no hay canjes.</div>}
+        {!canjesData && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Cargando...</div>}
+        {canjesData && canjesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no hay canjes.</div>}
         {canjesData?.items.map(c => (
-          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: `1px solid ${tema.borde}` }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{c.premio.emoji}</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 500 }}>{c.premio.nombre}</div>
-              <div style={{ fontSize: 11, color: '#999' }}>{c.cliente.nombre || c.cliente.email} · {new Date(c.createdAt).toLocaleDateString('es-AR')}</div>
+              <div style={{ fontSize: 11, color: tema.textoSecundario }}>{c.cliente.nombre || c.cliente.email} · {new Date(c.createdAt).toLocaleDateString('es-AR')}</div>
             </div>
-            <div style={{ fontSize: 12, fontWeight: 500, background: '#eef2ff', color: '#6366f1', padding: '4px 10px', borderRadius: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, background: tema.primario, color: tema.primarioTexto, padding: '4px 10px', borderRadius: 20 }}>
               {c.premio.puntos} pts
             </div>
           </div>
@@ -554,20 +576,20 @@ export default function Home() {
   // Listado completo de clientes del negocio (pantalla nueva)
   const VistaClientes = () => (
     <div style={{ padding: 24 }}>
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Clientes</div>
-        {!clientesData && <div style={{ fontSize: 13, color: '#999' }}>Cargando...</div>}
-        {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Todavía no hay clientes.</div>}
+        {!clientesData && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Cargando...</div>}
+        {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no hay clientes.</div>}
         {clientesData?.items.map(c => (
-          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#6366f1' }}>
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: `1px solid ${tema.borde}` }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: tema.primario, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: tema.primarioTexto }}>
               {(c.nombre || c.email).slice(0, 2).toUpperCase()}
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 500 }}>{c.nombre || c.email}</div>
-              <div style={{ fontSize: 11, color: '#999' }}>{c.email}{c.telefono ? ` · ${c.telefono}` : ''}</div>
+              <div style={{ fontSize: 11, color: tema.textoSecundario }}>{c.email}{c.telefono ? ` · ${c.telefono}` : ''}</div>
             </div>
-            <div style={{ fontSize: 12, fontWeight: 500, background: '#eef2ff', color: '#6366f1', padding: '4px 10px', borderRadius: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, background: tema.primario, color: tema.primarioTexto, padding: '4px 10px', borderRadius: 20 }}>
               {c.puntos} pts
             </div>
           </div>
@@ -581,63 +603,63 @@ export default function Home() {
   const VistaPremios = () => (
     <div style={{ padding: 24 }}>
       {mostrarFormPremio && (
-        <div style={{ marginBottom: 20, background: '#fff', borderRadius: 12, border: '1px solid #6366f1', padding: 20 }}>
+        <div style={{ marginBottom: 20, background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.primario}`, padding: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Nuevo premio</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: 12, marginBottom: 12 }}>
             <div>
-              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Nombre *</label>
-              <input value={nuevoPremio.nombre} onChange={e => setNuevoPremio({...nuevoPremio, nombre: e.target.value})} placeholder="Café gratis" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+              <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Nombre *</label>
+              <input value={nuevoPremio.nombre} onChange={e => setNuevoPremio({...nuevoPremio, nombre: e.target.value})} placeholder="Café gratis" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Puntos *</label>
-              <input type="number" value={nuevoPremio.puntos} onChange={e => setNuevoPremio({...nuevoPremio, puntos: e.target.value})} placeholder="100" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+              <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Puntos *</label>
+              <input type="number" value={nuevoPremio.puntos} onChange={e => setNuevoPremio({...nuevoPremio, puntos: e.target.value})} placeholder="100" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Emoji *</label>
-              <input value={nuevoPremio.emoji} onChange={e => setNuevoPremio({...nuevoPremio, emoji: e.target.value})} placeholder="☕" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+              <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Emoji *</label>
+              <input value={nuevoPremio.emoji} onChange={e => setNuevoPremio({...nuevoPremio, emoji: e.target.value})} placeholder="☕" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={crearPremio} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar premio</button>
-            <button onClick={() => setMostrarFormPremio(false)} style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+            <button onClick={crearPremio} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar premio</button>
+            <button onClick={() => setMostrarFormPremio(false)} style={{ padding: '8px 20px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
           </div>
         </div>
       )}
 
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Premios</div>
-        {!premiosData && <div style={{ fontSize: 13, color: '#999' }}>Cargando...</div>}
-        {premiosData && premiosData.items.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Todavía no hay premios.</div>}
+        {!premiosData && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Cargando...</div>}
+        {premiosData && premiosData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no hay premios.</div>}
         {premiosData?.items.map(p => (
-          <div key={p.id} style={{ padding: '10px 0', borderBottom: '1px solid #f3f4f6', opacity: p.activo ? 1 : 0.6 }}>
+          <div key={p.id} style={{ padding: '10px 0', borderBottom: `1px solid ${tema.borde}`, opacity: p.activo ? 1 : 0.6 }}>
             {premioEditandoId === p.id ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px auto', gap: 10, alignItems: 'end' }}>
                 <div>
-                  <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Nombre</label>
-                  <input value={formEdicionPremio.nombre} onChange={e => setFormEdicionPremio({...formEdicionPremio, nombre: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                  <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Nombre</label>
+                  <input value={formEdicionPremio.nombre} onChange={e => setFormEdicionPremio({...formEdicionPremio, nombre: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Puntos</label>
-                  <input type="number" value={formEdicionPremio.puntos} onChange={e => setFormEdicionPremio({...formEdicionPremio, puntos: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                  <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Puntos</label>
+                  <input type="number" value={formEdicionPremio.puntos} onChange={e => setFormEdicionPremio({...formEdicionPremio, puntos: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Emoji</label>
-                  <input value={formEdicionPremio.emoji} onChange={e => setFormEdicionPremio({...formEdicionPremio, emoji: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                  <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Emoji</label>
+                  <input value={formEdicionPremio.emoji} onChange={e => setFormEdicionPremio({...formEdicionPremio, emoji: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={guardarEdicionPremio} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
-                  <button onClick={() => setPremioEditandoId(null)} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Cancelar</button>
+                  <button onClick={guardarEdicionPremio} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: 'none', background: tema.primario, color: tema.primarioTexto, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+                  <button onClick={() => setPremioEditandoId(null)} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.textoSecundario, cursor: 'pointer' }}>Cancelar</button>
                 </div>
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{p.emoji}</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{p.nombre}{!p.activo && <span style={{ marginLeft: 8, fontSize: 11, color: '#999' }}>(desactivado)</span>}</div>
-                  <div style={{ fontSize: 11, color: '#999' }}>{p.puntos} puntos</div>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{p.nombre}{!p.activo && <span style={{ marginLeft: 8, fontSize: 11, color: tema.textoSecundario }}>(desactivado)</span>}</div>
+                  <div style={{ fontSize: 11, color: tema.textoSecundario }}>{p.puntos} puntos</div>
                 </div>
-                <button onClick={() => iniciarEdicionPremio(p)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Editar</button>
-                <button onClick={() => togglePremioActivo(p)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: p.activo ? '#ef4444' : '#16a34a', cursor: 'pointer' }}>{p.activo ? 'Desactivar' : 'Reactivar'}</button>
+                <button onClick={() => iniciarEdicionPremio(p)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.textoSecundario, cursor: 'pointer' }}>Editar</button>
+                <button onClick={() => togglePremioActivo(p)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: p.activo ? '#ef4444' : '#16a34a', cursor: 'pointer' }}>{p.activo ? 'Desactivar' : 'Reactivar'}</button>
               </div>
             )}
           </div>
@@ -658,90 +680,90 @@ export default function Home() {
   // Dragon Fish)
   const VistaIntegraciones = () => (
     <div style={{ padding: 24, display: 'grid', gap: 16, maxWidth: 640 }}>
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>Tiendanube</div>
           <BadgeConexion conectada={negocioMostrado?.tiendanubeConectado} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <div>
-            <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Store ID</label>
-            <input value={formIntegraciones.tiendanubeStoreId} onChange={e => setFormIntegraciones({...formIntegraciones, tiendanubeStoreId: e.target.value})} placeholder="123456" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+            <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Store ID</label>
+            <input value={formIntegraciones.tiendanubeStoreId} onChange={e => setFormIntegraciones({...formIntegraciones, tiendanubeStoreId: e.target.value})} placeholder="123456" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
           </div>
           <div>
-            <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Access Token</label>
-            <input type="password" value={formIntegraciones.tiendanubeAccessToken} onChange={e => setFormIntegraciones({...formIntegraciones, tiendanubeAccessToken: e.target.value})} placeholder={negocioMostrado?.tiendanubeConectado ? '•••••••• (ya cargado)' : 'Pegar token acá'} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+            <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Access Token</label>
+            <input type="password" value={formIntegraciones.tiendanubeAccessToken} onChange={e => setFormIntegraciones({...formIntegraciones, tiendanubeAccessToken: e.target.value})} placeholder={negocioMostrado?.tiendanubeConectado ? '•••••••• (ya cargado)' : 'Pegar token acá'} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
           </div>
         </div>
       </div>
 
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>Mercado Pago</div>
           <BadgeConexion conectada={!!negocioMostrado?.slug} />
         </div>
-        <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Identificador del negocio (slug)</label>
-        <input value={formIntegraciones.slug} onChange={e => setFormIntegraciones({...formIntegraciones, slug: e.target.value})} placeholder="mi-negocio" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
-        <div style={{ fontSize: 11, color: '#999', marginTop: 6 }}>Solo minúsculas, números y guiones. Cambiarlo rompe links de pago ya compartidos.</div>
+        <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Identificador del negocio (slug)</label>
+        <input value={formIntegraciones.slug} onChange={e => setFormIntegraciones({...formIntegraciones, slug: e.target.value})} placeholder="mi-negocio" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+        <div style={{ fontSize: 11, color: tema.textoSecundario, marginTop: 6 }}>Solo minúsculas, números y guiones. Cambiarlo rompe links de pago ya compartidos.</div>
       </div>
 
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20, opacity: 0.7 }}>
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20, opacity: 0.7 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>Dragon Fish</div>
-          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 500, background: '#f5f5f5', color: '#999' }}>Bloqueada</span>
+          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 500, background: '#f5f5f5', color: tema.textoSecundario }}>Bloqueada</span>
         </div>
-        <div style={{ fontSize: 12, color: '#999', marginTop: 8 }}>En espera de soporte de Zoo Logic.</div>
+        <div style={{ fontSize: 12, color: tema.textoSecundario, marginTop: 8 }}>En espera de soporte de Zoo Logic.</div>
       </div>
 
-      <button onClick={guardarIntegraciones} style={{ padding: '10px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar integraciones</button>
+      <button onClick={guardarIntegraciones} style={{ padding: '10px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar integraciones</button>
     </div>
   );
 
   // Cuenta del negocio: cambio de contraseña y configuración de puntos
   const VistaAjustes = () => (
     <div style={{ padding: 24, display: 'grid', gap: 16, maxWidth: 480 }}>
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Cuenta</div>
-        <div style={{ fontSize: 13, color: '#555' }}>Email de acceso: <strong>{session?.user?.email}</strong></div>
+        <div style={{ fontSize: 13, color: tema.textoSecundario }}>Email de acceso: <strong>{session?.user?.email}</strong></div>
       </div>
 
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Cambiar contraseña</div>
         <div style={{ marginBottom: 10 }}>
-          <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Contraseña actual</label>
-          <input type="password" value={formPassword.actual} onChange={e => setFormPassword({...formPassword, actual: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+          <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Contraseña actual</label>
+          <input type="password" value={formPassword.actual} onChange={e => setFormPassword({...formPassword, actual: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <div>
-            <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Nueva contraseña</label>
-            <input type="password" value={formPassword.nueva} onChange={e => setFormPassword({...formPassword, nueva: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+            <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Nueva contraseña</label>
+            <input type="password" value={formPassword.nueva} onChange={e => setFormPassword({...formPassword, nueva: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
           </div>
           <div>
-            <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Confirmar nueva contraseña</label>
-            <input type="password" value={formPassword.confirmar} onChange={e => setFormPassword({...formPassword, confirmar: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+            <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Confirmar nueva contraseña</label>
+            <input type="password" value={formPassword.confirmar} onChange={e => setFormPassword({...formPassword, confirmar: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
           </div>
         </div>
-        <button onClick={cambiarPassword} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Cambiar contraseña</button>
+        <button onClick={cambiarPassword} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Cambiar contraseña</button>
       </div>
 
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Puntos por peso</div>
-        <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Cuántos pesos gastados equivalen a 1 punto</label>
-        <input type="number" min="1" value={formPuntosXPeso} onChange={e => setFormPuntosXPeso(e.target.value)} placeholder="1000" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box', marginBottom: 12 }} />
-        <button onClick={guardarPuntosXPeso} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+        <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Cuántos pesos gastados equivalen a 1 punto</label>
+        <input type="number" min="1" value={formPuntosXPeso} onChange={e => setFormPuntosXPeso(e.target.value)} placeholder="1000" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 12 }} />
+        <button onClick={guardarPuntosXPeso} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
       </div>
     </div>
   );
 
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
   const PanelNegocio = ({ negocio, onVolver }) => (
-    <div style={{ flex: 1, overflow: 'auto' }}>
-      <div style={{ padding: '14px 24px', background: '#fff', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 15, fontWeight: 600 }}>Bienvenida, {negocio.nombre} {negocio.emoji}</div>
+    <div style={{ flex: 1, overflow: 'auto', background: tema.fondo, color: tema.texto }}>
+      <div style={{ padding: '14px 24px', background: tema.superficie, borderBottom: `1px solid ${tema.borde}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: 15, fontWeight: 600, fontFamily: tema.fuenteTitulo }}>Bienvenida, {negocio.nombre} {negocio.emoji}</div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {onVolver && <button onClick={onVolver} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 12, cursor: 'pointer' }}>← Volver</button>}
-          {(seccionActiva === 'inicio' || seccionActiva === 'clientes') && <button onClick={() => setMostrarFormCliente(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 12, cursor: 'pointer' }}>+ Nuevo cliente</button>}
-          {seccionActiva === 'premios' && <button onClick={() => setMostrarFormPremio(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 12, cursor: 'pointer' }}>+ Nuevo premio</button>}
+          {onVolver && <button onClick={onVolver} style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, fontSize: 12, cursor: 'pointer' }}>← Volver</button>}
+          {(seccionActiva === 'inicio' || seccionActiva === 'clientes') && <button onClick={() => setMostrarFormCliente(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 12, cursor: 'pointer' }}>+ Nuevo cliente</button>}
+          {seccionActiva === 'premios' && <button onClick={() => setMostrarFormPremio(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 12, cursor: 'pointer' }}>+ Nuevo premio</button>}
         </div>
       </div>
 
@@ -752,75 +774,75 @@ export default function Home() {
       {seccionActiva === 'ajustes' && <VistaAjustes />}
 
       {(seccionActiva === 'inicio' || seccionActiva === 'clientes') && mostrarFormCliente && (
-        <div style={{ margin: '20px 24px 0', background: '#fff', borderRadius: 12, border: '1px solid #6366f1', padding: 20 }}>
+        <div style={{ margin: '20px 24px 0', background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.primario}`, padding: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Agregar nuevo cliente</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
-              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Nombre *</label>
-              <input value={nuevoCliente.nombre} onChange={e => setNuevoCliente({...nuevoCliente, nombre: e.target.value})} placeholder="María González" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }} />
+              <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Nombre *</label>
+              <input value={nuevoCliente.nombre} onChange={e => setNuevoCliente({...nuevoCliente, nombre: e.target.value})} placeholder="María González" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13 }} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Teléfono *</label>
-              <input value={nuevoCliente.telefono} onChange={e => setNuevoCliente({...nuevoCliente, telefono: e.target.value})} placeholder="2324123456" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }} />
+              <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Teléfono *</label>
+              <input value={nuevoCliente.telefono} onChange={e => setNuevoCliente({...nuevoCliente, telefono: e.target.value})} placeholder="2324123456" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13 }} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Email (opcional)</label>
-              <input value={nuevoCliente.email} onChange={e => setNuevoCliente({...nuevoCliente, email: e.target.value})} placeholder="maria@email.com" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }} />
+              <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Email (opcional)</label>
+              <input value={nuevoCliente.email} onChange={e => setNuevoCliente({...nuevoCliente, email: e.target.value})} placeholder="maria@email.com" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13 }} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={agregarCliente} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar cliente</button>
-            <button onClick={() => setMostrarFormCliente(false)} style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+            <button onClick={agregarCliente} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar cliente</button>
+            <button onClick={() => setMostrarFormCliente(false)} style={{ padding: '8px 20px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
           </div>
         </div>
       )}
 
       {seccionActiva === 'inicio' && <div style={{ padding: 24 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-            <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Clientes activos</div>
+          <div style={{ background: tema.superficie, borderRadius: 12, padding: 16, border: `1px solid ${tema.borde}` }}>
+            <div style={{ fontSize: 12, color: tema.textoSecundario, marginBottom: 4 }}>Clientes activos</div>
             <div style={{ fontSize: 22, fontWeight: 600 }}>{negocio.clientes?.length || 0}</div>
           </div>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-            <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Premios configurados</div>
+          <div style={{ background: tema.superficie, borderRadius: 12, padding: 16, border: `1px solid ${tema.borde}` }}>
+            <div style={{ fontSize: 12, color: tema.textoSecundario, marginBottom: 4 }}>Premios configurados</div>
             <div style={{ fontSize: 22, fontWeight: 600 }}>{negocio.premios?.length || 0}</div>
           </div>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-            <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Puntos en circulación</div>
+          <div style={{ background: tema.superficie, borderRadius: 12, padding: 16, border: `1px solid ${tema.borde}` }}>
+            <div style={{ fontSize: 12, color: tema.textoSecundario, marginBottom: 4 }}>Puntos en circulación</div>
             <div style={{ fontSize: 22, fontWeight: 600 }}>{negocio.clientes?.reduce((a, c) => a + c.puntos, 0) || 0}</div>
           </div>
         </div>
 
-        <div style={{ fontSize: 12, color: '#999', fontWeight: 500, marginBottom: 8 }}>Este mes</div>
+        <div style={{ fontSize: 12, color: tema.textoSecundario, fontWeight: 500, marginBottom: 8 }}>Este mes</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-            <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Clientes activos</div>
+          <div style={{ background: tema.superficie, borderRadius: 12, padding: 16, border: `1px solid ${tema.borde}` }}>
+            <div style={{ fontSize: 12, color: tema.textoSecundario, marginBottom: 4 }}>Clientes activos</div>
             <div style={{ fontSize: 22, fontWeight: 600 }}>{estadisticas?.clientesActivos ?? '—'}</div>
           </div>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-            <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Puntos otorgados</div>
+          <div style={{ background: tema.superficie, borderRadius: 12, padding: 16, border: `1px solid ${tema.borde}` }}>
+            <div style={{ fontSize: 12, color: tema.textoSecundario, marginBottom: 4 }}>Puntos otorgados</div>
             <div style={{ fontSize: 22, fontWeight: 600 }}>{estadisticas?.puntosOtorgadosEsteMes ?? '—'}</div>
           </div>
-          <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-            <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Canjes realizados</div>
+          <div style={{ background: tema.superficie, borderRadius: 12, padding: 16, border: `1px solid ${tema.borde}` }}>
+            <div style={{ fontSize: 12, color: tema.textoSecundario, marginBottom: 4 }}>Canjes realizados</div>
             <div style={{ fontSize: 22, fontWeight: 600 }}>{estadisticas?.canjesEsteMes ?? '—'}</div>
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div>
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+            <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Clientes</div>
-              {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: '#999' }}>Aún no hay clientes</div>}
+              {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Aún no hay clientes</div>}
               {clientesData?.items.map(c => (
-                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
-                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#6366f1' }}>
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid ${tema.borde}` }}>
+                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: tema.primario, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: tema.primarioTexto }}>
                     {c.email.slice(0, 2).toUpperCase()}
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 500 }}>{c.email}</div>
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 500, background: '#eef2ff', color: '#6366f1', padding: '4px 10px', borderRadius: 20 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, background: tema.primario, color: tema.primarioTexto, padding: '4px 10px', borderRadius: 20 }}>
                     {c.puntos} pts
                   </div>
                 </div>
@@ -830,34 +852,34 @@ export default function Home() {
           </div>
 
           <div>
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20, marginBottom: 12 }}>
+            <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20, marginBottom: 12 }}>
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Premios configurados</div>
               {negocio.premios?.map(p => (
                 <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
                   <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{p.emoji}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 500 }}>{p.nombre}</div>
-                    <div style={{ fontSize: 11, color: '#999' }}>{p.puntos} puntos</div>
+                    <div style={{ fontSize: 11, color: tema.textoSecundario }}>{p.puntos} puntos</div>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+            <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Registrar compra manual</div>
               <div style={{ marginBottom: 10 }}>
-                <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Cliente</label>
-                <select value={clienteSeleccionado} onChange={e => setClienteSeleccionado(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }}>
+                <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Cliente</label>
+                <select value={clienteSeleccionado} onChange={e => setClienteSeleccionado(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13 }}>
                   <option value="">Seleccionar cliente...</option>
                   {negocio.clientes?.map(c => <option key={c.id} value={c.id}>{c.nombre} ({c.puntos} pts)</option>)}
                 </select>
               </div>
               <div style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Monto de la compra</label>
-                <input type="number" placeholder="$0" value={monto} onChange={e => setMonto(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13 }} />
+                <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Monto de la compra</label>
+                <input type="number" placeholder="$0" value={monto} onChange={e => setMonto(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13 }} />
               </div>
               {pts > 0 && <div style={{ fontSize: 13, color: '#22c55e', marginBottom: 12, fontWeight: 500 }}>+{pts} puntos a acreditar</div>}
-              <button onClick={sumarPuntos} style={{ width: '100%', padding: '8px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Sumar puntos</button>
+              <button onClick={sumarPuntos} style={{ width: '100%', padding: '8px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Sumar puntos</button>
             </div>
           </div>
         </div>
@@ -869,7 +891,7 @@ export default function Home() {
   const PanelCliente = () => {
     if (!clientePropio || !negocioDelCliente) {
       return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#999', fontFamily: 'system-ui' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: tema.textoSecundario, fontFamily: 'system-ui' }}>
           No encontramos tus datos de cliente.
         </div>
       );
@@ -880,29 +902,29 @@ export default function Home() {
     const ptsAGanar = Math.floor((parseFloat(montoPago) || 0) / (negocioDelCliente.puntosXPeso || 1000));
 
     return (
-      <div style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: 'system-ui', maxWidth: 480, margin: '0 auto' }}>
-        <div style={{ padding: '20px 20px 16px', background: '#fff', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ minHeight: '100vh', background: tema.fondo, color: tema.texto, fontFamily: 'system-ui', maxWidth: 480, margin: '0 auto' }}>
+        <div style={{ padding: '20px 20px 16px', background: tema.superficie, borderBottom: `1px solid ${tema.borde}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-          <div style={{ fontSize: 16, fontWeight: 600 }}>Hola, {clientePropio.nombre ? clientePropio.nombre.split(' ')[0] : clientePropio.email.split('@')[0]} 👋</div>
-            <div style={{ fontSize: 12, color: '#999' }}>{negocioDelCliente.nombre} {negocioDelCliente.emoji}</div>
+          <div style={{ fontSize: 16, fontWeight: 600, fontFamily: tema.fuenteTitulo }}>Hola, {clientePropio.nombre ? clientePropio.nombre.split(' ')[0] : clientePropio.email.split('@')[0]} 👋</div>
+            <div style={{ fontSize: 12, color: tema.textoSecundario }}>{negocioDelCliente.nombre} {negocioDelCliente.emoji}</div>
           </div>
-          <button onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: '1px solid #eee', background: '#fff', color: '#ef4444', cursor: 'pointer' }}>Salir</button>
+          <button onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: '#ef4444', cursor: 'pointer' }}>Salir</button>
         </div>
 
         <div style={{ padding: 20 }}>
-          <div style={{ background: '#6366f1', borderRadius: 16, padding: 24, color: '#fff', textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ background: tema.primario, borderRadius: 16, padding: 24, color: tema.primarioTexto, textAlign: 'center', marginBottom: 20 }}>
             <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 4 }}>Tus puntos</div>
-            <div style={{ fontSize: 40, fontWeight: 700 }}>{clientePropio.puntos}</div>
+            <div style={{ fontSize: 40, fontWeight: 700, fontFamily: tema.fuenteTitulo }}>{clientePropio.puntos}</div>
           </div>
 
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 16, marginBottom: 20 }}>
+          <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 16, marginBottom: 20 }}>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Cargar puntos con Mercado Pago</div>
             <input
               type="number"
               placeholder="Monto de tu compra"
               value={montoPago}
               onChange={e => setMontoPago(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }}
             />
             {ptsAGanar > 0 && (
               <div style={{ fontSize: 13, color: '#22c55e', marginBottom: 10, fontWeight: 500 }}>+{ptsAGanar} puntos a sumar</div>
@@ -918,10 +940,10 @@ export default function Home() {
 
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Premios disponibles</div>
           {premiosDisponibles.length === 0 && (
-            <div style={{ fontSize: 13, color: '#999', marginBottom: 16 }}>Todavía no llegás a ningún premio.</div>
+            <div style={{ fontSize: 13, color: tema.textoSecundario, marginBottom: 16 }}>Todavía no llegás a ningún premio.</div>
           )}
           {premiosDisponibles.map(p => (
-            <div key={p.id} style={{ background: '#fff', border: '1px solid #22c55e', borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+            <div key={p.id} style={{ background: tema.superficie, border: '1px solid #22c55e', borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
               <div style={{ width: 36, height: 36, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{p.emoji}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
@@ -939,11 +961,11 @@ export default function Home() {
 
           <div style={{ fontSize: 14, fontWeight: 600, margin: '20px 0 10px' }}>Próximos premios</div>
           {premiosBloqueados.map(p => (
-            <div key={p.id} style={{ background: '#fff', border: '1px solid #eee', borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, opacity: 0.7 }}>
+            <div key={p.id} style={{ background: tema.superficie, border: `1px solid ${tema.borde}`, borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, opacity: 0.7 }}>
               <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{p.emoji}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
-                <div style={{ fontSize: 11, color: '#999' }}>Te faltan {p.puntos - clientePropio.puntos} puntos</div>
+                <div style={{ fontSize: 11, color: tema.textoSecundario }}>Te faltan {p.puntos - clientePropio.puntos} puntos</div>
               </div>
             </div>
           ))}
@@ -1070,6 +1092,27 @@ export default function Home() {
                               <input value={formEdicionNegocio.ciudad} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, ciudad: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
                             </div>
                           </div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 }}>Colores de marca (panel del negocio y de sus clientes)</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
+                            {[
+                              ['fondo', 'Fondo'],
+                              ['superficie', 'Tarjetas'],
+                              ['borde', 'Bordes'],
+                              ['texto', 'Texto'],
+                              ['textoSecundario', 'Texto secund.'],
+                              ['primario', 'Acento'],
+                              ['primarioTexto', 'Texto s/ acento'],
+                            ].map(([clave, etiqueta]) => (
+                              <div key={clave}>
+                                <label style={{ fontSize: 10, color: '#555', display: 'block', marginBottom: 4 }}>{etiqueta}</label>
+                                <input type="color" value={formEdicionNegocio.tema[clave]} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, [clave]: e.target.value}})} style={{ width: '100%', height: 28, padding: 0, borderRadius: 6, border: '1px solid #ddd', cursor: 'pointer' }} />
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{ marginBottom: 12 }}>
+                            <label style={{ fontSize: 10, color: '#555', display: 'block', marginBottom: 4 }}>Tipografía de títulos (ej: Georgia, serif)</label>
+                            <input value={formEdicionNegocio.tema.fuenteTitulo} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, fuenteTitulo: e.target.value}})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                          </div>
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button onClick={guardarEdicionNegocio} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
                             <button onClick={() => setNegocioEditandoId(null)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Cancelar</button>
@@ -1108,30 +1151,30 @@ export default function Home() {
       {/* PANEL NEGOCIO */}
       {isNegocio && (
         <div style={{ display: 'flex', minHeight: '100vh' }}>
-          <div style={{ width: 210, background: '#fff', borderRight: '1px solid #eee', padding: '20px 0', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '0 20px 16px', borderBottom: '1px solid #eee' }}>
-              <div style={{ fontSize: 17, fontWeight: 600 }}>{negocioPropio?.nombre || session?.user?.name}</div>
-              <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Panel del negocio</div>
+          <div style={{ width: 210, background: tema.superficie, color: tema.texto, borderRight: `1px solid ${tema.borde}`, padding: '20px 0', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '0 20px 16px', borderBottom: `1px solid ${tema.borde}` }}>
+              <div style={{ fontSize: 17, fontWeight: 600, fontFamily: tema.fuenteTitulo }}>{negocioPropio?.nombre || session?.user?.name}</div>
+              <div style={{ fontSize: 11, color: tema.textoSecundario, marginTop: 2 }}>Panel del negocio</div>
             </div>
             <div style={{ padding: '12px 8px', flex: 1 }}>
               {[['🏠', 'Inicio', 'inicio'], ['👥', 'Mis clientes', 'clientes'], ['🎁', 'Premios', 'premios'], ['🔄', 'Canjes', 'canjes'], ['🔌', 'Integraciones', 'integraciones'], ['⚙️', 'Ajustes', 'ajustes']].map(([icon, label, id]) => (
                 <div
                   key={label}
                   onClick={id ? () => setSeccionActiva(id) : undefined}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: seccionActiva === id ? '#6366f1' : '#555', background: seccionActiva === id ? '#eef2ff' : 'transparent', cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: seccionActiva === id ? tema.primario : tema.textoSecundario, background: seccionActiva === id ? tema.borde : 'transparent', cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
                 >
                   {icon} {label}
                 </div>
               ))}
             </div>
-            <div style={{ padding: '12px 16px', borderTop: '1px solid #eee', fontSize: 12, color: '#999' }}>
+            <div style={{ padding: '12px 16px', borderTop: `1px solid ${tema.borde}`, fontSize: 12, color: tema.textoSecundario }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#6366f1' }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: tema.primario, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: tema.primarioTexto }}>
                   {session?.user?.name?.[0] || 'N'}
                 </div>
                 {session?.user?.name}
               </div>
-              <button onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#ef4444', cursor: 'pointer', width: '100%' }}>Cerrar sesión</button>
+              <button onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: '#ef4444', cursor: 'pointer', width: '100%' }}>Cerrar sesión</button>
             </div>
           </div>
 

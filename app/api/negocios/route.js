@@ -15,6 +15,7 @@ const NEGOCIO_SELECT = {
   emoji: true,
   activo: true,
   puntosXPeso: true,
+  tema: true,
   slug: true,
   tiendanubeStoreId: true,
   tiendanubeAccessToken: true,
@@ -30,6 +31,22 @@ const NEGOCIO_SELECT = {
 // Formato del slug: minúsculas, números y guiones simples, sin espacios ni
 // guiones al principio/final (va en la URL pública de pagos).
 const SLUG_VALIDO = /^[a-z0-9]+(-[a-z0-9]+)*$/
+
+// Tokens de color que un negocio puede personalizar (branding propio, ej.
+// Peperina). Lo que no venga acá usa la paleta clara por defecto de la app.
+const TEMA_CLAVES_COLOR = ['fondo', 'superficie', 'borde', 'texto', 'textoSecundario', 'primario', 'primarioTexto']
+const TEMA_CLAVES_TEXTO = ['fuenteTitulo']
+const COLOR_HEX_VALIDO = /^#[0-9a-fA-F]{3,8}$/
+
+function validarTema(tema) {
+  if (tema === null) return true
+  if (typeof tema !== 'object' || Array.isArray(tema)) return false
+  return Object.entries(tema).every(([clave, valor]) => {
+    if (TEMA_CLAVES_COLOR.includes(clave)) return COLOR_HEX_VALIDO.test(valor)
+    if (TEMA_CLAVES_TEXTO.includes(clave)) return typeof valor === 'string' && valor.length > 0 && valor.length <= 200
+    return false
+  })
+}
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -147,6 +164,12 @@ export async function PATCH(request) {
     if (body.ciudad !== undefined) data.ciudad = body.ciudad
     if (body.emoji !== undefined) data.emoji = body.emoji
     if (body.activo !== undefined) data.activo = !!body.activo
+    if (body.tema !== undefined) {
+      if (!validarTema(body.tema)) {
+        return NextResponse.json({ error: 'El tema tiene un formato inválido' }, { status: 400 })
+      }
+      data.tema = body.tema
+    }
   }
 
   let negocio
