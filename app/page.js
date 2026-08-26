@@ -14,6 +14,7 @@ const TEMA_DEFAULT = {
   textoSecundario: '#999999',
   primario: '#6366f1',
   primarioTexto: '#ffffff',
+  resaltado: '#eef2ff',
   fuenteTitulo: 'system-ui, sans-serif',
 };
 
@@ -563,7 +564,7 @@ export default function Home() {
               <div style={{ fontSize: 13, fontWeight: 500 }}>{c.premio.nombre}</div>
               <div style={{ fontSize: 11, color: tema.textoSecundario }}>{c.cliente.nombre || c.cliente.email} · {new Date(c.createdAt).toLocaleDateString('es-AR')}</div>
             </div>
-            <div style={{ fontSize: 12, fontWeight: 500, background: tema.primario, color: tema.primarioTexto, padding: '4px 10px', borderRadius: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, background: tema.resaltado, color: tema.texto, padding: '4px 10px', borderRadius: 20 }}>
               {c.premio.puntos} pts
             </div>
           </div>
@@ -582,14 +583,14 @@ export default function Home() {
         {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no hay clientes.</div>}
         {clientesData?.items.map(c => (
           <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: `1px solid ${tema.borde}` }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: tema.primario, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: tema.primarioTexto }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: tema.resaltado, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: tema.texto }}>
               {(c.nombre || c.email).slice(0, 2).toUpperCase()}
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 500 }}>{c.nombre || c.email}</div>
               <div style={{ fontSize: 11, color: tema.textoSecundario }}>{c.email}{c.telefono ? ` · ${c.telefono}` : ''}</div>
             </div>
-            <div style={{ fontSize: 12, fontWeight: 500, background: tema.primario, color: tema.primarioTexto, padding: '4px 10px', borderRadius: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, background: tema.resaltado, color: tema.texto, padding: '4px 10px', borderRadius: 20 }}>
               {c.puntos} pts
             </div>
           </div>
@@ -836,13 +837,13 @@ export default function Home() {
               {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Aún no hay clientes</div>}
               {clientesData?.items.map(c => (
                 <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid ${tema.borde}` }}>
-                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: tema.primario, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: tema.primarioTexto }}>
+                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: tema.resaltado, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: tema.texto }}>
                     {c.email.slice(0, 2).toUpperCase()}
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 500 }}>{c.email}</div>
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 500, background: tema.primario, color: tema.primarioTexto, padding: '4px 10px', borderRadius: 20 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, background: tema.resaltado, color: tema.texto, padding: '4px 10px', borderRadius: 20 }}>
                     {c.puntos} pts
                   </div>
                 </div>
@@ -1102,6 +1103,7 @@ export default function Home() {
                               ['textoSecundario', 'Texto secund.'],
                               ['primario', 'Acento'],
                               ['primarioTexto', 'Texto s/ acento'],
+                              ['resaltado', 'Resaltado (chips)'],
                             ].map(([clave, etiqueta]) => (
                               <div key={clave}>
                                 <label style={{ fontSize: 10, color: '#555', display: 'block', marginBottom: 4 }}>{etiqueta}</label>
@@ -1169,7 +1171,7 @@ export default function Home() {
             </div>
             <div style={{ padding: '12px 16px', borderTop: `1px solid ${tema.borde}`, fontSize: 12, color: tema.textoSecundario }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: tema.primario, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: tema.primarioTexto }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: tema.resaltado, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: tema.texto }}>
                   {session?.user?.name?.[0] || 'N'}
                 </div>
                 {session?.user?.name}

@@ -34,7 +34,7 @@ const SLUG_VALIDO = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
 // Tokens de color que un negocio puede personalizar (branding propio, ej.
 // Peperina). Lo que no venga acá usa la paleta clara por defecto de la app.
-const TEMA_CLAVES_COLOR = ['fondo', 'superficie', 'borde', 'texto', 'textoSecundario', 'primario', 'primarioTexto']
+const TEMA_CLAVES_COLOR = ['fondo', 'superficie', 'borde', 'texto', 'textoSecundario', 'primario', 'primarioTexto', 'resaltado']
 const TEMA_CLAVES_TEXTO = ['fuenteTitulo']
 const COLOR_HEX_VALIDO = /^#[0-9a-fA-F]{3,8}$/
 
