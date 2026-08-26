@@ -1,6 +1,6 @@
 # Tareas pendientes — Fideliza
 
-> Última actualización: 2026-08-24. Marca lo hecho (`[x]`) y lo que falta
+> Última actualización: 2026-08-26. Marca lo hecho (`[x]`) y lo que falta
 > (`[ ]`), agrupado por área. Ver `contexto-proyecto.md` para el porqué de
 > cada cosa y `progreso.md`/`sesion-actual.md` para cuándo se hizo. Ver
 > `tareas-futuras.md` para lo que sigue después de esta sesión.
@@ -197,29 +197,78 @@
 
 ## Deploy / Netlify
 
-- [ ] **Bloqueante actual**: la cuenta de Netlify (`gerimarenco`) se quedó
-      sin créditos operativos del ciclo de facturación. El sitio publicado
-      sigue en línea, pero **los deploys de producción y los Agent
-      Runners están pausados** — cualquier PR que se fusione a `main` de
-      acá en adelante no se va a publicar solo hasta que se resuelva esto
-      (upgradear el plan, o esperar al próximo ciclo). Confirmado con el
-      propio dashboard de Netlify (`Deploys` → banner "running on
-      operational credits"). Cecilia dijo que va a hacer el upgrade.
-      Ver `tareas-futuras.md`.
+- [x] **Resuelto**: la cuenta de Netlify (`gerimarenco`) se había quedado
+      sin créditos operativos y Cecilia actualizó el plan — los deploys de
+      producción volvieron a funcionar con normalidad (2026-08-25).
 - [x] Manejo de errores en los botones de guardado del frontend: varias
       funciones (`crearNegocio`, `guardarEdicionNegocio`, `crearPremio`,
       `guardarEdicionPremio`, `togglePremioActivo`, `guardarIntegraciones`,
       `guardarPuntosXPeso`, `cambiarPassword`, `agregarCliente`,
       `sumarPuntos`) llamaban a `fetch` sin `try/catch`. Si el servidor
-      devolvía algo que no era JSON válido (error 500/502 de la función
-      serverless, problema de red), la promesa se rechazaba en silencio y
-      el botón "no hacía nada" a los ojos de quien lo usa — sin ningún
-      mensaje de error. Se detectó al intentar diagnosticar por qué
-      "Guardar negocio" no reaccionaba en producción (posiblemente
-      relacionado con el bloqueo de Netlify de arriba, no confirmado
-      todavía). Ahora todos esos casos muestran un `alert()` claro.
-      **Pusheado a la rama de trabajo, sin PR abierto todavía** — no tenía
-      sentido abrir/mergear mientras los deploys estaban pausados.
+      devolvía algo que no era JSON válido, la promesa se rechazaba en
+      silencio y el botón "no hacía nada" a los ojos de quien lo usa. Ahora
+      todos esos casos muestran un `alert()` claro. **Mergeado (PR #10)**.
+- [x] **Causa de fondo real de "Guardar negocio no hace nada" encontrada y
+      arreglada**: el comando de build de Netlify nunca corría
+      `prisma migrate deploy`, solo `prisma generate` — la base de
+      producción se había quedado atrás de varias migraciones (la más
+      grave, `Premio.activo`, hacía que `GET /api/negocios` rompiera con
+      un 500 sin cuerpo, apenas disimulado antes por la falta de manejo de
+      errores de arriba). Build command corregido a
+      `prisma migrate deploy && prisma generate && npm run build`.
+      **Mergeado (PR #11)**.
+- [x] Bug de navegación fantasma: cualquier acción que recargaba la lista
+      de negocios (crear, editar, y el toggle de activo/inactivo nuevo)
+      sacaba al admin de la grilla y lo mandaba de golpe al panel del
+      primer negocio de la lista, aunque estuviera parado en "Negocios" a
+      propósito — el auto-select del primer negocio corría en cada
+      recarga, no solo en la carga inicial tras login. **Mergeado (PR
+      #13)**, junto con conectar desactivar/reactivar negocio (`Negocio.
+      activo`, ya existía en el schema sin usar).
+- [x] Texto invisible en campos de formulario con el sistema en modo
+      oscuro: `globals.css` tenía una regla `prefers-color-scheme: dark`
+      heredada del template inicial (nunca usada a propósito) que ponía
+      el texto del body en gris claro sin tocar el fondo blanco por
+      defecto de los `<input>` — texto claro sobre fondo blanco,
+      invisible. Afectaba cualquier campo de la app (login incluido), no
+      algo específico de un negocio. Sacada la regla, agregado
+      `color-scheme: light` explícito. **Mergeado (PR #17)**.
+- [ ] Limitación conocida, no bloqueante: `DATABASE_URL` no está
+      configurada para el contexto de "Deploy Previews" en Netlify (solo
+      Producción) — el check de deploy-preview queda en rojo en cualquier
+      PR desde el #11, es esperado y no afecta al sitio real. Ver
+      `contexto-proyecto.md`.
+
+## Marca propia por negocio (tema visual)
+
+- [x] `Negocio.tema` (JSON opcional) agregado al schema — colores
+      (`fondo`, `superficie`, `borde`, `texto`, `textoSecundario`,
+      `primario`, `primarioTexto`, `resaltado`), tipografía de títulos
+      (`fuenteTitulo`) e imagen de portada (`imagenPortada`, URL).
+      Validado en `PATCH /api/negocios` (admin-only). **Mergeado (PR
+      #14, #16)**.
+- [x] Aplicado a `PanelNegocio` (todas sus secciones) y `PanelCliente`,
+      nunca al chrome del Admin. 7 selectores de color + 2 campos de
+      texto agregados a "Editar negocio". **Mergeado (PR #14, #16)**.
+- [x] Paleta de Peperina cargada vía migraciones de datos (no hay pantalla
+      de autogestión todavía): primero una aproximación negro/beige
+      pensada a partir del logo de Instagram (PR #14), después la paleta
+      real que mandó la dueña de la marca — blanco/crema con acentos en
+      beige y tipografía serif (PR #15).
+- [x] Imagen de portada tipo "muro de Facebook" (PR #16) — probado
+      pegando la URL real de Peperina (subida a imgur) en producción.
+- [ ] Un sexto color que la dueña de Peperina mandó (`#37A1D`) llegó
+      incompleto (5 dígitos, un hex válido necesita 6) — pendiente de que
+      lo reconfirme.
+- [ ] Pedido de la usuaria sin resolver del todo: "meterle detalles, los
+      mini dibujitos" — se interpretó como el color de "resaltado" en los
+      chips de puntos/avatares (antes reusaban el mismo tono que los
+      botones). No quedó confirmado si se refería a algo más específico
+      (íconos ilustrados, alguna decoración puntual del sitio real) — ver
+      `tareas-futuras.md`.
+- [ ] No hay pantalla de autogestión del tema para el propio negocio (hoy
+      solo lo carga el admin) — evaluar si hace falta cuando se sume un
+      segundo negocio real.
 
 ## Cerrado / ya no aplica
 
