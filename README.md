@@ -76,6 +76,8 @@ npm run lint    # eslint
 | `NEXTAUTH_URL` | En producción | URL pública del sitio (NextAuth la necesita fuera de `localhost`). |
 | `ADMIN_EMAIL` | Para el login de admin | Email de la cuenta admin (reemplaza al que antes estaba hardcodeado en el código). |
 | `ADMIN_PASSWORD_HASH` | Para el login de admin | Hash bcrypt de la password del admin. Se genera con `bcryptjs` (`bcrypt.hash('tu-password', 10)`), nunca la password en texto plano. |
+| `GOOGLE_CLIENT_ID` | Para "Iniciar sesión con Google" | Client ID de OAuth de Google Cloud Console. Si falta (junto con `GOOGLE_CLIENT_SECRET`), el botón de Google simplemente no aparece como provider habilitado. |
+| `GOOGLE_CLIENT_SECRET` | Para "Iniciar sesión con Google" | Client secret de la misma credencial OAuth. Callback URL a autorizar en Google: `<NEXTAUTH_URL>/api/auth/callback/google`. |
 | `MERCADOPAGO_ACCESS_TOKEN` | Para cobrar con Mercado Pago | Access token de la cuenta de Mercado Pago del negocio/plataforma. |
 | `NEXT_PUBLIC_BASE_URL` | Para Mercado Pago | URL pública del sitio, usada para armar las `back_urls` y el `notification_url` de las preferencias de pago. |
 
