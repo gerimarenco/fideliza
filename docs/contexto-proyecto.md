@@ -50,9 +50,12 @@ No hay routing real entre pantallas — todo vive en un único componente
   estadísticas, lista de clientes (paginada), premios configurados, form
   de "Registrar compra manual", y una pantalla de "Historial de canjes".
 - **Cliente** (`role: 'cliente'`): panel de solo lectura mobile-friendly
-  (`PanelCliente`): sus puntos, botón para cargar puntos vía Mercado Pago,
-  y la lista de premios disponibles/próximos, con botón "Canjear" que
-  llama a `POST /api/canjes` (conectado; antes solo mostraba la lista).
+  (`PanelCliente`): sus puntos y la lista de premios disponibles/próximos,
+  con botón "Canjear" que llama a `POST /api/canjes`. No tiene ninguna
+  acción para "cargar puntos" — los puntos se suman siempre desde afuera
+  (compra manual del negocio, o automático vía Tiendanube/Dragon Fish),
+  nunca por algo que la clienta tenga que hacer en la app (ver estado de
+  Mercado Pago más abajo).
 
 Dentro de `PanelNegocio` hay un estado `seccionActiva` (`'inicio'` |
 `'clientes'` | `'premios'` | `'canjes'` | `'integraciones'` | `'ajustes'`)
@@ -239,7 +242,7 @@ técnico, por Google Cloud Console y Netlify):
 
 ## Estado de las integraciones
 
-### Mercado Pago — ✅ Lista, en producción
+### Mercado Pago — ⚠️ Backend listo, sin UI (desconectada del panel de cliente el 2026-08-27)
 `POST /api/mercadopago/crear-preferencia` genera el link de pago (el
 `clienteId` sale de la sesión, no del body, para que un cliente no pueda
 generar un pago que acredite puntos a otra cuenta). El webhook
@@ -248,6 +251,18 @@ generar un pago que acredite puntos a otra cuenta). El webhook
 marca el pago como procesado + suma los puntos; si Mercado Pago reenvía la
 misma notificación, la restricción única de `WebhookEvento` hace fallar
 la transacción entera y no se duplica nada).
+
+Todo esto sigue andando a nivel backend, pero **el botón "Cargar puntos
+con Mercado Pago" se sacó del panel de cliente** (`PanelCliente`): tal
+como estaba armado, no acreditaba puntos por una compra real — la
+clienta tenía que entrar a Fideliza y pagar *de nuevo*, a mano, el mismo
+monto que ya había gastado en el negocio (a la cuenta de Mercado Pago de
+la plataforma, no la del negocio), solo para "autodeclarar" la compra.
+Eso contradice el objetivo explícito de Cecilia: que la clienta no tenga
+que hacer nada para sumar puntos (ver `sesion-actual.md`). El código del
+backend queda como base por si en algún momento se rediseña como una
+integración real de cobro (mismo patrón que Tiendanube: el pago pasa por
+el checkout real del negocio, no por un paso extra en Fideliza).
 
 ### Tiendanube — 🚧 Pausada, esperando que la tienda esté activa
 El webhook (`/api/webhooks/tiendanube`) ya está reescrito correctamente:
