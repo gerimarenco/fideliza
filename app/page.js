@@ -757,6 +757,21 @@ export default function Home() {
     </div>
   );
 
+  // Ajustes del panel Admin: solo datos de cuenta de lectura por ahora, sin tema (el chrome del Admin nunca se tematiza)
+  const VistaAjustesAdmin = () => (
+    <div style={{ flex: 1, overflow: 'auto' }}>
+      <div style={{ padding: '14px 24px', background: '#fff', borderBottom: '1px solid #eee' }}>
+        <div style={{ fontSize: 15, fontWeight: 600 }}>Ajustes</div>
+      </div>
+      <div style={{ padding: 24, display: 'grid', gap: 16, maxWidth: 480 }}>
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Cuenta</div>
+          <div style={{ fontSize: 13, color: '#555' }}>Email de acceso: <strong>{session?.user?.email}</strong></div>
+        </div>
+      </div>
+    </div>
+  );
+
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
   const PanelNegocio = ({ negocio, onVolver }) => (
     <div style={{ flex: 1, overflow: 'auto', background: tema.fondo, color: tema.texto }}>
@@ -994,7 +1009,7 @@ export default function Home() {
               <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Panel de administrador</div>
             </div>
             <div style={{ padding: '12px 8px', flex: 1 }}>
-              {[['🏠', 'Inicio', 'inicio'], ['🏪', 'Negocios', 'negocios'], ['👥', 'Clientes', 'clientes'], ['⭐', 'Puntos y canjes', 'canjes'], ['🔌', 'Integraciones', 'integraciones'], ['⚙️', 'Ajustes', null]].map(([icon, label, id]) => {
+              {[['🏠', 'Inicio', 'inicio'], ['🏪', 'Negocios', 'negocios'], ['👥', 'Clientes', 'clientes'], ['⭐', 'Puntos y canjes', 'canjes'], ['🔌', 'Integraciones', 'integraciones'], ['⚙️', 'Ajustes', 'ajustes']].map(([icon, label, id]) => {
                 const activo = id === 'negocios' ? !negocioActivo : (!!id && seccionActiva === id);
                 return (
                   <div
@@ -1016,11 +1031,13 @@ export default function Home() {
             </div>
           </div>
 
-          {!negocioActivo && seccionActiva !== 'inicio' && seccionActiva !== 'negocios' ? (
+          {!negocioActivo && seccionActiva !== 'inicio' && seccionActiva !== 'negocios' && seccionActiva !== 'ajustes' ? (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: '#999' }}>
               <div style={{ fontSize: 14 }}>Elegí un negocio para ver sus {seccionActiva}</div>
               <button onClick={() => setSeccionActiva('negocios')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer' }}>Ver negocios</button>
             </div>
+          ) : !negocioActivo && seccionActiva === 'ajustes' ? (
+            <VistaAjustesAdmin />
           ) : !negocioActivo ? (
             <div style={{ flex: 1, overflow: 'auto' }}>
               <div style={{ padding: '14px 24px', background: '#fff', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
