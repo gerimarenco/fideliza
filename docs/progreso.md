@@ -195,3 +195,39 @@ dueña de Peperina, que empezó a mostrarle el panel a su mamá.
    imagen real a imgur y conseguir el link directo correcto (varios
    intentos: ruta local de archivo, link de página en vez de imagen
    directa) — documentado en `sesion-actual.md`.
+8. Se actualizó `docs/` completo con el detalle de la sesión (marca
+   propia por negocio, Netlify resuelto).
+
+## 2026-08-27 — Login con Google + mostrar contraseña (PRs #19-#20)
+
+Pedido directo de Cecilia: agregar mostrar/ocultar contraseña y login con
+Google a `/login`. Antes de construir se acordó el alcance: el botón de
+Google es para los tres roles (admin/negocio/cliente), y si el email no
+tiene cuenta creada, se rechaza el login en vez de crear una cuenta
+nueva.
+
+1. **PR #19**: toggle de mostrar/ocultar contraseña en el form de
+   credentials; provider de Google agregado a `lib/auth.js` (solo se
+   habilita si `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` están seteadas);
+   `signIn` callback que mapea el email de Google a `admin`/`negocio`/
+   `cliente` o rechaza el login. Documentadas las variables nuevas en el
+   README. Mergeado.
+2. Soporte paso a paso a Cecilia (no técnica) para crear las credenciales
+   reales en Google Cloud Console (proyecto, pantalla de consentimiento,
+   cliente OAuth) y cargarlas en Netlify. Dos problemas reales encontrados
+   probando en producción:
+   - `Error 400: redirect_uri_mismatch` apuntando a `localhost:3000` —
+     faltaba la variable `NEXTAUTH_URL` en Netlify (nunca se había
+     necesitado antes porque NextAuth infiere el host de la request para
+     el login con credentials, pero no para armar la `redirect_uri` de
+     un provider OAuth).
+   - Rechazo de login (esperado, email sin cuenta) mostraba la página de
+     error genérica de NextAuth en inglés en vez de volver a `/login` con
+     el mensaje en español ya preparado — faltaba `error: '/login'` en la
+     config de `pages` de `authOptions`. **PR #20**: agregado. Mergeado.
+3. Validado en producción: login con un email de Google sin cuenta
+   devuelve correctamente "Ese email de Google no tiene una cuenta en
+   Fideliza". Un `OAuthCallback` intermedio durante las pruebas fue un
+   código de autorización de Google reusado/vencido (reintento con "atrás"
+   del navegador), no un problema de configuración — se resolvió solo al
+   reintentar desde cero.

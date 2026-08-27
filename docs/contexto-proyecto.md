@@ -164,8 +164,12 @@ configuren).
 
 ## Autenticación y autorización
 
-- Login con NextAuth Credentials (`lib/auth.js`, antes vivía inline en el
-  route handler). Tres roles: `admin`, `negocio`, `cliente`.
+- Login con NextAuth (`lib/auth.js`, antes vivía inline en el route
+  handler). Tres roles: `admin`, `negocio`, `cliente`. Dos providers:
+  - **Credentials** (email + contraseña): el original.
+  - **Google** (agregado 2026-08-27): botón "Iniciar sesión con Google" en
+    `/login`, junto con un toggle de mostrar/ocultar la contraseña del
+    form de credentials.
 - Passwords hasheadas con bcrypt. Las que quedaban en texto plano de antes
   de la migración se **rehashean automáticamente en el primer login**
   (`lib/password.js` → `verifyPassword` detecta si el hash guardado es
@@ -180,6 +184,52 @@ configuren).
 - Los webhooks (Mercado Pago, Tiendanube, Dragon Fish) **no** llevan esta
   auth basada en sesión — son llamados por los proveedores externos, no
   por usuarios logueados.
+
+### Login con Google — cómo decide a qué cuenta mapear (PRs #19-#20)
+
+Decidido con Cecilia antes de construir: el botón de Google es para los
+tres roles (no solo clientes), y **no crea cuentas nuevas**. El callback
+`signIn` de `lib/auth.js` busca el email de la cuenta de Google, en este
+orden, y asigna el rol correspondiente si lo encuentra:
+
+1. `ADMIN_EMAIL` (variable de entorno) → rol `admin`.
+2. `Negocio.email` → rol `negocio`.
+3. `Cliente.email` → rol `cliente`.
+
+Si el email no matchea ninguno de los tres, el login se rechaza
+(`signIn` callback devuelve `false`) y NextAuth redirige a `/login` con
+`?error=AccessDenied`, donde se muestra "Ese email de Google no tiene una
+cuenta en Fideliza". Se agregó `error: '/login'` a la config de `pages`
+en `authOptions` — sin eso, cualquier error de login (no solo
+`AccessDenied`) mandaba a la página de error genérica de NextAuth en
+inglés en vez de reusar `/login`.
+
+El provider de Google solo se agrega al array de `providers` si
+`GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` están seteados — si faltan,
+el botón simplemente no queda habilitado (no rompe nada). Requiere
+también `NEXTAUTH_URL` seteada a la URL real de producción: sin ella,
+NextAuth arma la `redirect_uri` apuntando a `localhost:3000` (esto pasó
+la primera vez que se probó en producción — Google devolvía
+`Error 400: redirect_uri_mismatch` con `redirect_uri=http://localhost:3000/...`
+en el detalle del error).
+
+Setup hecho en esta sesión (guiado paso a paso a Cecilia, sin perfil
+técnico, por Google Cloud Console y Netlify):
+- Proyecto nuevo en Google Cloud ("Fideliza"), pantalla de consentimiento
+  OAuth configurada como "Externo".
+- Cliente de OAuth tipo "Aplicación web" ("Fideliza Web"), con
+  `https://incomparable-zabaione-b58c21.netlify.app/api/auth/callback/google`
+  como URI de redireccionamiento autorizado.
+- `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` cargadas en Netlify. El
+  secret se marcó como "sensitive" — Netlify obliga en ese caso a elegir
+  valor por contexto de deploy en vez de "same value for all"; se cargó
+  el mismo valor en Production, Deploy Previews y Branch deploys (scope
+  Builds+Functions+Runtime, necesario para que la API route de login
+  pueda usarlo en tiempo de ejecución, no solo en el build).
+- `NEXTAUTH_URL` agregada (no existía) con el valor de producción.
+- Validado en producción real: login con un email sin cuenta → rechazado
+  con el mensaje esperado en español. Login exitoso (email que sí
+  coincide con una cuenta) queda para probar cuando haga falta.
 
 ## Estado de las integraciones
 
