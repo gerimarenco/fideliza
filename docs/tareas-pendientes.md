@@ -278,9 +278,10 @@
       beige y tipografía serif (PR #15).
 - [x] Imagen de portada tipo "muro de Facebook" (PR #16) — probado
       pegando la URL real de Peperina (subida a imgur) en producción.
-- [ ] Un sexto color que la dueña de Peperina mandó (`#37A1D`) llegó
-      incompleto (5 dígitos, un hex válido necesita 6) — pendiente de que
-      lo reconfirme.
+- [x] Un sexto color que la dueña de Peperina mandó (`#37A1D`) había
+      llegado incompleto (5 dígitos, un hex válido necesita 6). Cecilia
+      decidió (2026-08-27) no perseguirlo — se cierra sin cargar, la
+      paleta se queda con los 5 colores ya confirmados.
 - [ ] Pedido de la usuaria sin resolver del todo: "meterle detalles, los
       mini dibujitos" — se interpretó como el color de "resaltado" en los
       chips de puntos/avatares (antes reusaban el mismo tono que los
