@@ -1,6 +1,6 @@
 # Tareas pendientes — Fideliza
 
-> Última actualización: 2026-08-26. Marca lo hecho (`[x]`) y lo que falta
+> Última actualización: 2026-08-27. Marca lo hecho (`[x]`) y lo que falta
 > (`[ ]`), agrupado por área. Ver `contexto-proyecto.md` para el porqué de
 > cada cosa y `progreso.md`/`sesion-actual.md` para cuándo se hizo. Ver
 > `tareas-futuras.md` para lo que sigue después de esta sesión.
@@ -82,6 +82,27 @@
       logging inconsistentes entre Mercado Pago, Tiendanube y Dragon
       Fish). Pospuesto a propósito, foco puesto en el bug de Mercado Pago
       primero por ser el único con tráfico real.
+
+## Login (PRs #19-#20)
+
+- [x] Toggle de mostrar/ocultar contraseña en el form de credentials de
+      `/login`.
+- [x] Login con Google, para los tres roles (admin/negocio/cliente). El
+      email de la cuenta de Google se busca contra `ADMIN_EMAIL` →
+      `Negocio.email` → `Cliente.email`, en ese orden; si no matchea
+      ninguno, se rechaza el login (no crea cuentas nuevas) con un
+      mensaje en español en `/login`.
+- [x] Fix: los errores de login (incluido el rechazo de Google) ahora
+      redirigen a `/login` en vez de a la página de error genérica de
+      NextAuth en inglés (faltaba `error: '/login'` en `pages` de
+      `authOptions`).
+- [x] Configuración real en Netlify: `GOOGLE_CLIENT_ID`,
+      `GOOGLE_CLIENT_SECRET` y `NEXTAUTH_URL` (esta última no existía,
+      causaba `redirect_uri_mismatch` apuntando a `localhost:3000`).
+      Validado en producción: rechazo de un email sin cuenta funciona
+      correctamente.
+- [ ] Falta probar en producción el caso de éxito (login con Google con
+      un email que sí tiene cuenta existente).
 
 ## Paginación de listados
 
