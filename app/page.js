@@ -39,8 +39,6 @@ export default function Home() {
   const [formEdicionNegocio, setFormEdicionNegocio] = useState({ nombre: '', tipo: '', ciudad: '', emoji: '', tema: { ...TEMA_DEFAULT } });
   const [clientePropio, setClientePropio] = useState(null);
   const [negocioDelCliente, setNegocioDelCliente] = useState(null);
-  const [montoPago, setMontoPago] = useState('');
-  const [generandoPago, setGenerandoPago] = useState(false);
   const [canjeandoId, setCanjeandoId] = useState(null);
   const [estadisticas, setEstadisticas] = useState(null);
   const [seccionActiva, setSeccionActiva] = useState('inicio');
@@ -473,40 +471,6 @@ export default function Home() {
     }
   };
 
-  // Genera el link de pago de Mercado Pago y redirige al cliente ahí
-  const iniciarPago = async () => {
-    if (!montoPago || parseFloat(montoPago) <= 0) {
-      alert('Ingresá un monto válido');
-      return;
-    }
-    if (!negocioDelCliente?.slug) {
-      alert('Este negocio todavía no tiene pagos online configurados.');
-      return;
-    }
-    setGenerandoPago(true);
-    try {
-      const res = await fetch('/api/mercadopago/crear-preferencia', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          negocioSlug: negocioDelCliente.slug,
-          clienteId: clientePropio.id,
-          monto: parseFloat(montoPago),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        alert(`❌ Error: ${data.error || 'no se pudo generar el pago'}`);
-        setGenerandoPago(false);
-        return;
-      }
-      window.location.href = data.init_point;
-    } catch (err) {
-      alert('❌ Ocurrió un error al generar el pago.');
-      setGenerandoPago(false);
-    }
-  };
-
   // El cliente canjea un premio para sí mismo (el backend ya valida que
   // tenga puntos suficientes y que el canje sea siempre a su propio nombre)
   const canjearPremio = async (premio) => {
@@ -919,7 +883,6 @@ export default function Home() {
 
     const premiosDisponibles = (negocioDelCliente.premios || []).filter(p => clientePropio.puntos >= p.puntos);
     const premiosBloqueados = (negocioDelCliente.premios || []).filter(p => clientePropio.puntos < p.puntos);
-    const ptsAGanar = Math.floor((parseFloat(montoPago) || 0) / (negocioDelCliente.puntosXPeso || 1000));
 
     return (
       <div style={{ minHeight: '100vh', background: tema.fondo, color: tema.texto, fontFamily: 'system-ui', maxWidth: 480, margin: '0 auto' }}>
@@ -938,27 +901,6 @@ export default function Home() {
           <div style={{ background: tema.primario, borderRadius: 16, padding: 24, color: tema.primarioTexto, textAlign: 'center', marginBottom: 20 }}>
             <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 4 }}>Tus puntos</div>
             <div style={{ fontSize: 40, fontWeight: 700, fontFamily: tema.fuenteTitulo }}>{clientePropio.puntos}</div>
-          </div>
-
-          <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 16, marginBottom: 20 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Cargar puntos con Mercado Pago</div>
-            <input
-              type="number"
-              placeholder="Monto de tu compra"
-              value={montoPago}
-              onChange={e => setMontoPago(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 14, marginBottom: 10, boxSizing: 'border-box' }}
-            />
-            {ptsAGanar > 0 && (
-              <div style={{ fontSize: 13, color: '#22c55e', marginBottom: 10, fontWeight: 500 }}>+{ptsAGanar} puntos a sumar</div>
-            )}
-            <button
-              onClick={iniciarPago}
-              disabled={generandoPago}
-              style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: '#009ee3', color: '#fff', fontSize: 14, fontWeight: 600, cursor: generandoPago ? 'not-allowed' : 'pointer', opacity: generandoPago ? 0.7 : 1 }}
-            >
-              {generandoPago ? 'Generando link de pago...' : 'Pagar con Mercado Pago'}
-            </button>
           </div>
 
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>Premios disponibles</div>
