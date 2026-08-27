@@ -244,3 +244,19 @@ nueva.
    navegador con Postgres real, incluyendo el caso de estar dentro del
    panel de un negocio puntual (mismo patrón que Clientes/Canjes/
    Integraciones: muestra el Ajustes de ESE negocio, no el del Admin).
+6. Cecilia confirmó que "los mini dibujitos" ya está resuelto (el color
+   de resaltado en chips de puntos/avatares) — se cerró ese pendiente
+   sin más cambios.
+7. Explicando cómo se suman los puntos hoy (compra manual, Mercado Pago,
+   Tiendanube, Dragon Fish), Cecilia planteó una preocupación de fondo:
+   no quiere que el negocio tenga que cargar compra por compra a mano
+   (no escala con miles de clientes) ni que la clienta tenga que hacer
+   nada para sumar puntos. Eso destapó que "Cargar puntos con Mercado
+   Pago" del panel de cliente estaba mal planteado desde el vamos: exigía
+   que la clienta pagara *de nuevo*, a mano, el monto ya gastado. **PR
+   #26**: se sacó ese botón/flujo del panel de cliente (UI, estado,
+   handler); se dejó el backend intacto (`crear-preferencia`, webhook,
+   config en "Integraciones") por si se rediseña como una integración
+   real de cobro más adelante. Probado en el navegador con Postgres
+   real: el panel de cliente pasa directo de "Tus puntos" a "Premios
+   disponibles".

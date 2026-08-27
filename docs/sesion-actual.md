@@ -138,19 +138,75 @@ corriendo migraciones reales, con Playwright headless contra
 "Ajustes" desde la grilla general, capturas confirmando que muestra el
 email de la sesión.
 
+Cecilia confirmó de paso que "los mini dibujitos" ya está resuelto — se
+cerró ese pendiente sin más cambios (PR #25).
+
+## 7. Cómo se suman los puntos hoy, y por qué "Mercado Pago" del cliente no servía (PR #26)
+
+Antes de arrancar con la idea de notificar por email, Cecilia pidió que
+se le explicara cómo funciona hoy la suma de puntos. Se repasaron las
+cuatro formas (compra manual, Mercado Pago, Tiendanube, Dragon Fish) con
+la fórmula `puntos = piso(monto / puntosXPeso)`, y se marcó un cabo
+suelto ya conocido: el webhook de Tiendanube no escribe en
+`MovimientoPuntos` ni tiene protección de idempotencia, a diferencia de
+Mercado Pago — relevante para cuando se diseñe qué dispara el email.
+
+De ahí surgieron dos objeciones de fondo de Cecilia, con un ejemplo
+concreto (clienta compra una remera de $30.000 en Peperina con Mercado
+Pago):
+
+- **No quiere que el negocio cargue compra por compra a mano** — con
+  miles de clientes, la carga manual sería una carga operativa, no un
+  beneficio.
+- **Tampoco quiere que la clienta tenga que hacer nada** para sumar
+  puntos — ni entrar a la app, ni ningún paso extra.
+
+Revisando el código de "Cargar puntos con Mercado Pago" (panel de
+cliente) a la luz de ese ejemplo, se destapó que **nunca representó un
+cobro real**: genera una preferencia de pago nueva por el mismo monto
+que la clienta ya gastó, y se lo cobra *de nuevo*, a la cuenta de
+Mercado Pago de la plataforma (no la de Peperina) — recién ahí suma los
+puntos. Con el ejemplo de la remera: la clienta terminaría pagando
+$60.000 en vez de $30.000 para que el sistema le "crea" que compró algo.
+Va exactamente en contra de los dos objetivos de arriba.
+
+Se le preguntó a Cecilia qué hacer al respecto — eligió sacarlo del
+panel de cliente. **PR #26**: se borró el bloque de UI, el estado
+(`montoPago`, `generandoPago`) y el handler (`iniciarPago`) de
+`PanelCliente`. Se dejó el backend intacto (`POST
+/api/mercadopago/crear-preferencia`, el webhook, la config de
+"Integraciones" del negocio) — no se pidió borrarlo, y sirve como base
+si en algún momento se rediseña como una integración real de cobro
+(mismo patrón que Tiendanube: el pago pasa por el checkout real del
+negocio, un solo cobro, sin pasos extra en Fideliza).
+
+Los dos caminos que sí cumplen "cero acción de la clienta y cero carga
+para el negocio" siguen siendo Tiendanube (ya andando) y Dragon Fish
+(bloqueado esperando a Zoo Logic) — quedó explícito que destrabar Dragon
+Fish es el paso que de verdad importa para el volumen real del local
+físico de Peperina, más que cualquier ajuste al lado de Mercado Pago.
+
+Probado en el navegador contra Postgres real (cliente de prueba
+sembrado a mano): el panel de cliente pasa directo de "Tus puntos" a
+"Premios disponibles", sin rastro del bloque de Mercado Pago.
+
 ## Archivos nuevos/tocados en esta sesión
 
 - `app/login/page.js` — toggle de contraseña, botón de Google, manejo de
   `?error=`.
 - `lib/auth.js` — `GoogleProvider`, callback `signIn`, `pages.error`.
 - `README.md` — variables de entorno nuevas documentadas.
-- `app/page.js` — `VistaAjustesAdmin`, sidebar del Admin conectado.
-- `docs/` — esta actualización, más el cierre del pendiente del sexto
-  color.
+- `app/page.js` — `VistaAjustesAdmin`, sidebar del Admin conectado;
+  después, se saca el bloque de "Cargar puntos con Mercado Pago" del
+  panel de cliente (UI + estado + handler).
+- `docs/` — actualizaciones sucesivas (PRs #21, #24 y esta), más el
+  cierre de tres pendientes (sexto color, mini dibujitos, y la nota
+  sobre Mercado Pago).
 
 ## Estado al cierre de esta sesión
 
-- PRs #19, #20, #21 (docs), #22 (docs) y #23: todos mergeados a `main`.
+- PRs #19, #20, #21 (docs), #22 (docs), #23, #24 (docs), #25 (docs) y
+  #26: todos mergeados a `main`.
 - Login con Google funcionando en producción para el caso de rechazo
   (validado). Caso de éxito sin probar todavía, pero no hay motivo para
   esperar que falle (la lógica es simétrica).
@@ -158,7 +214,12 @@ email de la sesión.
   cargadas y funcionando.
 - Sidebar de los tres paneles: **100% conectado**, no queda ningún ítem
   decorativo.
-- Pendientes reales que quedan: "mini dibujitos" sin aclarar, idea de
-  notificar clientes por email (grande, sin diseñar), y varios menores
-  de sesiones previas (Dragon Fish, Tiendanube, límite de Netlify en
-  Deploy Previews). Ver `tareas-futuras.md`.
+- Panel de cliente: ya no ofrece ninguna acción de "cargar puntos" — los
+  puntos siempre se suman desde afuera (compra manual del negocio, o
+  automático vía Tiendanube/Dragon Fish).
+- Pendientes reales que quedan: la idea de notificar clientes por email
+  (grande, sin diseñar — ahora con más contexto de qué caminos de suma
+  de puntos son realmente automáticos), destrabar Dragon Fish (el
+  camino que de verdad importa para el volumen del local físico), y
+  varios menores de sesiones previas (Tiendanube pausado, límite de
+  Netlify en Deploy Previews). Ver `tareas-futuras.md`.

@@ -19,13 +19,26 @@ sumaron. Es una funcionalidad nueva bastante grande, no un ajuste:
   cliente actual (`PanelCliente`), y si hace falta algo de
   personalización visual del email en sí (coherente con la marca propia
   ya construida).
+- **Ojo**: si el email se dispara desde `MovimientoPuntos`, hoy el
+  webhook de Tiendanube no escribe ahí (a diferencia de compra manual y
+  Mercado Pago) — habría que arreglar eso primero, o elegir otra fuente.
 - Sin retomar todavía — queda anotado para la próxima vez que se hable
   de features nuevas.
 
-## 2. Otros pendientes menores (de sesiones previas, sin resolver)
+## 2. Destrabar Dragon Fish (prioridad real para el volumen de Peperina)
 
-- Dragon Fish: bloqueado esperando la respuesta de soporte de Zoo Logic
-  sobre el formato real de la consulta de factura por `Codigo`.
+Charlando cómo se suman los puntos, Cecilia planteó que no quiere que el
+negocio cargue compra por compra a mano (no escala con miles de
+clientes) ni que la clienta tenga que hacer nada. De los caminos que
+existen hoy, los únicos dos que cumplen eso son Tiendanube (ya andando,
+para ventas online) y Dragon Fish (para las ventas del local físico,
+donde está el volumen real). Por eso destrabar Dragon Fish pesa más que
+cualquier otro ajuste pendiente — bloqueado esperando la respuesta de
+soporte de Zoo Logic sobre el formato real de la consulta de factura por
+`Codigo`.
+
+## 3. Otros pendientes menores (de sesiones previas, sin resolver)
+
 - Tiendanube: pausado a propósito hasta que la tienda esté activa (el
   flujo OAuth2 no está armado).
 - Limitación conocida de Netlify (no bloqueante): `DATABASE_URL` no está

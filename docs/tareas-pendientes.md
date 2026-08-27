@@ -104,6 +104,23 @@
 - [ ] Falta probar en producción el caso de éxito (login con Google con
       un email que sí tiene cuenta existente).
 
+## Suma de puntos y Mercado Pago del cliente (PR #26)
+
+- [x] Se sacó "Cargar puntos con Mercado Pago" del panel de cliente —
+      exigía que la clienta pagara *de nuevo*, a mano, el monto ya
+      gastado (a la cuenta de MP de la plataforma, no la del negocio), lo
+      que contradice que la clienta no debe hacer nada para sumar puntos.
+      Se borró la UI/estado/handler de `PanelCliente`; el backend
+      (`crear-preferencia`, webhook, `Integraciones`) queda intacto por
+      si se rediseña como cobro real más adelante.
+- [ ] Los únicos dos caminos hoy que no requieren ninguna acción ni de la
+      clienta ni del negocio son Tiendanube (ya andando) y Dragon Fish
+      (bloqueado). Para el volumen real del local físico de Peperina,
+      destrabar Dragon Fish importa más que cualquier otro ajuste.
+- [ ] El webhook de Tiendanube no escribe en `MovimientoPuntos` ni tiene
+      protección de idempotencia (a diferencia de Mercado Pago) — a tener
+      en cuenta si el email de notificación se dispara desde esa tabla.
+
 ## Paginación de listados
 
 - [x] Backend: `GET /api/clientes` y `GET /api/canjes` (nuevo) paginados
