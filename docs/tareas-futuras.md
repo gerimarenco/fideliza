@@ -14,14 +14,7 @@ vio en peperina.com u otro sitio de referencia).
 - [ ] Preguntarle directamente con un ejemplo puntual la próxima vez que
       se retome el tema visual, en vez de asumir.
 
-## 2. Ítem "Ajustes" del panel Admin (sin construir)
-
-Sigue sin alcance definido y sin backend (a diferencia de "Ajustes" del
-panel de Negocio, que ya está completo: contraseña, `puntosXPeso`, datos
-de cuenta). Pendiente de una charla de producto sobre qué debería
-incluir antes de encararlo.
-
-## 3. Idea nueva planteada por Cecilia: notificar a clientes por email
+## 2. Idea nueva planteada por Cecilia: notificar a clientes por email
 
 Su mamá (dueña de Peperina) quiere que sus clientas **no tengan que
 entrar a ninguna web** — que casi ni se enteren de que existe un panel —
@@ -40,7 +33,7 @@ sumaron. Es una funcionalidad nueva bastante grande, no un ajuste:
 - Sin retomar todavía — queda anotado para la próxima vez que se hable
   de features nuevas.
 
-## 4. Otros pendientes menores (de sesiones previas, sin resolver)
+## 3. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Dragon Fish: bloqueado esperando la respuesta de soporte de Zoo Logic
   sobre el formato real de la consulta de factura por `Codigo`.
@@ -55,3 +48,7 @@ sumaron. Es una funcionalidad nueva bastante grande, no un ajuste:
   (hoy solo lo carga el admin, y para Peperina se cargó a mano vía
   migraciones de datos porque no había otra forma). Evaluar si hace
   falta una vez que haya un segundo negocio real usando marca propia.
+- Cambiar la contraseña del admin no es auto-gestionable — sale de
+  `ADMIN_PASSWORD_HASH` (variable de entorno en Netlify), no de la base.
+  Migrarla es una decisión de diseño más grande (afecta el modelo de
+  autenticación), se deja para cuando haya un pedido concreto.

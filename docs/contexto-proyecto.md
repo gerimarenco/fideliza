@@ -57,10 +57,9 @@ No hay routing real entre pantallas — todo vive en un único componente
 Dentro de `PanelNegocio` hay un estado `seccionActiva` (`'inicio'` |
 `'clientes'` | `'premios'` | `'canjes'` | `'integraciones'` | `'ajustes'`)
 que decide qué se muestra. **Todos los ítems del sidebar de los tres
-paneles ya están conectados**, salvo uno: "Ajustes" del panel **Admin**
-(sigue sin backend ni alcance definido — no confundir con "Ajustes" del
-panel **Negocio**, que es una cosa distinta y sí está conectado). Detalle
-de cada uno en `tareas-pendientes.md`.
+paneles ya están conectados** (PR #23 cerró el último, "Ajustes" del
+panel **Admin** — no confundir con "Ajustes" del panel **Negocio**, que
+es una cosa distinta). Detalle de cada uno en `tareas-pendientes.md`.
 
 Un detalle de layout del panel Admin: cuando no hay ningún negocio
 elegido (la grilla de "Mis negocios"), el contenido se rige por
@@ -68,6 +67,13 @@ elegido (la grilla de "Mis negocios"), el contenido se rige por
 ítem que vive dentro del panel de un negocio puntual (Clientes, Premios,
 Canjes, Integraciones), se muestra un mensaje "Elegí un negocio para ver
 sus..." con un botón de vuelta a la grilla, en vez de no reaccionar.
+"Ajustes" es la excepción: tiene su propia vista a nivel Admin
+(`VistaAjustesAdmin`, solo el email de acceso, sin `tema`) cuando no hay
+negocio elegido — pero si se lo toca **estando dentro** del panel de un
+negocio puntual, se comporta igual que Clientes/Canjes/Integraciones y
+muestra el "Ajustes" de ESE negocio (`VistaAjustes`, con cambio de
+contraseña y `puntosXPeso`), no el del Admin. Es el mismo patrón que ya
+usaban los demás ítems del sidebar del Admin, no algo nuevo de este PR.
 
 ## Marca propia por negocio (tema visual)
 

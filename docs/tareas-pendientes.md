@@ -181,8 +181,11 @@
         negocio, persistencia tras recargar la página (con el Access
         Token siempre en blanco), y la misma pantalla funcionando para
         el admin viendo el panel de un negocio puntual.
-  - [ ] "Ajustes" (admin) — sin backend ni alcance definido, requiere
-        decisión de producto.
+  - [x] "Ajustes" (admin) — conectado (PR #23). Versión mínima: email de
+        acceso de solo lectura, mismo patrón que "Ajustes" (negocio). No
+        incluye cambio de contraseña (la del admin es fija por
+        `ADMIN_PASSWORD_HASH`, variable de entorno, no está en la base —
+        migrarla queda pendiente para cuando haya un pedido concreto).
   - [x] "Ajustes" (negocio) — conectado (este ítem no existía en el
         sidebar de Negocio, se agregó de cero; es distinto del "Ajustes"
         del admin de arriba, que sigue sin definir). Tres bloques:
