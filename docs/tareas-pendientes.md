@@ -285,12 +285,11 @@
       llegado incompleto (5 dígitos, un hex válido necesita 6). Cecilia
       decidió (2026-08-27) no perseguirlo — se cierra sin cargar, la
       paleta se queda con los 5 colores ya confirmados.
-- [ ] Pedido de la usuaria sin resolver del todo: "meterle detalles, los
-      mini dibujitos" — se interpretó como el color de "resaltado" en los
-      chips de puntos/avatares (antes reusaban el mismo tono que los
-      botones). No quedó confirmado si se refería a algo más específico
-      (íconos ilustrados, alguna decoración puntual del sitio real) — ver
-      `tareas-futuras.md`.
+- [x] Pedido de la usuaria "meterle detalles, los mini dibujitos" — se
+      interpretó como el color de "resaltado" en los chips de puntos/
+      avatares (antes reusaban el mismo tono que los botones). Cecilia
+      confirmó (2026-08-27) que ya está resuelto, se cierra sin más
+      cambios.
 - [ ] No hay pantalla de autogestión del tema para el propio negocio (hoy
       solo lo carga el admin) — evaluar si hace falta cuando se sume un
       segundo negocio real.

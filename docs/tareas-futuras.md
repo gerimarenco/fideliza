@@ -3,18 +3,7 @@
 > Lo que sigue una vez retomado el proyecto. Ver `sesion-actual.md` para
 > el detalle completo de cómo se llegó a este punto.
 
-## 1. Aclarar "los mini dibujitos"
-
-Cecilia pidió explícitamente "meterle los detalles, los mini dibujitos"
-al hablar del diseño. Se interpretó como el color de "resaltado" nuevo
-en los chips de puntos/avatares, pero no quedó confirmado si se refería
-a algo más concreto (íconos ilustrados, alguna decoración puntual que
-vio en peperina.com u otro sitio de referencia).
-
-- [ ] Preguntarle directamente con un ejemplo puntual la próxima vez que
-      se retome el tema visual, en vez de asumir.
-
-## 2. Idea nueva planteada por Cecilia: notificar a clientes por email
+## 1. Idea nueva planteada por Cecilia: notificar a clientes por email
 
 Su mamá (dueña de Peperina) quiere que sus clientas **no tengan que
 entrar a ninguna web** — que casi ni se enteren de que existe un panel —
@@ -33,7 +22,7 @@ sumaron. Es una funcionalidad nueva bastante grande, no un ajuste:
 - Sin retomar todavía — queda anotado para la próxima vez que se hable
   de features nuevas.
 
-## 3. Otros pendientes menores (de sesiones previas, sin resolver)
+## 2. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Dragon Fish: bloqueado esperando la respuesta de soporte de Zoo Logic
   sobre el formato real de la consulta de factura por `Codigo`.
