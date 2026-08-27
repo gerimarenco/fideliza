@@ -3,20 +3,7 @@
 > Lo que sigue una vez retomado el proyecto. Ver `sesion-actual.md` para
 > el detalle completo de cómo se llegó a este punto.
 
-## 1. Confirmar el sexto color de la marca de Peperina
-
-La dueña de Peperina mandó 6 colores; uno (`#37A1D`) llegó incompleto (5
-dígitos, un hex válido necesita 6). Los otros 5 ya están cargados y en
-producción.
-
-- [ ] Pedirle a Cecilia que confirme el código completo.
-- [ ] Decidir para qué token de tema se usaría (hoy están cubiertos
-      fondo/superficie/borde/texto/textoSecundario/primario/resaltado —
-      podría ser una variante de alguno de estos, o un token nuevo).
-- [ ] Cargarlo vía una nueva migración de datos (mismo patrón que las dos
-      anteriores), ya que no hay pantalla de autogestión del tema.
-
-## 2. Aclarar "los mini dibujitos"
+## 1. Aclarar "los mini dibujitos"
 
 Cecilia pidió explícitamente "meterle los detalles, los mini dibujitos"
 al hablar del diseño. Se interpretó como el color de "resaltado" nuevo
@@ -27,14 +14,14 @@ vio en peperina.com u otro sitio de referencia).
 - [ ] Preguntarle directamente con un ejemplo puntual la próxima vez que
       se retome el tema visual, en vez de asumir.
 
-## 3. Ítem "Ajustes" del panel Admin (sin construir)
+## 2. Ítem "Ajustes" del panel Admin (sin construir)
 
 Sigue sin alcance definido y sin backend (a diferencia de "Ajustes" del
 panel de Negocio, que ya está completo: contraseña, `puntosXPeso`, datos
 de cuenta). Pendiente de una charla de producto sobre qué debería
 incluir antes de encararlo.
 
-## 4. Idea nueva planteada por Cecilia: notificar a clientes por email
+## 3. Idea nueva planteada por Cecilia: notificar a clientes por email
 
 Su mamá (dueña de Peperina) quiere que sus clientas **no tengan que
 entrar a ninguna web** — que casi ni se enteren de que existe un panel —
@@ -53,7 +40,7 @@ sumaron. Es una funcionalidad nueva bastante grande, no un ajuste:
 - Sin retomar todavía — queda anotado para la próxima vez que se hable
   de features nuevas.
 
-## 5. Otros pendientes menores (de sesiones previas, sin resolver)
+## 4. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Dragon Fish: bloqueado esperando la respuesta de soporte de Zoo Logic
   sobre el formato real de la consulta de factura por `Codigo`.
