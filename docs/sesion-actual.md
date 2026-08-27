@@ -96,19 +96,69 @@ Queda sin probar el caso de éxito (un email de Google que sí coincide
 con una cuenta existente) — no había a mano un email de prueba que
 matcheara. Ver `tareas-pendientes.md`.
 
+Se documentó todo lo anterior en `docs/` (PR #21) y, de paso, Cecilia
+avisó que no hace falta seguir esperando el sexto color de la paleta de
+Peperina (`#37A1D`, incompleto) — se cerró ese pendiente sin cargarlo
+(PR #22).
+
+## 6. "Ajustes" del panel Admin (PR #23)
+
+Único ítem del sidebar que quedaba sin conectar (`id: null`, decorativo,
+ver `contexto-proyecto.md` de sesiones previas). Se le preguntó a
+Cecilia qué debería incluir — respondió "hacé lo que mejor te parezca".
+
+Se optó por la versión mínima y de menor riesgo, en vez de asumir algo
+más grande: `VistaAjustesAdmin`, una vista nueva con un solo bloque
+("Cuenta" → email de acceso, solo lectura), sin `tema` (el chrome del
+Admin nunca se tematiza, a diferencia de `PanelNegocio`/`PanelCliente`).
+Mismo patrón visual que ya usaba "Ajustes" del negocio para su bloque de
+"Cuenta".
+
+Se decidió **no** incluir cambio de contraseña del admin: hoy sale de
+`ADMIN_PASSWORD_HASH` (variable de entorno en Netlify), no de la base de
+datos — habilitarlo requeriría migrar ese modelo (guardar el hash en
+`Negocio`/una tabla nueva de admins), un cambio de arquitectura de auth
+más grande que no correspondía meter sin que lo pidan explícitamente.
+Tampoco se inventó una sección de "configuración general de la app": no
+hay ningún ajuste global concreto identificado en el código que hoy no
+tenga dónde vivir.
+
+Conexión al sidebar: se cambió el id de `null` a `'ajustes'` en el array
+del sidebar del Admin, y se agregó una rama de render nueva
+(`!negocioActivo && seccionActiva === 'ajustes'`) antes de la grilla de
+negocios. Verificado que, dentro del panel de un negocio puntual, el
+mismo botón de sidebar sigue mostrando el "Ajustes" de *ese* negocio
+(`VistaAjustes`, con cambio de contraseña y `puntosXPeso`) en vez del
+del Admin — es el comportamiento ya existente para Clientes/Canjes/
+Integraciones, no algo nuevo que haya que arreglar.
+
+Probado en el navegador levantando Postgres local (`pg_ctlcluster`) y
+corriendo migraciones reales, con Playwright headless contra
+`/opt/pw-browsers/chromium`: login como admin de prueba, click en
+"Ajustes" desde la grilla general, capturas confirmando que muestra el
+email de la sesión.
+
 ## Archivos nuevos/tocados en esta sesión
 
 - `app/login/page.js` — toggle de contraseña, botón de Google, manejo de
   `?error=`.
 - `lib/auth.js` — `GoogleProvider`, callback `signIn`, `pages.error`.
 - `README.md` — variables de entorno nuevas documentadas.
-- `docs/` — esta actualización.
+- `app/page.js` — `VistaAjustesAdmin`, sidebar del Admin conectado.
+- `docs/` — esta actualización, más el cierre del pendiente del sexto
+  color.
 
 ## Estado al cierre de esta sesión
 
-- PRs #19 y #20: mergeados a `main`.
+- PRs #19, #20, #21 (docs), #22 (docs) y #23: todos mergeados a `main`.
 - Login con Google funcionando en producción para el caso de rechazo
   (validado). Caso de éxito sin probar todavía, pero no hay motivo para
   esperar que falle (la lógica es simétrica).
 - Netlify: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `NEXTAUTH_URL`
   cargadas y funcionando.
+- Sidebar de los tres paneles: **100% conectado**, no queda ningún ítem
+  decorativo.
+- Pendientes reales que quedan: "mini dibujitos" sin aclarar, idea de
+  notificar clientes por email (grande, sin diseñar), y varios menores
+  de sesiones previas (Dragon Fish, Tiendanube, límite de Netlify en
+  Deploy Previews). Ver `tareas-futuras.md`.

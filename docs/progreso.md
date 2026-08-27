@@ -231,3 +231,16 @@ nueva.
    código de autorización de Google reusado/vencido (reintento con "atrás"
    del navegador), no un problema de configuración — se resolvió solo al
    reintentar desde cero.
+4. Se cerró el pendiente del sexto color de Peperina (`#37A1D`,
+   incompleto): Cecilia decidió no perseguirlo, la paleta se queda con
+   los 5 colores ya cargados.
+5. **PR #23**: se conectó "Ajustes" del panel Admin, el último ítem del
+   sidebar sin backend. Cecilia pidió usar criterio propio para el
+   alcance — se implementó la versión mínima (email de acceso de solo
+   lectura, mismo patrón que "Ajustes" del negocio), dejando afuera a
+   propósito el cambio de contraseña del admin (hoy es fija por
+   `ADMIN_PASSWORD_HASH`, variable de entorno; migrarla a la base es un
+   cambio más grande de modelo de autenticación). Probado en el
+   navegador con Postgres real, incluyendo el caso de estar dentro del
+   panel de un negocio puntual (mismo patrón que Clientes/Canjes/
+   Integraciones: muestra el Ajustes de ESE negocio, no el del Admin).
