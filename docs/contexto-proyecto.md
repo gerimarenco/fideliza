@@ -31,7 +31,18 @@ configura.
   automático (`prefers-color-scheme: dark`) que nunca se usó, y que hacía
   que el texto tipeado en los `<input>` quedara invisible (texto claro
   sobre el fondo blanco por defecto del navegador) si el sistema/
-  navegador de quien usaba la app estaba en modo oscuro.
+  navegador de quien usaba la app estaba en modo oscuro. `globals.css`
+  también trae 5 clases de hover (`fid-btn-primary`, `fid-btn-secondary`,
+  `fid-card-hover`, `fid-row-hover`, `fid-sidebar-item`, PR #30) — es la
+  única parte de la UI que usa `className` en vez de estilos inline, a
+  propósito, porque un `:hover` de CSS no se puede lograr con estilos
+  inline. Los botones "secundarios" y los ítems de sidebar usan
+  `filter` en vez de `background-color` para el hover, porque esos
+  elementos siempre traen un `background` inline (`tema.superficie`,
+  `'#fff'`) que pisaría cualquier `background-color` de una regla de
+  CSS — un inline style siempre gana. Efectos basados en
+  `transform`/`filter`/`box-shadow` a propósito, no colores fijos, para
+  que se vean bien con cualquier `tema` de marca propia.
 - **Deploy**: Netlify (`netlify.toml`, plugin `@netlify/plugin-nextjs`).
   Hay también una integración de Vercel que se desconectó por no ser el
   destino real de deploy (ver `progreso.md`).

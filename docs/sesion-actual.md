@@ -1,9 +1,12 @@
 # Sesión actual — 2026-08-27
 
-> Sesión corta, a continuación directa de la anterior (PRs #10 a #18, ver
-> `progreso.md`). Pedido puntual de Cecilia: agregar mostrar/ocultar
-> contraseña y login con Google a `/login`. Reconstruido del propio hilo
-> de la conversación.
+> Continuación directa de la sesión anterior (PRs #10 a #18, ver
+> `progreso.md`). Arrancó con un pedido puntual de Cecilia (mostrar/
+> ocultar contraseña y login con Google) y se extendió: cierre de varios
+> pendientes menores, una charla sobre cómo se suman los puntos que
+> terminó sacando una función mal planteada, un fix de idempotencia, y
+> hover effects en todo el panel. Reconstruido del propio hilo de la
+> conversación.
 
 ## 1. Alcance acordado antes de tocar código
 
@@ -218,6 +221,59 @@ Con esto, los tres orígenes de puntos que ya están en producción
 de forma consistente — relevante para cuando se diseñe qué dispara el
 email de notificación.
 
+## 9. Hover effects en todo el panel (PR #30)
+
+Pedido nuevo de Cecilia, sin relación con lo anterior: efectos de hover
+suaves en botones, tarjetas y otros elementos interactivos. Antes de
+tocar código se le propuso un criterio por tipo de elemento (qué efecto
+para botones primarios vs. secundarios vs. destructivos, tarjetas, filas
+de listas, ítems de sidebar) y se esperó su confirmación ("dale arrancá
+con eso") en vez de asumir.
+
+Decisión técnica clave antes de escribir CSS: como el panel de negocio/
+cliente usa colores dinámicos (`tema`, la marca propia de cada negocio —
+Peperina tiene su propia paleta), los efectos no podían usar colores
+fijos de hover. Se resolvió con `transform`/`filter`/`box-shadow`, que
+se ven bien sobre cualquier paleta sin necesidad de conocer el color
+exacto de antemano.
+
+Se agregaron 5 clases en `globals.css` (`fid-btn-primary`,
+`fid-btn-secondary`, `fid-card-hover`, `fid-row-hover`,
+`fid-sidebar-item`) y se les puso `className` a los ~31 botones, las
+tarjetas de negocio/premio disponible, las filas de listas (clientes,
+canjes, premios del negocio) y los ítems de los dos sidebars — es la
+primera vez que `app/page.js` usa `className` en vez de depender
+exclusivamente de estilos inline. Se dejaron sin hover las tarjetas
+puramente informativas sin acción asociada (ej. "Próximos premios"
+bloqueados), para no sugerir interactividad donde no la hay.
+
+**Bug real encontrado probando en el navegador**: los botones
+"secundarios" (outline) y los ítems de sidebar siempre traen un
+`background` fijo en el estilo inline (`tema.superficie`, `'#fff'`,
+`'transparent'`) — como un estilo inline siempre le gana a una regla de
+un stylesheet externo para la misma propiedad, el `background-color`
+del hover en CSS quedaba completamente bloqueado en esos casos (se
+notó al testear con Playwright: el color computado no cambiaba en
+absoluto al hacer hover). Se resolvió de dos formas distintas según el
+caso:
+- Botones secundarios: pasa a usar `filter: brightness(0.94)` en el
+  hover en vez de `background-color` — es una propiedad CSS distinta,
+  no hay conflicto con el `background` inline.
+- Ítems de sidebar: el `background` inline del estado no-activo pasa de
+  `'transparent'` a `undefined` — en React, una propiedad de estilo en
+  `undefined` no se renderiza, así que el `background-color` de la
+  regla `:hover` del stylesheet puede aplicar sin competencia. El
+  estado activo sigue fijando su color inline sin cambios.
+
+Probado en el navegador contra Postgres real, con Playwright forzando
+`:hover` programáticamente (`locator.hover()`) en cada una de las 5
+categorías y comparando el estilo computado (`getComputedStyle`) antes y
+después — incluyendo la vuelta atrás después de encontrar el bug de los
+botones secundarios, para confirmar que el fix realmente lo resolvía
+(el primer intento de prueba mostró `filter: none` tanto antes como
+después del hover, lo que llevó a encontrar que faltaba limpiar la
+caché de build de Next — `rm -rf .next` — para que tomara el CSS nuevo).
+
 ## Archivos nuevos/tocados en esta sesión
 
 - `app/login/page.js` — toggle de contraseña, botón de Google, manejo de
@@ -229,14 +285,18 @@ email de notificación.
   panel de cliente (UI + estado + handler).
 - `app/api/webhooks/tiendanube/route.js` — idempotencia +
   `MovimientoPuntos`.
-- `docs/` — actualizaciones sucesivas (PRs #21, #24, #27 y esta), más el
-  cierre de tres pendientes (sexto color, mini dibujitos, y la nota
-  sobre Mercado Pago).
+- `app/globals.css` — 5 clases de hover nuevas.
+- `docs/` — actualizaciones sucesivas (PRs #21, #24, #27, #29 y esta),
+  más el cierre de tres pendientes (sexto color, mini dibujitos, y la
+  nota sobre Mercado Pago).
 
 ## Estado al cierre de esta sesión
 
 - PRs #19, #20, #21 (docs), #22 (docs), #23, #24 (docs), #25 (docs), #26,
-  #27 (docs) y #28: todos mergeados a `main`.
+  #27 (docs), #28, #29 (docs) y #30: todos mergeados a `main`.
+- Hover effects funcionando en todo el panel (botones, tarjetas, filas,
+  sidebars), validado con Playwright forzando `:hover` sobre las 5
+  categorías.
 - Login con Google funcionando en producción para el caso de rechazo
   (validado). Caso de éxito sin probar todavía, pero no hay motivo para
   esperar que falle (la lógica es simétrica).
