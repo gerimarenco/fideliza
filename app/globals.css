@@ -67,3 +67,17 @@ body {
 .fid-sidebar-item:hover {
   background-color: rgba(0, 0, 0, 0.045);
 }
+
+/* Spinner de carga: usa currentColor para heredar el color de texto que se
+   le pase por style (ej. tema.primario), así funciona con cualquier marca. */
+@keyframes fid-spin {
+  to { transform: rotate(360deg); }
+}
+.fid-spinner {
+  display: inline-block;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.12);
+  border-top-color: currentColor;
+  animation: fid-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}

@@ -517,12 +517,19 @@ export default function Home() {
     );
   };
 
+  // Ícono girando para estados de carga breves (listas, estadísticas).
+  // Usa currentColor (heredado del `style.color` que se le pase) para andar
+  // bien con cualquier tema de marca propia.
+  const Spinner = ({ size = 16, color }) => (
+    <span className="fid-spinner" style={{ width: size, height: size, color: color || tema.primario }} />
+  );
+
   // Historial de canjes del negocio completo (pantalla nueva)
   const VistaCanjes = () => (
     <div style={{ padding: 24 }}>
       <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Historial de canjes</div>
-        {!canjesData && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Cargando...</div>}
+        {!canjesData && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: tema.textoSecundario }}><Spinner size={14} /> Cargando...</div>}
         {canjesData && canjesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no hay canjes.</div>}
         {canjesData?.items.map(c => (
           <div key={c.id} className="fid-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: `1px solid ${tema.borde}` }}>
@@ -546,7 +553,7 @@ export default function Home() {
     <div style={{ padding: 24 }}>
       <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Clientes</div>
-        {!clientesData && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Cargando...</div>}
+        {!clientesData && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: tema.textoSecundario }}><Spinner size={14} /> Cargando...</div>}
         {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no hay clientes.</div>}
         {clientesData?.items.map(c => (
           <div key={c.id} className="fid-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: `1px solid ${tema.borde}` }}>
@@ -596,7 +603,7 @@ export default function Home() {
 
       <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Premios</div>
-        {!premiosData && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Cargando...</div>}
+        {!premiosData && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: tema.textoSecundario }}><Spinner size={14} /> Cargando...</div>}
         {premiosData && premiosData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no hay premios.</div>}
         {premiosData?.items.map(p => (
           <div key={p.id} className="fid-row-hover" style={{ padding: '10px 0', borderBottom: `1px solid ${tema.borde}`, opacity: p.activo ? 1 : 0.6 }}>
@@ -803,15 +810,15 @@ export default function Home() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
           <div style={{ background: tema.superficie, borderRadius: 12, padding: 16, border: `1px solid ${tema.borde}` }}>
             <div style={{ fontSize: 12, color: tema.textoSecundario, marginBottom: 4 }}>Clientes activos</div>
-            <div style={{ fontSize: 22, fontWeight: 600 }}>{estadisticas?.clientesActivos ?? '—'}</div>
+            <div style={{ fontSize: 22, fontWeight: 600 }}>{estadisticas ? estadisticas.clientesActivos : <Spinner size={18} />}</div>
           </div>
           <div style={{ background: tema.superficie, borderRadius: 12, padding: 16, border: `1px solid ${tema.borde}` }}>
             <div style={{ fontSize: 12, color: tema.textoSecundario, marginBottom: 4 }}>Puntos otorgados</div>
-            <div style={{ fontSize: 22, fontWeight: 600 }}>{estadisticas?.puntosOtorgadosEsteMes ?? '—'}</div>
+            <div style={{ fontSize: 22, fontWeight: 600 }}>{estadisticas ? estadisticas.puntosOtorgadosEsteMes : <Spinner size={18} />}</div>
           </div>
           <div style={{ background: tema.superficie, borderRadius: 12, padding: 16, border: `1px solid ${tema.borde}` }}>
             <div style={{ fontSize: 12, color: tema.textoSecundario, marginBottom: 4 }}>Canjes realizados</div>
-            <div style={{ fontSize: 22, fontWeight: 600 }}>{estadisticas?.canjesEsteMes ?? '—'}</div>
+            <div style={{ fontSize: 22, fontWeight: 600 }}>{estadisticas ? estadisticas.canjesEsteMes : <Spinner size={18} />}</div>
           </div>
         </div>
 
@@ -819,6 +826,7 @@ export default function Home() {
           <div>
             <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Clientes</div>
+              {!clientesData && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: tema.textoSecundario }}><Spinner size={14} /> Cargando...</div>}
               {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Aún no hay clientes</div>}
               {clientesData?.items.map(c => (
                 <div key={c.id} className="fid-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid ${tema.borde}` }}>
@@ -877,8 +885,8 @@ export default function Home() {
   const PanelCliente = () => {
     if (!clientePropio || !negocioDelCliente) {
       return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: tema.textoSecundario, fontFamily: 'system-ui' }}>
-          No encontramos tus datos de cliente.
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: '100vh', color: tema.textoSecundario, fontFamily: 'system-ui' }}>
+          {negocios.length === 0 ? <><Spinner size={16} /> Cargando...</> : 'No encontramos tus datos de cliente.'}
         </div>
       );
     }
@@ -1025,18 +1033,19 @@ export default function Home() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
                   <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
                     <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Negocios activos</div>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: '#1a1a1a' }}>{negocios.filter(n => n.activo).length}</div>
+                    <div style={{ fontSize: 24, fontWeight: 600, color: '#1a1a1a' }}>{loading ? <Spinner size={18} color="#6366f1" /> : negocios.filter(n => n.activo).length}</div>
                   </div>
                   <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
                     <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Clientes registrados</div>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: '#1a1a1a' }}>{negocios.reduce((acc, n) => acc + (n.clientes?.length || 0), 0)}</div>
+                    <div style={{ fontSize: 24, fontWeight: 600, color: '#1a1a1a' }}>{loading ? <Spinner size={18} color="#6366f1" /> : negocios.reduce((acc, n) => acc + (n.clientes?.length || 0), 0)}</div>
                   </div>
                   <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
                     <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Puntos en circulación</div>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: '#1a1a1a' }}>{negocios.reduce((acc, n) => acc + (n.clientes?.reduce((a, c) => a + c.puntos, 0) || 0), 0)}</div>
+                    <div style={{ fontSize: 24, fontWeight: 600, color: '#1a1a1a' }}>{loading ? <Spinner size={18} color="#6366f1" /> : negocios.reduce((acc, n) => acc + (n.clientes?.reduce((a, c) => a + c.puntos, 0) || 0), 0)}</div>
                   </div>
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Mis negocios</div>
+                {loading && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#999' }}><Spinner size={14} color="#6366f1" /> Cargando...</div>}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   {negocios.map((neg, i) => (
                     <div key={neg.id} className="fid-card-hover" style={{ background: '#fff', border: '1px solid #eee', borderRadius: 12, padding: 20 }}>
@@ -1158,8 +1167,8 @@ export default function Home() {
           {negocioPropio ? (
             <PanelNegocio negocio={negocioPropio} onVolver={null} />
           ) : (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999' }}>
-              Cargando tu negocio...
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: '#999' }}>
+              <Spinner size={16} /> Cargando tu negocio...
             </div>
           )}
         </div>
