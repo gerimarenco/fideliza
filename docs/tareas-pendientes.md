@@ -76,6 +76,13 @@
       `Premio.negocioId`, `Canje.clienteId`/`premioId`).
 - [x] Idempotencia real en el webhook de Mercado Pago (arreglaba un bug
       de duplicar puntos si Mercado Pago reenviaba la misma notificación).
+- [x] Condición de carrera en `POST /api/canjes` (PR #36): dos canjes
+      simultáneos podían pasar los dos la validación de saldo antes de
+      que cualquiera descontara — verificado con 8 canjes en paralelo
+      contra un cliente con 1000 puntos y un premio de 600, entraban
+      5-6 en vez de 1, dejando saldo negativo. Arreglado con
+      `updateMany` condicional (`puntos: { gte: premio.puntos }`) en
+      una transacción, mismo patrón que la idempotencia de arriba.
 - [ ] Separar el endpoint `GET /api/negocios` por rol en vez de que el
       negocio/cliente pidan todo y filtren del lado del cliente (mejora
       de diseño, no urgente — quedó explícitamente pospuesta).

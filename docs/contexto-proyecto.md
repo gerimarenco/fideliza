@@ -177,7 +177,16 @@ configuren).
 2. Se incrementa `Cliente.puntos` y se crea una fila en `MovimientoPuntos`
    con el origen correspondiente — ambas cosas en la misma transacción de
    Prisma cuando el flujo lo amerita (compra manual, Mercado Pago).
-3. Un canje decrementa `Cliente.puntos` y crea una fila en `Canje`.
+3. Un canje decrementa `Cliente.puntos` y crea una fila en `Canje`. Desde
+   el PR #36, la validación de saldo suficiente es parte del propio
+   `UPDATE` (`cliente.updateMany` con `puntos: { gte: premio.puntos }`
+   en el `WHERE`), envuelto junto con la creación del `Canje` en una
+   transacción — antes se leía `cliente.puntos` y se decrementaba en
+   pasos separados, lo que permitía un double-spend real con dos canjes
+   simultáneos (verificado: 8 canjes en paralelo contra un cliente con
+   1000 puntos y un premio de 600 lograban colar 5-6, dejándolo con
+   saldo negativo). Ver `progreso.md` para el detalle de cómo se
+   encontró y probó.
 4. `GET /api/negocios/estadisticas?negocioId=X` agrega, para el mes en
    curso: `clientesActivos` (conteo total de clientes, no hay hoy manera
    de distinguir activo/inactivo), `puntosOtorgadosEsteMes` (suma de

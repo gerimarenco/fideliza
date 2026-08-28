@@ -306,3 +306,19 @@ nueva.
     real y Playwright, demorando artificialmente `/api/negocios` y
     `/api/negocios/estadisticas` para confirmar que los spinners
     aparecen, animan, y terminan resolviendo a los datos reales.
+13. Cecilia pidió confirmar que el descuento de puntos al canjear
+    funciona bien, con casos concretos a probar contra Postgres real
+    (no solo revisar el código). El caso secuencial normal andaba
+    perfecto (descuento exacto, bloqueo correcto por saldo insuficiente,
+    `Canje` bien registrado) — pero se encontró un bug real no pedido:
+    `POST /api/canjes` no usaba transacción, leía `cliente.puntos` y
+    decrementaba en pasos separados. Se probó una condición de carrera
+    disparando 8 canjes simultáneos contra un cliente con 1000 puntos y
+    un premio de 600 (debía entrar 1 solo) — entraron 5-6 en 5 corridas
+    de prueba, llegando a dejar a un cliente con **-2600 puntos** y 6
+    canjes registrados. **PR #36**: arreglado con `cliente.updateMany`
+    condicional (`puntos: { gte: premio.puntos }` en el `WHERE`) dentro
+    de una transacción junto con la creación del `Canje` — mismo patrón
+    que la idempotencia de Mercado Pago/Tiendanube, aplicado acá al
+    descuento de puntos. Reproducido el mismo ataque después del fix:
+    exactamente 1 de 8 entra en las 5 corridas, saldo y `Canje` exactos.
