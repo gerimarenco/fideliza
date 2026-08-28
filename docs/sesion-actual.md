@@ -321,10 +321,56 @@ quedado pendiente de evaluar (darle a los Deploy Previews acceso a la
 base de producción real, con sus riesgos). Probado localmente el
 comando completo en los dos escenarios (con y sin `DATABASE_URL`).
 
+## 11. Spinners de carga en vez de estados vacíos (PR #34)
+
+Pedido nuevo de Cecilia: cuando algo tarda en cargar (lista de clientes,
+estadísticas), mostrar un ícono girando en vez de que se vea vacío por
+un segundo. Se agregó un componente `Spinner` reutilizable (usa
+`currentColor` para heredar el color por `style`, así funciona con
+cualquier `tema` de marca propia) y una animación `fid-spin` nueva en
+`globals.css`.
+
+Se reemplazaron los 7 lugares donde el pedido aplicaba directamente: las
+tres listas paginadas (Canjes, Clientes, Premios del negocio, que
+mostraban texto "Cargando..." plano) y los tres tiles de "Este mes"
+(estadísticas del negocio, que mostraban un guión `'—'`).
+
+Probando en el navegador con una carga demorada artificialmente
+(Playwright interceptando `/api/negocios` y `/api/negocios/
+estadisticas`), aparecieron dos casos más del mismo problema que no
+estaban en el pedido original pero eran exactamente lo mismo:
+
+- Los tres números de arriba de todo en el **Inicio del admin**
+  (Negocios activos, Clientes registrados, Puntos en circulación)
+  mostraban **"0"** mientras `negocios` todavía era el array vacío
+  inicial — peor que verse vacío, parecía un dato real (cero negocios)
+  en vez de "todavía no sabemos".
+- La grilla de **"Mis negocios"** quedaba directamente en blanco, sin
+  ningún indicio de que algo estaba cargando.
+
+Para estos dos se reutilizó el estado `loading` — ya existía en el
+código (`useState(true)`, seteado a `false` al final de
+`cargarNegocios`), pero no se leía en ningún lado de la UI, un resabio
+sin usar. También se separó un caso ambiguo: "No encontramos tus datos
+de cliente." (cuando un cliente entra directo, sin admin de por medio)
+mezclaba el estado de carga real con un mensaje de error genuino; ahora
+usa `negocios.length === 0` como señal de que la carga inicial todavía
+no terminó, y solo muestra el mensaje de error si ya cargó y
+efectivamente no hay match.
+
+Probado en el navegador contra Postgres real con Playwright: se
+interceptaron las rutas mencionadas para demorarlas 3 segundos,
+confirmando que los spinners aparecen y animan (`animation-name:
+fid-spin`) durante la espera, y que todos terminan resolviendo a los
+datos reales sin quedar colgados (se esperó explícitamente más tiempo
+que el delay simulado para confirmarlo).
+
 ## Estado al cierre de esta sesión
 
 - PRs #19, #20, #21 (docs), #22 (docs), #23, #24 (docs), #25 (docs), #26,
-  #27 (docs), #28, #29 (docs), #30 y #32: todos mergeados a `main`.
+  #27 (docs), #28, #29 (docs), #30, #32 y #34: todos mergeados a `main`.
+- Spinners de carga funcionando en las listas, estadísticas, Inicio del
+  admin, y las dos pantallas de "cargando tu negocio/tus datos".
 - Deploy Previews de Netlify: ya no deberían fallar más por
   `DATABASE_URL` — a confirmar en el próximo PR real.
 - Hover effects funcionando en todo el panel (botones, tarjetas, filas,
