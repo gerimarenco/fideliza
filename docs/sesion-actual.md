@@ -190,6 +190,34 @@ Probado en el navegador contra Postgres real (cliente de prueba
 sembrado a mano): el panel de cliente pasa directo de "Tus puntos" a
 "Premios disponibles", sin rastro del bloque de Mercado Pago.
 
+## 8. Idempotencia y MovimientoPuntos para el webhook de Tiendanube (PR #28)
+
+Con Dragon Fish todavía bloqueado esperando a Zoo Logic, se retomó el
+cabo suelto marcado en el punto anterior: el webhook de Tiendanube sumaba
+puntos pero no dejaba registro en `MovimientoPuntos` ni tenía protección
+contra reenvíos duplicados, a diferencia de Mercado Pago.
+
+Se aplicó el mismo patrón que ya usaba Mercado Pago: `WebhookEvento` +
+`Cliente.update` + `MovimientoPuntos.create` en una sola transacción de
+Prisma; si Tiendanube reenvía la misma notificación, la restricción
+única de `WebhookEvento` hace fallar la transacción entera (`P2002`) y
+no se duplica nada. Un detalle a tener en cuenta: `referenciaExterna` se
+armó como `storeId:orderId` (no solo `orderId`), porque el ID de orden
+de Tiendanube solo es único dentro de una tienda — dos negocios
+distintos podrían tener órdenes con el mismo número.
+
+No se pudo probar el webhook real end-to-end (requiere una tienda de
+Tiendanube activa y su API, que no está disponible desde el sandbox),
+así que se validó la lógica de la transacción directamente contra
+Postgres real: se ejecutó dos veces con la misma referencia — la primera
+suma los puntos y crea el `MovimientoPuntos`, la segunda se detecta como
+duplicado sin volver a sumar ni duplicar el registro.
+
+Con esto, los tres orígenes de puntos que ya están en producción
+(manual, Mercado Pago, Tiendanube) quedan alimentando `MovimientoPuntos`
+de forma consistente — relevante para cuando se diseñe qué dispara el
+email de notificación.
+
 ## Archivos nuevos/tocados en esta sesión
 
 - `app/login/page.js` — toggle de contraseña, botón de Google, manejo de
@@ -199,14 +227,16 @@ sembrado a mano): el panel de cliente pasa directo de "Tus puntos" a
 - `app/page.js` — `VistaAjustesAdmin`, sidebar del Admin conectado;
   después, se saca el bloque de "Cargar puntos con Mercado Pago" del
   panel de cliente (UI + estado + handler).
-- `docs/` — actualizaciones sucesivas (PRs #21, #24 y esta), más el
+- `app/api/webhooks/tiendanube/route.js` — idempotencia +
+  `MovimientoPuntos`.
+- `docs/` — actualizaciones sucesivas (PRs #21, #24, #27 y esta), más el
   cierre de tres pendientes (sexto color, mini dibujitos, y la nota
   sobre Mercado Pago).
 
 ## Estado al cierre de esta sesión
 
-- PRs #19, #20, #21 (docs), #22 (docs), #23, #24 (docs), #25 (docs) y
-  #26: todos mergeados a `main`.
+- PRs #19, #20, #21 (docs), #22 (docs), #23, #24 (docs), #25 (docs), #26,
+  #27 (docs) y #28: todos mergeados a `main`.
 - Login con Google funcionando en producción para el caso de rechazo
   (validado). Caso de éxito sin probar todavía, pero no hay motivo para
   esperar que falle (la lógica es simétrica).
@@ -217,9 +247,13 @@ sembrado a mano): el panel de cliente pasa directo de "Tus puntos" a
 - Panel de cliente: ya no ofrece ninguna acción de "cargar puntos" — los
   puntos siempre se suman desde afuera (compra manual del negocio, o
   automático vía Tiendanube/Dragon Fish).
+- Los tres orígenes de puntos en producción (manual, Mercado Pago,
+  Tiendanube) ya dejan registro consistente en `MovimientoPuntos`, con
+  idempotencia donde aplica (los dos webhooks).
 - Pendientes reales que quedan: la idea de notificar clientes por email
-  (grande, sin diseñar — ahora con más contexto de qué caminos de suma
-  de puntos son realmente automáticos), destrabar Dragon Fish (el
-  camino que de verdad importa para el volumen del local físico), y
-  varios menores de sesiones previas (Tiendanube pausado, límite de
-  Netlify en Deploy Previews). Ver `tareas-futuras.md`.
+  (grande, sin diseñar — ahora sin gaps de datos que la bloqueen),
+  destrabar Dragon Fish (el camino que de verdad importa para el
+  volumen del local físico, sigue esperando a Zoo Logic), y varios
+  menores de sesiones previas (Tiendanube pausado hasta que la tienda
+  esté activa, límite de Netlify en Deploy Previews). Ver
+  `tareas-futuras.md`.

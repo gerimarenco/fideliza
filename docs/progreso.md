@@ -260,3 +260,13 @@ nueva.
    real de cobro más adelante. Probado en el navegador con Postgres
    real: el panel de cliente pasa directo de "Tus puntos" a "Premios
    disponibles".
+8. Mientras se espera la respuesta de Zoo Logic para destrabar Dragon
+   Fish, se retomó un cabo suelto que no dependía de eso: el webhook de
+   Tiendanube sumaba puntos sin dejar registro en `MovimientoPuntos` ni
+   protección de idempotencia, a diferencia de Mercado Pago. **PR #28**:
+   mismo patrón que Mercado Pago (transacción con `WebhookEvento` +
+   `Cliente.update` + `MovimientoPuntos.create`), con
+   `referenciaExterna` = `storeId:orderId` (el ID de orden de Tiendanube
+   solo es único dentro de una tienda). Probado contra Postgres real
+   ejecutando la misma transacción dos veces: la primera suma y registra,
+   la segunda se detecta como duplicado sin volver a sumar.

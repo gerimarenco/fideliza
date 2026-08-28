@@ -58,8 +58,10 @@
       apuro, no hay tráfico real hoy.
 - [ ] Una vez que la tienda esté activa: armar el flujo OAuth2, cargar
       `tiendanubeStoreId`/`tiendanubeAccessToken` reales.
-- [ ] Agregar protección de idempotencia (`WebhookEvento`) — hoy no la
-      tiene, a diferencia de Mercado Pago.
+- [x] Protección de idempotencia (`WebhookEvento`) y registro en
+      `MovimientoPuntos` (PR #28) — mismo patrón que Mercado Pago,
+      `referenciaExterna` es `storeId:orderId` porque el orderId de
+      Tiendanube solo es único dentro de una tienda.
 
 ## Seguridad (grueso ya resuelto)
 
@@ -117,9 +119,11 @@
       clienta ni del negocio son Tiendanube (ya andando) y Dragon Fish
       (bloqueado). Para el volumen real del local físico de Peperina,
       destrabar Dragon Fish importa más que cualquier otro ajuste.
-- [ ] El webhook de Tiendanube no escribe en `MovimientoPuntos` ni tiene
-      protección de idempotencia (a diferencia de Mercado Pago) — a tener
-      en cuenta si el email de notificación se dispara desde esa tabla.
+- [x] El webhook de Tiendanube ya escribe en `MovimientoPuntos` y tiene
+      protección de idempotencia, igual que Mercado Pago (PR #28) — los
+      tres webhooks activos (MP, Tiendanube; Dragon Fish cuando se
+      destrabe) van a poder alimentar el email de notificación desde la
+      misma tabla, sin gaps.
 
 ## Paginación de listados
 
