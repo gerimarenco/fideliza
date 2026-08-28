@@ -270,14 +270,17 @@ Tiendanube manda un payload liviano (`{store_id, event, id}`, sin los
 datos de la venta), así que el webhook resuelve el negocio por
 `tiendanubeStoreId`, pide la orden completa a la API de Tiendanube con
 `tiendanubeAccessToken`, y acredita puntos por email. Existe
-`PATCH /api/negocios` para cargar esas credenciales.
+`PATCH /api/negocios` para cargar esas credenciales. Desde el PR #28
+tiene la misma protección de idempotencia que Mercado Pago
+(`WebhookEvento`, con `referenciaExterna` = `storeId:orderId` porque el
+ID de orden solo es único dentro de una tienda) y también deja registro
+en `MovimientoPuntos` — antes no hacía ninguna de las dos cosas.
 
 **Lo que falta y por qué está pausado**: el `tiendanubeAccessToken` sale
 del flujo OAuth2 de Tiendanube, que **todavía no está armado** — no tiene
 sentido construirlo hasta que la tienda esté activa en Tiendanube. Cuando
-lo esté, retomamos: armar el flujo OAuth, cargar las credenciales reales,
-y agregar la misma protección de idempotencia que ya tiene Mercado Pago
-(hoy Tiendanube no la tiene).
+lo esté, retomamos: armar el flujo OAuth y cargar las credenciales
+reales.
 
 ### Dragon Fish — 🚧 En progreso, bloqueada esperando a Zoo Logic
 Dragon Fish (el sistema de facturación que usa el negocio, de Zoo Logic)

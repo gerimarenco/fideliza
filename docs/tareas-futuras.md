@@ -19,9 +19,9 @@ sumaron. Es una funcionalidad nueva bastante grande, no un ajuste:
   cliente actual (`PanelCliente`), y si hace falta algo de
   personalización visual del email en sí (coherente con la marca propia
   ya construida).
-- **Ojo**: si el email se dispara desde `MovimientoPuntos`, hoy el
-  webhook de Tiendanube no escribe ahí (a diferencia de compra manual y
-  Mercado Pago) — habría que arreglar eso primero, o elegir otra fuente.
+- El webhook de Tiendanube ya escribe en `MovimientoPuntos` (arreglado,
+  ver `progreso.md`) — los tres orígenes automáticos/manuales quedan
+  disponibles como fuente para disparar el email, sin gaps.
 - Sin retomar todavía — queda anotado para la próxima vez que se hable
   de features nuevas.
 
