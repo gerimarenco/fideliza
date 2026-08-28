@@ -63,10 +63,31 @@ export async function POST(request) {
     // Calcular y sumar los puntos
     const puntos = Math.floor(total / negocio.puntosXPeso)
 
-    await prisma.cliente.update({
-      where: { id: cliente.id },
-      data: { puntos: { increment: puntos } },
-    })
+    // Misma protección de idempotencia que Mercado Pago: si Tiendanube
+    // reenvía el mismo webhook, la restricción única de WebhookEvento hace
+    // fallar la transacción entera (P2002) y no se suman los puntos de nuevo.
+    // referenciaExterna incluye el storeId porque el orderId de Tiendanube
+    // solo es único dentro de una tienda, no entre negocios distintos.
+    try {
+      await prisma.$transaction([
+        prisma.webhookEvento.create({
+          data: { proveedor: 'tiendanube', referenciaExterna: `${storeId}:${orderId}` },
+        }),
+        prisma.cliente.update({
+          where: { id: cliente.id },
+          data: { puntos: { increment: puntos } },
+        }),
+        prisma.movimientoPuntos.create({
+          data: { clienteId: cliente.id, negocioId: negocio.id, puntos, origen: 'tiendanube' },
+        }),
+      ])
+    } catch (error) {
+      if (error.code === 'P2002') {
+        console.log('Webhook Tiendanube: orden ya procesada, se ignora el reenvío', orderId)
+        return NextResponse.json({ success: true, duplicado: true })
+      }
+      throw error
+    }
 
     return NextResponse.json({ success: true, puntosAcreditados: puntos })
   } catch (error) {
