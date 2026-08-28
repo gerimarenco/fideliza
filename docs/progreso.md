@@ -283,3 +283,14 @@ nueva.
    casos en vez de `background-color`. Probado en el navegador con
    Postgres real y Playwright, forzando `:hover` en las 5 categorías y
    comparando estilos computados antes/después.
+10. Decidido con Cecilia: la idea del email de notificación queda en
+    pausa a propósito hasta que se resuelva Dragon Fish — no tiene
+    sentido diseñar el disparador sin saber cómo va a quedar la
+    integración del local físico.
+11. Se retomó el pendiente del check de deploy-preview de Netlify en
+    rojo (conocido desde el PR #11). **PR #32**: en vez de la opción
+    riesgosa (darle a los previews acceso a la base de producción real),
+    se cambió el build command para que corra `prisma migrate deploy`
+    solo si `DATABASE_URL` está presente — confirmado localmente que
+    `next build` no necesita conexión a la base en absoluto. Probado el
+    comando completo en los dos escenarios (con y sin `DATABASE_URL`).

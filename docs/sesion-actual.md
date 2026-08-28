@@ -290,10 +290,43 @@ caché de build de Next — `rm -rf .next` — para que tomara el CSS nuevo).
   más el cierre de tres pendientes (sexto color, mini dibujitos, y la
   nota sobre Mercado Pago).
 
+## 10. Probando el login con Google, decisión de orden, y el check de Netlify (PR #32)
+
+Se intentó probar el caso de éxito del login con Google (un email que sí
+matchea una cuenta) con el admin — quedó a mitad de camino, sin
+confirmar todavía.
+
+Cecilia confirmó que la idea del email de notificación queda **a
+propósito en pausa** hasta que se resuelva Dragon Fish (no tiene sentido
+diseñar el disparador sin saber cómo va a quedar esa integración) —
+dijo explícitamente que no quería avanzar ni con esa idea ni con
+Dragon Fish en este momento (bloqueado externamente, esperando a Zoo
+Logic).
+
+Pidió "hagamos lo que te parezca" entre los pendientes menores que
+quedaban (Tiendanube pausado, límite de Netlify en Deploy Previews,
+tema visual autogestionable). Se eligió el de Netlify por ser el único
+con una solución concreta de bajo riesgo y sin depender de nada externo
+— Tiendanube no tiene nada útil para avanzar sin una tienda activa, y el
+tema autogestionable es especulativo hasta que haya un segundo negocio
+real usando marca propia (ya apuntado explícitamente en sesiones
+previas).
+
+Antes de tocar nada se probó localmente si `next build` necesita
+conexión a la base — no la necesita (la app es 100% client-side, ninguna
+ruta se pre-renderiza contra Postgres). Con eso confirmado, **PR #32**:
+el build command de `netlify.toml` corre `prisma migrate deploy` solo
+si `DATABASE_URL` está presente, en vez de la alternativa que había
+quedado pendiente de evaluar (darle a los Deploy Previews acceso a la
+base de producción real, con sus riesgos). Probado localmente el
+comando completo en los dos escenarios (con y sin `DATABASE_URL`).
+
 ## Estado al cierre de esta sesión
 
 - PRs #19, #20, #21 (docs), #22 (docs), #23, #24 (docs), #25 (docs), #26,
-  #27 (docs), #28, #29 (docs) y #30: todos mergeados a `main`.
+  #27 (docs), #28, #29 (docs), #30 y #32: todos mergeados a `main`.
+- Deploy Previews de Netlify: ya no deberían fallar más por
+  `DATABASE_URL` — a confirmar en el próximo PR real.
 - Hover effects funcionando en todo el panel (botones, tarjetas, filas,
   sidebars), validado con Playwright forzando `:hover` sobre las 5
   categorías.
@@ -310,10 +343,11 @@ caché de build de Next — `rm -rf .next` — para que tomara el CSS nuevo).
 - Los tres orígenes de puntos en producción (manual, Mercado Pago,
   Tiendanube) ya dejan registro consistente en `MovimientoPuntos`, con
   idempotencia donde aplica (los dos webhooks).
-- Pendientes reales que quedan: la idea de notificar clientes por email
-  (grande, sin diseñar — ahora sin gaps de datos que la bloqueen),
-  destrabar Dragon Fish (el camino que de verdad importa para el
-  volumen del local físico, sigue esperando a Zoo Logic), y varios
-  menores de sesiones previas (Tiendanube pausado hasta que la tienda
-  esté activa, límite de Netlify en Deploy Previews). Ver
-  `tareas-futuras.md`.
+- Pendientes reales que quedan: destrabar Dragon Fish (sigue esperando a
+  Zoo Logic; el camino que de verdad importa para el volumen del local
+  físico) y, a propósito **en pausa hasta que eso se resuelva**, la idea
+  de notificar clientes por email. Menores sin urgencia: Tiendanube
+  pausado hasta que la tienda esté activa, tema visual autogestionable.
+  Ver `tareas-futuras.md`.
+- Falta confirmar el caso de éxito del login con Google (quedó a mitad
+  de camino, probando con la cuenta de admin).
