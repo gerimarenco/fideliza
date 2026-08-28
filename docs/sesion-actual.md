@@ -365,10 +365,62 @@ fid-spin`) durante la espera, y que todos terminan resolviendo a los
 datos reales sin quedar colgados (se esperó explícitamente más tiempo
 que el delay simulado para confirmarlo).
 
+## 12. Verificando el canje de puntos, se encontró un double-spend real (PR #36)
+
+Cecilia pidió confirmar específicamente que el descuento de puntos al
+canjear funciona bien, con un caso concreto (1000 puntos, canjea premio
+de 400, ¿quedan 600 exactos?) y pidió explícitamente que se probara
+contra Postgres real, no solo revisando el código, mostrando el
+resultado antes de decir que estaba todo bien.
+
+Se sembraron datos de prueba reales (negocio, cliente con 1000 puntos,
+premios de 400 y 1500) y se probó `POST /api/canjes` vía HTTP real, con
+una sesión de cliente real logueada por Playwright (no se bypaseó la
+auth). El caso secuencial pedido anduvo perfecto: descuento exacto
+(1000 → 600), bloqueo correcto con `400 Puntos insuficientes` al
+intentar un premio de 1500 con 600 disponibles (sin tocar el saldo), y
+el `Canje` quedó registrado con `clienteId`/`premioId`/`createdAt`
+correctos — todo confirmado leyendo directo de Postgres, no solo la
+respuesta del endpoint.
+
+Revisando el código para armar la prueba, se notó que `POST /api/canjes`
+no envolvía la validación de saldo y el decremento en una transacción
+(a diferencia del webhook de Mercado Pago) — leía `cliente.puntos`,
+comparaba, y recién después actualizaba, en pasos separados. Se decidió
+probar esa sospecha en vez de solo señalarla: disparando 8 canjes
+simultáneos (`Promise.all`, sin esperarse entre sí) contra un cliente
+con 1000 puntos y un premio de 600 (debía entrar 1 solo), se coló entre
+5 y 6 en las 5 corridas de prueba. En un caso, el cliente terminó con
+**-2600 puntos** y **6 canjes registrados** en la base — un double-spend
+real y fácilmente reproducible, no un caso hipotético.
+
+Se mostró el resultado completo de esta prueba (HTTP + verificación
+directa en Postgres) antes de proponer el fix, tal como se pidió. Con
+la confirmación de Cecilia, **PR #36**: la validación de saldo pasa a
+ser parte del propio `UPDATE` (`cliente.updateMany` con
+`puntos: { gte: premio.puntos }` en el `WHERE`), envuelto junto con la
+creación del `Canje` en una transacción de Prisma — Postgres serializa
+los `UPDATE` concurrentes sobre la misma fila, así que el segundo pedido
+recién evalúa el saldo después de que el primero ya confirmó su
+descuento. Mismo patrón que ya usaban Mercado Pago y Tiendanube para su
+propia idempotencia, aplicado acá al descuento de puntos en sí. De paso
+se agregó el chequeo de `!premio` (antes tiraba un error sin manejar si
+el `premioId` no existía).
+
+Repetido el mismo ataque de 8 canjes simultáneos contra 5 clientes
+distintos después del fix: entró exactamente 1 en las 5 corridas, cada
+cliente quedó en 400 puntos (1000 − 600) con 1 solo `Canje` registrado.
+Repetido también el caso secuencial original para confirmar que no hubo
+regresión: mismo resultado exacto que antes del cambio.
+
 ## Estado al cierre de esta sesión
 
 - PRs #19, #20, #21 (docs), #22 (docs), #23, #24 (docs), #25 (docs), #26,
-  #27 (docs), #28, #29 (docs), #30, #32 y #34: todos mergeados a `main`.
+  #27 (docs), #28, #29 (docs), #30, #32, #34 y #36: todos mergeados a
+  `main`.
+- `POST /api/canjes` ya no tiene la condición de carrera de double-spend
+  — verificado que exactamente 1 de 8 canjes simultáneos entra ahora,
+  sin regresión en el caso secuencial normal.
 - Spinners de carga funcionando en las listas, estadísticas, Inicio del
   admin, y las dos pantallas de "cargando tu negocio/tus datos".
 - Deploy Previews de Netlify: ya no deberían fallar más por
