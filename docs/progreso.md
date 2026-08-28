@@ -294,3 +294,15 @@ nueva.
     solo si `DATABASE_URL` está presente — confirmado localmente que
     `next build` no necesita conexión a la base en absoluto. Probado el
     comando completo en los dos escenarios (con y sin `DATABASE_URL`).
+12. Pedido de Cecilia: spinners de carga en vez de estados vacíos
+    (listas de clientes/canjes/premios, estadísticas). **PR #34**:
+    componente `Spinner` nuevo + animación `fid-spin` en `globals.css`.
+    De paso se encontraron dos casos más del mismo problema que no
+    estaban en el pedido original: los tres números de arriba del
+    Inicio del admin mostraban "0" en vez de un estado de carga (parecía
+    dato real), y la grilla de "Mis negocios" quedaba en blanco — ambos
+    reutilizando el estado `loading`, que ya existía en el código pero
+    nunca se leía en ningún lado. Probado en el navegador con Postgres
+    real y Playwright, demorando artificialmente `/api/negocios` y
+    `/api/negocios/estadisticas` para confirmar que los spinners
+    aparecen, animan, y terminan resolviendo a los datos reales.

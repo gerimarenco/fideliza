@@ -42,7 +42,9 @@ configura.
   `'#fff'`) que pisaría cualquier `background-color` de una regla de
   CSS — un inline style siempre gana. Efectos basados en
   `transform`/`filter`/`box-shadow` a propósito, no colores fijos, para
-  que se vean bien con cualquier `tema` de marca propia.
+  que se vean bien con cualquier `tema` de marca propia. También trae
+  `.fid-spinner` (ícono de carga, PR #34) con `currentColor`, así hereda
+  el color que se le pase por `style` en vez de tener uno fijo.
 - **Deploy**: Netlify (`netlify.toml`, plugin `@netlify/plugin-nextjs`).
   Hay también una integración de Vercel que se desconectó por no ser el
   destino real de deploy (ver `progreso.md`).
