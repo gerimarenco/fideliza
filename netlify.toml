@@ -1,5 +1,10 @@
 [build]
-  command = "prisma migrate deploy && prisma generate && npm run build"
+  # DATABASE_URL solo está configurada para el contexto de Producción, no
+  # para Deploy Previews ni Branch deploys. Ahí no corremos las migraciones
+  # (fallarían con P1012 igual, tirando abajo el build entero) -- el build
+  # de Next no necesita conexión a la base, así que el preview igual sirve
+  # para revisar el código y los cambios de UI.
+  command = "if [ -n \"$DATABASE_URL\" ]; then prisma migrate deploy; fi && prisma generate && npm run build"
   publish = ".next"
 
 [[plugins]]
