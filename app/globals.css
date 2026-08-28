@@ -22,3 +22,48 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Hover effects para elementos interactivos del panel. Usan filter/transform/
+   box-shadow en vez de colores fijos porque muchos elementos toman su color
+   de negocio.tema (marca propia, distinta por negocio) y el mismo efecto
+   tiene que verse bien sobre cualquier paleta. */
+
+.fid-btn-primary {
+  transition: transform 150ms ease, filter 150ms ease;
+}
+.fid-btn-primary:hover:not(:disabled) {
+  transform: scale(1.03);
+  filter: brightness(1.08);
+}
+
+.fid-btn-secondary {
+  /* filter en vez de background-color: estos botones siempre traen un
+     background inline (tema.superficie o '#fff'), que pisaría cualquier
+     background-color definido acá. filter sí se puede combinar. */
+  transition: filter 150ms ease;
+}
+.fid-btn-secondary:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.fid-card-hover {
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.fid-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+.fid-row-hover {
+  transition: background-color 150ms ease;
+}
+.fid-row-hover:hover {
+  background-color: rgba(0, 0, 0, 0.035);
+}
+
+.fid-sidebar-item {
+  transition: background-color 150ms ease;
+}
+.fid-sidebar-item:hover {
+  background-color: rgba(0, 0, 0, 0.045);
+}

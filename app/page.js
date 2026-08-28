@@ -501,12 +501,14 @@ export default function Home() {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 12 }}>
         <button
+          className="fid-btn-secondary"
           onClick={() => onCambiar(pagina - 1)}
           disabled={pagina <= 1}
           style={{ padding: '4px 12px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, fontSize: 12, cursor: pagina <= 1 ? 'not-allowed' : 'pointer', opacity: pagina <= 1 ? 0.5 : 1 }}
         >← Anterior</button>
         <span style={{ fontSize: 12, color: tema.textoSecundario }}>Página {pagina} de {totalPages}</span>
         <button
+          className="fid-btn-secondary"
           onClick={() => onCambiar(pagina + 1)}
           disabled={pagina >= totalPages}
           style={{ padding: '4px 12px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, fontSize: 12, cursor: pagina >= totalPages ? 'not-allowed' : 'pointer', opacity: pagina >= totalPages ? 0.5 : 1 }}
@@ -523,7 +525,7 @@ export default function Home() {
         {!canjesData && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Cargando...</div>}
         {canjesData && canjesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no hay canjes.</div>}
         {canjesData?.items.map(c => (
-          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: `1px solid ${tema.borde}` }}>
+          <div key={c.id} className="fid-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: `1px solid ${tema.borde}` }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{c.premio.emoji}</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 500 }}>{c.premio.nombre}</div>
@@ -547,7 +549,7 @@ export default function Home() {
         {!clientesData && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Cargando...</div>}
         {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no hay clientes.</div>}
         {clientesData?.items.map(c => (
-          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: `1px solid ${tema.borde}` }}>
+          <div key={c.id} className="fid-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: `1px solid ${tema.borde}` }}>
             <div style={{ width: 32, height: 32, borderRadius: '50%', background: tema.resaltado, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: tema.texto }}>
               {(c.nombre || c.email).slice(0, 2).toUpperCase()}
             </div>
@@ -586,8 +588,8 @@ export default function Home() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={crearPremio} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar premio</button>
-            <button onClick={() => setMostrarFormPremio(false)} style={{ padding: '8px 20px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+            <button className="fid-btn-primary" onClick={crearPremio} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar premio</button>
+            <button className="fid-btn-secondary" onClick={() => setMostrarFormPremio(false)} style={{ padding: '8px 20px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
           </div>
         </div>
       )}
@@ -597,7 +599,7 @@ export default function Home() {
         {!premiosData && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Cargando...</div>}
         {premiosData && premiosData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no hay premios.</div>}
         {premiosData?.items.map(p => (
-          <div key={p.id} style={{ padding: '10px 0', borderBottom: `1px solid ${tema.borde}`, opacity: p.activo ? 1 : 0.6 }}>
+          <div key={p.id} className="fid-row-hover" style={{ padding: '10px 0', borderBottom: `1px solid ${tema.borde}`, opacity: p.activo ? 1 : 0.6 }}>
             {premioEditandoId === p.id ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px auto', gap: 10, alignItems: 'end' }}>
                 <div>
@@ -613,8 +615,8 @@ export default function Home() {
                   <input value={formEdicionPremio.emoji} onChange={e => setFormEdicionPremio({...formEdicionPremio, emoji: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={guardarEdicionPremio} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: 'none', background: tema.primario, color: tema.primarioTexto, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
-                  <button onClick={() => setPremioEditandoId(null)} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.textoSecundario, cursor: 'pointer' }}>Cancelar</button>
+                  <button className="fid-btn-primary" onClick={guardarEdicionPremio} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: 'none', background: tema.primario, color: tema.primarioTexto, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+                  <button className="fid-btn-secondary" onClick={() => setPremioEditandoId(null)} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.textoSecundario, cursor: 'pointer' }}>Cancelar</button>
                 </div>
               </div>
             ) : (
@@ -624,8 +626,8 @@ export default function Home() {
                   <div style={{ fontSize: 13, fontWeight: 500 }}>{p.nombre}{!p.activo && <span style={{ marginLeft: 8, fontSize: 11, color: tema.textoSecundario }}>(desactivado)</span>}</div>
                   <div style={{ fontSize: 11, color: tema.textoSecundario }}>{p.puntos} puntos</div>
                 </div>
-                <button onClick={() => iniciarEdicionPremio(p)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.textoSecundario, cursor: 'pointer' }}>Editar</button>
-                <button onClick={() => togglePremioActivo(p)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: p.activo ? '#ef4444' : '#16a34a', cursor: 'pointer' }}>{p.activo ? 'Desactivar' : 'Reactivar'}</button>
+                <button className="fid-btn-secondary" onClick={() => iniciarEdicionPremio(p)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.textoSecundario, cursor: 'pointer' }}>Editar</button>
+                <button className="fid-btn-secondary" onClick={() => togglePremioActivo(p)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: p.activo ? '#ef4444' : '#16a34a', cursor: 'pointer' }}>{p.activo ? 'Desactivar' : 'Reactivar'}</button>
               </div>
             )}
           </div>
@@ -681,7 +683,7 @@ export default function Home() {
         <div style={{ fontSize: 12, color: tema.textoSecundario, marginTop: 8 }}>En espera de soporte de Zoo Logic.</div>
       </div>
 
-      <button onClick={guardarIntegraciones} style={{ padding: '10px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar integraciones</button>
+      <button className="fid-btn-primary" onClick={guardarIntegraciones} style={{ padding: '10px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar integraciones</button>
     </div>
   );
 
@@ -709,14 +711,14 @@ export default function Home() {
             <input type="password" value={formPassword.confirmar} onChange={e => setFormPassword({...formPassword, confirmar: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
           </div>
         </div>
-        <button onClick={cambiarPassword} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Cambiar contraseña</button>
+        <button className="fid-btn-primary" onClick={cambiarPassword} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Cambiar contraseña</button>
       </div>
 
       <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Puntos por peso</div>
         <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Cuántos pesos gastados equivalen a 1 punto</label>
         <input type="number" min="1" value={formPuntosXPeso} onChange={e => setFormPuntosXPeso(e.target.value)} placeholder="1000" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 12 }} />
-        <button onClick={guardarPuntosXPeso} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+        <button className="fid-btn-primary" onClick={guardarPuntosXPeso} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
       </div>
     </div>
   );
@@ -745,9 +747,9 @@ export default function Home() {
       <div style={{ padding: '14px 24px', background: tema.superficie, borderBottom: `1px solid ${tema.borde}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontSize: 15, fontWeight: 600, fontFamily: tema.fuenteTitulo }}>Bienvenida, {negocio.nombre} {negocio.emoji}</div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {onVolver && <button onClick={onVolver} style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, fontSize: 12, cursor: 'pointer' }}>← Volver</button>}
-          {(seccionActiva === 'inicio' || seccionActiva === 'clientes') && <button onClick={() => setMostrarFormCliente(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 12, cursor: 'pointer' }}>+ Nuevo cliente</button>}
-          {seccionActiva === 'premios' && <button onClick={() => setMostrarFormPremio(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 12, cursor: 'pointer' }}>+ Nuevo premio</button>}
+          {onVolver && <button className="fid-btn-secondary" onClick={onVolver} style={{ padding: '6px 14px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, fontSize: 12, cursor: 'pointer' }}>← Volver</button>}
+          {(seccionActiva === 'inicio' || seccionActiva === 'clientes') && <button className="fid-btn-primary" onClick={() => setMostrarFormCliente(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 12, cursor: 'pointer' }}>+ Nuevo cliente</button>}
+          {seccionActiva === 'premios' && <button className="fid-btn-primary" onClick={() => setMostrarFormPremio(true)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 12, cursor: 'pointer' }}>+ Nuevo premio</button>}
         </div>
       </div>
 
@@ -775,8 +777,8 @@ export default function Home() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={agregarCliente} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar cliente</button>
-            <button onClick={() => setMostrarFormCliente(false)} style={{ padding: '8px 20px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+            <button className="fid-btn-primary" onClick={agregarCliente} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar cliente</button>
+            <button className="fid-btn-secondary" onClick={() => setMostrarFormCliente(false)} style={{ padding: '8px 20px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
           </div>
         </div>
       )}
@@ -819,7 +821,7 @@ export default function Home() {
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Clientes</div>
               {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Aún no hay clientes</div>}
               {clientesData?.items.map(c => (
-                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid ${tema.borde}` }}>
+                <div key={c.id} className="fid-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid ${tema.borde}` }}>
                   <div style={{ width: 30, height: 30, borderRadius: '50%', background: tema.resaltado, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: tema.texto }}>
                     {c.email.slice(0, 2).toUpperCase()}
                   </div>
@@ -839,7 +841,7 @@ export default function Home() {
             <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20, marginBottom: 12 }}>
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Premios configurados</div>
               {negocio.premios?.map(p => (
-                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+                <div key={p.id} className="fid-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
                   <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{p.emoji}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 500 }}>{p.nombre}</div>
@@ -863,7 +865,7 @@ export default function Home() {
                 <input type="number" placeholder="$0" value={monto} onChange={e => setMonto(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13 }} />
               </div>
               {pts > 0 && <div style={{ fontSize: 13, color: '#22c55e', marginBottom: 12, fontWeight: 500 }}>+{pts} puntos a acreditar</div>}
-              <button onClick={sumarPuntos} style={{ width: '100%', padding: '8px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Sumar puntos</button>
+              <button className="fid-btn-primary" onClick={sumarPuntos} style={{ width: '100%', padding: '8px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Sumar puntos</button>
             </div>
           </div>
         </div>
@@ -894,7 +896,7 @@ export default function Home() {
           <div style={{ fontSize: 16, fontWeight: 600, fontFamily: tema.fuenteTitulo }}>Hola, {clientePropio.nombre ? clientePropio.nombre.split(' ')[0] : clientePropio.email.split('@')[0]} 👋</div>
             <div style={{ fontSize: 12, color: tema.textoSecundario }}>{negocioDelCliente.nombre} {negocioDelCliente.emoji}</div>
           </div>
-          <button onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: '#ef4444', cursor: 'pointer' }}>Salir</button>
+          <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: '#ef4444', cursor: 'pointer' }}>Salir</button>
         </div>
 
         <div style={{ padding: 20 }}>
@@ -908,13 +910,14 @@ export default function Home() {
             <div style={{ fontSize: 13, color: tema.textoSecundario, marginBottom: 16 }}>Todavía no llegás a ningún premio.</div>
           )}
           {premiosDisponibles.map(p => (
-            <div key={p.id} style={{ background: tema.superficie, border: '1px solid #22c55e', borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+            <div key={p.id} className="fid-card-hover" style={{ background: tema.superficie, border: '1px solid #22c55e', borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
               <div style={{ width: 36, height: 36, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{p.emoji}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
                 <div style={{ fontSize: 11, color: '#16a34a' }}>{p.puntos} puntos</div>
               </div>
               <button
+                className="fid-btn-primary"
                 onClick={() => canjearPremio(p)}
                 disabled={canjeandoId === p.id}
                 style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#22c55e', color: '#fff', fontSize: 12, fontWeight: 600, cursor: canjeandoId === p.id ? 'not-allowed' : 'pointer', opacity: canjeandoId === p.id ? 0.7 : 1 }}
@@ -956,8 +959,9 @@ export default function Home() {
                 return (
                   <div
                     key={label}
+                    className={id ? 'fid-sidebar-item' : undefined}
                     onClick={id ? () => (id === 'negocios' ? volverANegocios() : setSeccionActiva(id)) : undefined}
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: activo ? '#6366f1' : '#555', background: activo ? '#eef2ff' : 'transparent', cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: activo ? '#6366f1' : '#555', background: activo ? '#eef2ff' : undefined, cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
                   >
                     {icon} {label}
                   </div>
@@ -969,14 +973,14 @@ export default function Home() {
                 <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#6366f1' }}>C</div>
                 {session?.user?.name} · Admin
               </div>
-              <button onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#ef4444', cursor: 'pointer', width: '100%' }}>Cerrar sesión</button>
+              <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#ef4444', cursor: 'pointer', width: '100%' }}>Cerrar sesión</button>
             </div>
           </div>
 
           {!negocioActivo && seccionActiva !== 'inicio' && seccionActiva !== 'negocios' && seccionActiva !== 'ajustes' ? (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: '#999' }}>
               <div style={{ fontSize: 14 }}>Elegí un negocio para ver sus {seccionActiva}</div>
-              <button onClick={() => setSeccionActiva('negocios')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer' }}>Ver negocios</button>
+              <button className="fid-btn-primary" onClick={() => setSeccionActiva('negocios')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer' }}>Ver negocios</button>
             </div>
           ) : !negocioActivo && seccionActiva === 'ajustes' ? (
             <VistaAjustesAdmin />
@@ -984,7 +988,7 @@ export default function Home() {
             <div style={{ flex: 1, overflow: 'auto' }}>
               <div style={{ padding: '14px 24px', background: '#fff', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ fontSize: 15, fontWeight: 600 }}>Inicio</div>
-                <button onClick={() => setMostrarFormNegocio(true)} style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 13, cursor: 'pointer' }}>+ Nuevo negocio</button>
+                <button className="fid-btn-secondary" onClick={() => setMostrarFormNegocio(true)} style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 13, cursor: 'pointer' }}>+ Nuevo negocio</button>
               </div>
               {mostrarFormNegocio && (
                 <div style={{ margin: '20px 24px 0', background: '#fff', borderRadius: 12, border: '1px solid #6366f1', padding: 20 }}>
@@ -1012,8 +1016,8 @@ export default function Home() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={crearNegocio} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar negocio</button>
-                    <button onClick={() => setMostrarFormNegocio(false)} style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+                    <button className="fid-btn-primary" onClick={crearNegocio} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar negocio</button>
+                    <button className="fid-btn-secondary" onClick={() => setMostrarFormNegocio(false)} style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
                   </div>
                 </div>
               )}
@@ -1035,7 +1039,7 @@ export default function Home() {
                 <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Mis negocios</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   {negocios.map((neg, i) => (
-                    <div key={neg.id} style={{ background: '#fff', border: '1px solid #eee', borderRadius: 12, padding: 20 }}>
+                    <div key={neg.id} className="fid-card-hover" style={{ background: '#fff', border: '1px solid #eee', borderRadius: 12, padding: 20 }}>
                       {negocioEditandoId === neg.id ? (
                         <>
                           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Editar negocio</div>
@@ -1086,8 +1090,8 @@ export default function Home() {
                             <input value={formEdicionNegocio.tema.imagenPortada} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, imagenPortada: e.target.value}})} placeholder="https://..." style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
                           </div>
                           <div style={{ display: 'flex', gap: 8 }}>
-                            <button onClick={guardarEdicionNegocio} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
-                            <button onClick={() => setNegocioEditandoId(null)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Cancelar</button>
+                            <button className="fid-btn-primary" onClick={guardarEdicionNegocio} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+                            <button className="fid-btn-secondary" onClick={() => setNegocioEditandoId(null)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Cancelar</button>
                           </div>
                         </>
                       ) : (
@@ -1103,9 +1107,9 @@ export default function Home() {
                             <span style={{ fontSize: 12, color: '#555' }}><strong>{neg.premios?.length || 0}</strong> premios</span>
                           </div>
                           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                            <button onClick={() => { setNegocioActivo(neg); setMostrarFormCliente(false); }} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: 'none', background: '#eef2ff', color: '#6366f1', cursor: 'pointer' }}>Ver panel</button>
-                            <button onClick={() => iniciarEdicionNegocio(neg)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Editar</button>
-                            <button onClick={() => toggleNegocioActivo(neg)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: neg.activo ? '#ef4444' : '#16a34a', cursor: 'pointer' }}>{neg.activo ? 'Desactivar' : 'Reactivar'}</button>
+                            <button className="fid-btn-primary" onClick={() => { setNegocioActivo(neg); setMostrarFormCliente(false); }} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: 'none', background: '#eef2ff', color: '#6366f1', cursor: 'pointer' }}>Ver panel</button>
+                            <button className="fid-btn-secondary" onClick={() => iniciarEdicionNegocio(neg)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Editar</button>
+                            <button className="fid-btn-secondary" onClick={() => toggleNegocioActivo(neg)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: neg.activo ? '#ef4444' : '#16a34a', cursor: 'pointer' }}>{neg.activo ? 'Desactivar' : 'Reactivar'}</button>
                           </div>
                         </>
                       )}
@@ -1132,8 +1136,9 @@ export default function Home() {
               {[['🏠', 'Inicio', 'inicio'], ['👥', 'Mis clientes', 'clientes'], ['🎁', 'Premios', 'premios'], ['🔄', 'Canjes', 'canjes'], ['🔌', 'Integraciones', 'integraciones'], ['⚙️', 'Ajustes', 'ajustes']].map(([icon, label, id]) => (
                 <div
                   key={label}
+                  className={id ? 'fid-sidebar-item' : undefined}
                   onClick={id ? () => setSeccionActiva(id) : undefined}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: seccionActiva === id ? tema.primario : tema.textoSecundario, background: seccionActiva === id ? tema.borde : 'transparent', cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: seccionActiva === id ? tema.primario : tema.textoSecundario, background: seccionActiva === id ? tema.borde : undefined, cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
                 >
                   {icon} {label}
                 </div>
@@ -1146,7 +1151,7 @@ export default function Home() {
                 </div>
                 {session?.user?.name}
               </div>
-              <button onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: '#ef4444', cursor: 'pointer', width: '100%' }}>Cerrar sesión</button>
+              <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: '#ef4444', cursor: 'pointer', width: '100%' }}>Cerrar sesión</button>
             </div>
           </div>
 
@@ -1167,7 +1172,7 @@ export default function Home() {
       {!isAdmin && !isNegocio && !isCliente && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', flexDirection: 'column', gap: 16 }}>
           <div style={{ fontSize: 16, color: '#555' }}>No tenés acceso a este panel.</div>
-          <button onClick={() => signOut({ callbackUrl: '/login' })} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer' }}>Cerrar sesión</button>
+          <button className="fid-btn-primary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer' }}>Cerrar sesión</button>
         </div>
       )}
     </div>
