@@ -270,3 +270,16 @@ nueva.
    solo es único dentro de una tienda). Probado contra Postgres real
    ejecutando la misma transacción dos veces: la primera suma y registra,
    la segunda se detecta como duplicado sin volver a sumar.
+9. Pedido de Cecilia: hover effects en el panel (botones, tarjetas, filas
+   de listas, ítems de sidebar), con transiciones suaves. Se charló el
+   criterio antes de tocar código (qué efecto para cada tipo de
+   elemento, evitar recargar la UI). **PR #30**: 5 clases nuevas en
+   `globals.css`, basadas en `transform`/`filter`/`box-shadow` en vez de
+   colores fijos porque el panel de negocio/cliente usa colores
+   dinámicos por `tema`. Se encontró y arregló un bug real probando: los
+   botones "secundarios" y los ítems de sidebar siempre traen un
+   `background` inline, que pisa cualquier `background-color` definido
+   en una regla `:hover` de CSS — se resolvió usando `filter` para esos
+   casos en vez de `background-color`. Probado en el navegador con
+   Postgres real y Playwright, forzando `:hover` en las 5 categorías y
+   comparando estilos computados antes/después.
