@@ -59,26 +59,36 @@ export async function POST(request) {
     where: { id: premioId }
   })
 
-  const cliente = await prisma.cliente.findUnique({
-    where: { id: clienteId }
-  })
-
-  if (!premio.activo) {
+  if (!premio || !premio.activo) {
     return NextResponse.json({ error: 'Este premio ya no está disponible' }, { status: 400 })
   }
 
-  if (cliente.puntos < premio.puntos) {
-    return NextResponse.json({ error: 'Puntos insuficientes' }, { status: 400 })
+  try {
+    // updateMany con el saldo en el WHERE: Postgres serializa los UPDATE
+    // concurrentes sobre la misma fila, así que si dos canjes llegan al
+    // mismo tiempo, el segundo recién evalúa "puntos >= premio.puntos"
+    // después de que el primero ya haya confirmado su descuento. Sin esto
+    // (leer puntos y decidir aparte, en un paso separado del UPDATE), dos
+    // pedidos simultáneos podían pasar los dos la validación antes de que
+    // cualquiera descontara, dejando al cliente con saldo negativo.
+    const canje = await prisma.$transaction(async (tx) => {
+      const { count } = await tx.cliente.updateMany({
+        where: { id: clienteId, puntos: { gte: premio.puntos } },
+        data: { puntos: { decrement: premio.puntos } }
+      })
+
+      if (count === 0) {
+        throw new Error('PUNTOS_INSUFICIENTES')
+      }
+
+      return tx.canje.create({ data: { clienteId, premioId } })
+    })
+
+    return NextResponse.json(canje)
+  } catch (error) {
+    if (error.message === 'PUNTOS_INSUFICIENTES') {
+      return NextResponse.json({ error: 'Puntos insuficientes' }, { status: 400 })
+    }
+    throw error
   }
-
-  const canje = await prisma.canje.create({
-    data: { clienteId, premioId }
-  })
-
-  await prisma.cliente.update({
-    where: { id: clienteId },
-    data: { puntos: { decrement: premio.puntos } }
-  })
-
-  return NextResponse.json(canje)
 }
