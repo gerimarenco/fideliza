@@ -353,12 +353,15 @@ la columna `Premio.activo`, y cualquier consulta que la pidiera —
 `GET /api/negocios`— rompía con un 500 sin cuerpo). Ya corregido: cada
 deploy aplica las migraciones pendientes antes de buildear.
 
-**Limitación conocida y no bloqueante**: `DATABASE_URL` solo está
-configurada para el contexto de Producción en Netlify, no para "Deploy
-Previews" — cualquier PR desde el que agregó `prisma migrate deploy`
-muestra el check de deploy-preview en rojo (`P1012`, variable vacía). Es
-esperable, no afecta al sitio real, y ya quedó documentado como tal en
-cada PR que lo atraviesa. Si en algún momento se quiere que los previews
-también funcionen, hay que agregar `DATABASE_URL` a ese contexto en
-Netlify (con cuidado: eso le daría a cualquier preview acceso a la base
-de producción real).
+**Resuelto (PR #32, 2026-08-27)**: `DATABASE_URL` solo está configurada
+para el contexto de Producción en Netlify, no para "Deploy Previews" —
+desde que se agregó `prisma migrate deploy` al build, todo PR mostraba
+el check de deploy-preview en rojo (`P1012`, variable vacía). En vez de
+la opción riesgosa (agregar `DATABASE_URL` también a Deploy Previews,
+lo que le daría a cualquier preview acceso a la base de producción
+real), se cambió el build command en `netlify.toml` para que corra
+`prisma migrate deploy` solo si `DATABASE_URL` está presente — el build
+de Next no necesita conexión a la base (toda la app es client-side, sin
+rutas pre-renderizadas contra la DB), así que el preview arma bien
+igual, sin acceso a ningún dato real. Producción y Branch deploys (que sí
+tienen `DATABASE_URL`) siguen migrando exactamente igual que antes.

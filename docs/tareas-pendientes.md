@@ -278,11 +278,12 @@
       invisible. Afectaba cualquier campo de la app (login incluido), no
       algo específico de un negocio. Sacada la regla, agregado
       `color-scheme: light` explícito. **Mergeado (PR #17)**.
-- [ ] Limitación conocida, no bloqueante: `DATABASE_URL` no está
-      configurada para el contexto de "Deploy Previews" en Netlify (solo
-      Producción) — el check de deploy-preview queda en rojo en cualquier
-      PR desde el #11, es esperado y no afecta al sitio real. Ver
-      `contexto-proyecto.md`.
+- [x] Resuelto (PR #32): el check de deploy-preview quedaba en rojo en
+      todo PR desde el #11 porque `DATABASE_URL` no está configurada
+      para ese contexto. El build ahora saltea `prisma migrate deploy`
+      cuando no hay `DATABASE_URL` disponible (el build de Next no
+      necesita la base) — sin exponerle la base de producción a los
+      previews. Ver `contexto-proyecto.md`.
 
 ## Marca propia por negocio (tema visual)
 

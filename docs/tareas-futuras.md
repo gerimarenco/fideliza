@@ -5,6 +5,10 @@
 
 ## 1. Idea nueva planteada por Cecilia: notificar a clientes por email
 
+**A propósito en pausa hasta que se resuelva Dragon Fish** (decisión de
+Cecilia, 2026-08-27): no tiene sentido diseñar el disparador del email
+sin saber todavía cómo va a quedar la integración del local físico.
+
 Su mamá (dueña de Peperina) quiere que sus clientas **no tengan que
 entrar a ninguna web** — que casi ni se enteren de que existe un panel —
 y en cambio reciban un mail después de cada compra con los puntos que
@@ -41,11 +45,6 @@ soporte de Zoo Logic sobre el formato real de la consulta de factura por
 
 - Tiendanube: pausado a propósito hasta que la tienda esté activa (el
   flujo OAuth2 no está armado).
-- Limitación conocida de Netlify (no bloqueante): `DATABASE_URL` no está
-  configurada para el contexto de Deploy Previews, así que esos checks
-  siempre van a fallar con `P1012`. Ver `contexto-proyecto.md` si en
-  algún momento se quiere resolver (implica darle a los previews acceso
-  a la base de producción real, a evaluar con cuidado).
 - No hay pantalla de autogestión del tema visual para el propio negocio
   (hoy solo lo carga el admin, y para Peperina se cargó a mano vía
   migraciones de datos porque no había otra forma). Evaluar si hace
