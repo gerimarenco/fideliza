@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 
 // Paleta por defecto (clara) del panel de negocio y del panel de cliente.
@@ -40,6 +40,8 @@ export default function Home() {
   const [clientePropio, setClientePropio] = useState(null);
   const [negocioDelCliente, setNegocioDelCliente] = useState(null);
   const [canjeandoId, setCanjeandoId] = useState(null);
+  const [toast, setToast] = useState(null);
+  const toastTimeoutRef = useRef(null);
   const [estadisticas, setEstadisticas] = useState(null);
   const [seccionActiva, setSeccionActiva] = useState('inicio');
   const [clientesPagina, setClientesPagina] = useState(1);
@@ -181,7 +183,7 @@ export default function Home() {
   const pts = Math.floor((parseFloat(monto) || 0) / 1000);
 
   const sumarPuntos = async (negId) => {
-    if (!monto || !clienteSeleccionado) { alert('Seleccioná un cliente y un monto'); return; }
+    if (!monto || !clienteSeleccionado) { mostrarToast('error', 'Seleccioná un cliente y un monto'); return; }
     const negocio = isAdmin ? negocioActivo : negocioPropio;
     try {
       const res = await fetch('/api/compras', {
@@ -191,24 +193,24 @@ export default function Home() {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(`❌ Error: ${data.error || 'no se pudieron sumar los puntos'}`);
+        mostrarToast('error', data.error || 'No se pudieron sumar los puntos');
         return;
       }
-      alert(`✅ +${data.puntosASumados} puntos acreditados a ${negocio.clientes.find(c => c.id === clienteSeleccionado)?.nombre}!`);
+      mostrarToast('exito', `+${data.puntosASumados} puntos acreditados a ${negocio.clientes.find(c => c.id === clienteSeleccionado)?.nombre}`);
       setMonto('');
       setClienteSeleccionado('');
       cargarNegocios();
       cargarEstadisticas(negocio.id);
       cargarClientes(negocio.id, clientesPagina);
     } catch (err) {
-      alert('❌ Ocurrió un error al sumar los puntos. Probá de nuevo.');
+      mostrarToast('error', 'Ocurrió un error al sumar los puntos. Probá de nuevo.');
     }
   };
 
   const agregarCliente = async () => {
     const negocio = isAdmin ? negocioActivo : negocioPropio;
     if (!nuevoCliente.nombre || !nuevoCliente.telefono || !nuevoCliente.email) {
-      alert('Nombre, teléfono y email son obligatorios');
+      mostrarToast('error', 'Nombre, teléfono y email son obligatorios');
       return;
     }
     try {
@@ -219,9 +221,11 @@ export default function Home() {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(`❌ Error: ${data.error || 'no se pudo crear el cliente'}`);
+        mostrarToast('error', data.error || 'No se pudo crear el cliente');
         return;
       }
+      // Alert bloqueante a propósito (no toast): incluye la contraseña
+      // generada, que hay que copiar antes de que desaparezca.
       alert(`✅ Cliente ${nuevoCliente.nombre} agregado!\n\nEmail: ${nuevoCliente.email}\nContraseña: ${data.passwordGenerada}\n\n(Guardá esta contraseña para pasársela al cliente)`);
       setNuevoCliente({ nombre: '', telefono: '', email: '' });
       setMostrarFormCliente(false);
@@ -230,14 +234,14 @@ export default function Home() {
       cargarClientes(negocio.id, 1);
       setClientesPagina(1);
     } catch (err) {
-      alert('❌ Ocurrió un error al crear el cliente. Probá de nuevo.');
+      mostrarToast('error', 'Ocurrió un error al crear el cliente. Probá de nuevo.');
     }
   };
 
   const crearNegocio = async () => {
     const { nombre, tipo, ciudad, emoji, email } = nuevoNegocio;
     if (!nombre || !tipo || !ciudad || !emoji || !email) {
-      alert('Nombre, tipo, ciudad, emoji y email son obligatorios');
+      mostrarToast('error', 'Nombre, tipo, ciudad, emoji y email son obligatorios');
       return;
     }
     try {
@@ -248,15 +252,17 @@ export default function Home() {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(`❌ Error: ${data.error || 'no se pudo crear el negocio'}`);
+        mostrarToast('error', data.error || 'No se pudo crear el negocio');
         return;
       }
+      // Alert bloqueante a propósito (no toast): incluye la contraseña
+      // generada, que hay que copiar antes de que desaparezca.
       alert(`✅ Negocio ${nombre} creado!\n\nEmail: ${email}\nContraseña: ${data.passwordGenerada}\n\n(Guardá esta contraseña para pasársela al negocio)`);
       setNuevoNegocio({ nombre: '', tipo: '', ciudad: '', emoji: '', email: '' });
       setMostrarFormNegocio(false);
       cargarNegocios();
     } catch (err) {
-      alert('❌ Ocurrió un error al crear el negocio. Probá de nuevo.');
+      mostrarToast('error', 'Ocurrió un error al crear el negocio. Probá de nuevo.');
     }
   };
 
@@ -268,7 +274,7 @@ export default function Home() {
   const guardarEdicionNegocio = async () => {
     const { nombre, tipo, ciudad, emoji } = formEdicionNegocio;
     if (!nombre || !tipo || !ciudad || !emoji) {
-      alert('Nombre, tipo, ciudad y emoji son obligatorios');
+      mostrarToast('error', 'Nombre, tipo, ciudad y emoji son obligatorios');
       return;
     }
     try {
@@ -279,13 +285,14 @@ export default function Home() {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(`❌ Error: ${data.error || 'no se pudo editar el negocio'}`);
+        mostrarToast('error', data.error || 'No se pudo editar el negocio');
         return;
       }
+      mostrarToast('exito', 'Negocio actualizado');
       setNegocioEditandoId(null);
       cargarNegocios();
     } catch (err) {
-      alert('❌ Ocurrió un error al editar el negocio. Probá de nuevo.');
+      mostrarToast('error', 'Ocurrió un error al editar el negocio. Probá de nuevo.');
     }
   };
 
@@ -349,7 +356,7 @@ export default function Home() {
   const guardarEdicionPremio = async () => {
     const { nombre, puntos, emoji } = formEdicionPremio;
     if (!nombre || !puntos || !emoji) {
-      alert('Nombre, puntos y emoji son obligatorios');
+      mostrarToast('error', 'Nombre, puntos y emoji son obligatorios');
       return;
     }
     try {
@@ -360,14 +367,15 @@ export default function Home() {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(`❌ Error: ${data.error || 'no se pudo editar el premio'}`);
+        mostrarToast('error', data.error || 'No se pudo editar el premio');
         return;
       }
+      mostrarToast('exito', 'Premio actualizado');
       setPremioEditandoId(null);
       cargarPremios((isAdmin ? negocioActivo : negocioPropio)?.id, premiosPagina);
       cargarNegocios();
     } catch (err) {
-      alert('❌ Ocurrió un error al editar el premio. Probá de nuevo.');
+      mostrarToast('error', 'Ocurrió un error al editar el premio. Probá de nuevo.');
     }
   };
 
@@ -446,11 +454,11 @@ export default function Home() {
   const cambiarPassword = async () => {
     const { actual, nueva, confirmar } = formPassword;
     if (!actual || !nueva || !confirmar) {
-      alert('Completá los tres campos');
+      mostrarToast('error', 'Completá los tres campos');
       return;
     }
     if (nueva !== confirmar) {
-      alert('La nueva contraseña y su confirmación no coinciden');
+      mostrarToast('error', 'La nueva contraseña y su confirmación no coinciden');
       return;
     }
     try {
@@ -461,13 +469,13 @@ export default function Home() {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(`❌ Error: ${data.error || 'no se pudo cambiar la contraseña'}`);
+        mostrarToast('error', data.error || 'No se pudo cambiar la contraseña');
         return;
       }
-      alert('✅ Contraseña actualizada');
+      mostrarToast('exito', 'Contraseña actualizada');
       setFormPassword({ actual: '', nueva: '', confirmar: '' });
     } catch (err) {
-      alert('❌ Ocurrió un error al cambiar la contraseña. Probá de nuevo.');
+      mostrarToast('error', 'Ocurrió un error al cambiar la contraseña. Probá de nuevo.');
     }
   };
 
@@ -483,13 +491,16 @@ export default function Home() {
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(`❌ ${data.error || 'No se pudo canjear el premio'}`);
+        mostrarToast('error', data.error || 'No se pudo canjear el premio');
         return;
       }
+      // Alert bloqueante a propósito (no toast): funciona como comprobante,
+      // la clienta lo tiene que poder mostrar en el negocio, no que
+      // desaparezca solo.
       alert(`✅ ¡Canjeaste "${premio.nombre}"! Mostrale esto al negocio para retirarlo.`);
       cargarNegocios();
     } catch (err) {
-      alert('❌ Ocurrió un error al canjear el premio.');
+      mostrarToast('error', 'Ocurrió un error al canjear el premio.');
     } finally {
       setCanjeandoId(null);
     }
@@ -523,6 +534,39 @@ export default function Home() {
   const Spinner = ({ size = 16, color }) => (
     <span className="fid-spinner" style={{ width: size, height: size, color: color || tema.primario }} />
   );
+
+  // Confirmación visual breve para acciones que se guardan bien o fallan.
+  // Colores fijos (no atados a `tema`) para verse igual en el chrome del
+  // Admin, que nunca se tematiza, y en los paneles de negocio/cliente.
+  // No se usa para mensajes de éxito que hay que conservar (contraseña
+  // generada al crear cliente/negocio, comprobante de canje) — esos siguen
+  // siendo un alert() bloqueante a propósito, en vez de este toast que
+  // desaparece solo.
+  const mostrarToast = (tipo, mensaje) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToast({ tipo, mensaje });
+    toastTimeoutRef.current = setTimeout(() => setToast(null), tipo === 'error' ? 4000 : 2500);
+  };
+
+  const Toast = () => {
+    if (!toast) return null;
+    const exito = toast.tipo === 'exito';
+    return (
+      <div
+        style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 10,
+          background: exito ? '#dcfce7' : '#fee2e2', color: exito ? '#15803d' : '#b91c1c',
+          border: `1px solid ${exito ? '#86efac' : '#fca5a5'}`,
+          fontSize: 14, fontWeight: 500, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          maxWidth: '90vw'
+        }}
+        className="fid-toast"
+      >
+        {exito ? '✓' : '✗'} {toast.mensaje}
+      </div>
+    );
+  };
 
   // Historial de canjes del negocio completo (pantalla nueva)
   const VistaCanjes = () => (
@@ -1184,6 +1228,8 @@ export default function Home() {
           <button className="fid-btn-primary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer' }}>Cerrar sesión</button>
         </div>
       )}
+
+      <Toast />
     </div>
   );
 }
