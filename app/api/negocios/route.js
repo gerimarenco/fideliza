@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { hashPassword } from '@/lib/password'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { randomBytes } from 'crypto'
 
 // Nunca incluir password/tiendanubeAccessToken tal cual acá: esta respuesta
 // viaja al navegador de negocio y cliente. tiendanubeAccessToken se selecciona
@@ -19,6 +20,8 @@ const NEGOCIO_SELECT = {
   slug: true,
   tiendanubeStoreId: true,
   tiendanubeAccessToken: true,
+  dragonfishBaseDeDatos: true,
+  dragonfishAgentToken: true,
   clientes: {
     select: { id: true, nombre: true, email: true, puntos: true }
   },
@@ -70,9 +73,10 @@ export async function GET() {
   }
 
   const negocios = await prisma.negocio.findMany({ where, select: NEGOCIO_SELECT })
-  const negociosSeguros = negocios.map(({ tiendanubeAccessToken, ...negocio }) => ({
+  const negociosSeguros = negocios.map(({ tiendanubeAccessToken, dragonfishAgentToken, ...negocio }) => ({
     ...negocio,
     tiendanubeConectado: !!tiendanubeAccessToken,
+    dragonfishConectado: !!dragonfishAgentToken,
   }))
   return NextResponse.json(negociosSeguros)
 }
@@ -138,6 +142,22 @@ export async function PATCH(request) {
     tiendanubeAccessToken: body.tiendanubeAccessToken,
   }
 
+  // BaseDeDatos es el nombre con el que Dragon Fish identifica la base del
+  // negocio (viaja tal cual en el webhook) — no es secreto, mismo criterio
+  // que tiendanubeStoreId.
+  if (body.dragonfishBaseDeDatos !== undefined) {
+    data.dragonfishBaseDeDatos = body.dragonfishBaseDeDatos
+  }
+
+  // El token del agente lo generamos nosotros (no lo manda Dragon Fish): se
+  // muestra una sola vez en la respuesta, igual que una contraseña generada,
+  // para que quien configure el agente local lo copie ahí.
+  let dragonfishAgentTokenGenerado
+  if (body.dragonfishGenerarToken) {
+    dragonfishAgentTokenGenerado = randomBytes(24).toString('hex')
+    data.dragonfishAgentToken = dragonfishAgentTokenGenerado
+  }
+
   // El slug habilita Mercado Pago (va en la URL pública de pagos): igual que
   // las credenciales de Tiendanube, lo puede cargar el admin o el propio
   // negocio.
@@ -186,6 +206,11 @@ export async function PATCH(request) {
     throw error
   }
 
-  const { password, tiendanubeAccessToken, ...negocioSeguro } = negocio
-  return NextResponse.json({ ...negocioSeguro, tiendanubeConectado: !!tiendanubeAccessToken })
+  const { password, tiendanubeAccessToken, dragonfishAgentToken, ...negocioSeguro } = negocio
+  return NextResponse.json({
+    ...negocioSeguro,
+    tiendanubeConectado: !!tiendanubeAccessToken,
+    dragonfishConectado: !!dragonfishAgentToken,
+    ...(dragonfishAgentTokenGenerado ? { dragonfishAgentTokenGenerado } : {}),
+  })
 }

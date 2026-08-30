@@ -54,7 +54,7 @@ export default function Home() {
   const [nuevoPremio, setNuevoPremio] = useState({ nombre: '', puntos: '', emoji: '' });
   const [premioEditandoId, setPremioEditandoId] = useState(null);
   const [formEdicionPremio, setFormEdicionPremio] = useState({ nombre: '', puntos: '', emoji: '' });
-  const [formIntegraciones, setFormIntegraciones] = useState({ tiendanubeStoreId: '', tiendanubeAccessToken: '', slug: '' });
+  const [formIntegraciones, setFormIntegraciones] = useState({ tiendanubeStoreId: '', tiendanubeAccessToken: '', slug: '', dragonfishBaseDeDatos: '' });
   const [formPassword, setFormPassword] = useState({ actual: '', nueva: '', confirmar: '' });
   const [formPuntosXPeso, setFormPuntosXPeso] = useState('');
 
@@ -170,6 +170,7 @@ export default function Home() {
       tiendanubeStoreId: negocioMostrado?.tiendanubeStoreId || '',
       tiendanubeAccessToken: '',
       slug: negocioMostrado?.slug || '',
+      dragonfishBaseDeDatos: negocioMostrado?.dragonfishBaseDeDatos || '',
     });
   }, [negocioMostrado?.id, seccionActiva]);
 
@@ -408,6 +409,7 @@ export default function Home() {
     if (formIntegraciones.tiendanubeStoreId) body.tiendanubeStoreId = formIntegraciones.tiendanubeStoreId;
     if (formIntegraciones.tiendanubeAccessToken) body.tiendanubeAccessToken = formIntegraciones.tiendanubeAccessToken;
     if (formIntegraciones.slug) body.slug = formIntegraciones.slug;
+    if (formIntegraciones.dragonfishBaseDeDatos) body.dragonfishBaseDeDatos = formIntegraciones.dragonfishBaseDeDatos;
 
     try {
       const res = await fetch('/api/negocios', {
@@ -425,6 +427,34 @@ export default function Home() {
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar las integraciones. Probá de nuevo.');
+    }
+  };
+
+  // Genera (o regenera) el token secreto que usa el agente local de Dragon
+  // Fish para autenticarse contra Fideliza. Se muestra una sola vez, igual
+  // que una contraseña generada: no hay forma de volver a verlo después.
+  // Acción separada de "Guardar integraciones" a propósito, para no
+  // regenerar el token sin querer y cortar la conexión de un agente que ya
+  // está corriendo.
+  const generarTokenDragonfish = async () => {
+    if (negocioMostrado?.dragonfishConectado && !confirm('Ya hay un token generado. Generar uno nuevo va a desconectar al agente que esté usando el actual hasta que lo actualices ahí también. ¿Continuar?')) {
+      return;
+    }
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: negocioMostrado.id, dragonfishGenerarToken: true })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo generar el token'}`);
+        return;
+      }
+      alert(`✅ Token generado, copialo ahora — no se vuelve a mostrar:\n\n${data.dragonfishAgentTokenGenerado}`);
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al generar el token. Probá de nuevo.');
     }
   };
 
@@ -726,12 +756,19 @@ export default function Home() {
         <div style={{ fontSize: 11, color: tema.textoSecundario, marginTop: 6 }}>Solo minúsculas, números y guiones. Cambiarlo rompe links de pago ya compartidos.</div>
       </div>
 
-      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20, opacity: 0.7 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>Dragon Fish</div>
-          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, fontWeight: 500, background: '#f5f5f5', color: tema.textoSecundario }}>Bloqueada</span>
+          <BadgeConexion conectada={negocioMostrado?.dragonfishConectado} />
         </div>
-        <div style={{ fontSize: 12, color: tema.textoSecundario, marginTop: 8 }}>En espera de soporte de Zoo Logic.</div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Base de datos (nombre en Dragon Fish)</label>
+          <input value={formIntegraciones.dragonfishBaseDeDatos} onChange={e => setFormIntegraciones({...formIntegraciones, dragonfishBaseDeDatos: e.target.value})} placeholder="PEPERINA" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+        </div>
+        <button className="fid-btn-secondary" onClick={generarTokenDragonfish} type="button" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>
+          {negocioMostrado?.dragonfishConectado ? 'Regenerar token del agente' : 'Generar token del agente'}
+        </button>
+        <div style={{ fontSize: 11, color: tema.textoSecundario, marginTop: 8 }}>El token se usa para configurar el agente local que corre en la PC del negocio — se muestra una sola vez al generarlo.</div>
       </div>
 
       <button className="fid-btn-primary" onClick={guardarIntegraciones} style={{ padding: '10px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar integraciones</button>

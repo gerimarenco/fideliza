@@ -138,7 +138,9 @@ configuren).
   "Ajustes" vía `POST /api/negocios/password`), `slug` (para el link
   público de auto-registro y para Mercado Pago — editable desde
   "Integraciones"), `tiendanubeStoreId` / `tiendanubeAccessToken`
-  (credenciales de Tiendanube, ver más abajo), `activo` (Boolean, default
+  (credenciales de Tiendanube, ver más abajo), `dragonfishBaseDeDatos` /
+  `dragonfishAgentToken` (mapeo a la base de Dragon Fish y token del
+  agente local, ver más abajo), `activo` (Boolean, default
   `true` — borrado lógico igual que `Premio.activo`: "Desactivar" un
   negocio no borra sus clientes/premios/canjes, solo lo saca de
   circulación; admin-only, editable desde la grilla de "Negocios"),
@@ -163,8 +165,14 @@ configuren).
   modelo es lo que permite calcular estadísticas por rango de fechas.
 - **`WebhookEvento`** (agregado 2026-08-21): idempotencia de webhooks —
   `proveedor` + `referenciaExterna` (unique), para no procesar la misma
-  notificación externa dos veces. Hoy solo lo usa el webhook de Mercado
-  Pago.
+  notificación externa dos veces. La usan Mercado Pago, Tiendanube y
+  Dragon Fish (vía `POST /api/dragonfish/resolver`).
+- **`FacturaPendiente`** (agregado 2026-08-30): facturas de Dragon Fish
+  avisadas por webhook (que solo trae un `Codigo`) a la espera de que el
+  agente local las resuelva. `negocioId`, `codigo`, `entidad` (tipo de
+  comprobante), `fecha`, `hora`, `procesado`, `resultado`
+  (`"acreditado"` | `"sin_cliente"` | `"sin_datos"` | `"duplicado"`, null
+  mientras está pendiente). Único por `(negocioId, codigo)`.
 
 Índices agregados sobre las foreign keys que no los tenían:
 `Cliente.negocioId`, `Premio.negocioId`, `Canje.clienteId`,
@@ -304,7 +312,7 @@ sentido construirlo hasta que la tienda esté activa en Tiendanube. Cuando
 lo esté, retomamos: armar el flujo OAuth y cargar las credenciales
 reales.
 
-### Dragon Fish — 🚧 En progreso, bloqueada esperando a Zoo Logic
+### Dragon Fish — 🚧 En progreso, lado Fideliza terminado, agente bloqueado en 3 datos de Zoo Logic
 Dragon Fish (el sistema de facturación que usa el negocio, de Zoo Logic)
 manda un webhook con un payload muy liviano — confirmado con un ejemplo
 real:
@@ -319,18 +327,34 @@ Dragon Fish, que **corre local en la PC del negocio**, no es accesible
 desde internet, y **ya se decidió no exponerla** (sin port forwarding, sin
 túneles tipo ngrok/Cloudflare Tunnel).
 
-**Arquitectura acordada** (diseñada, no implementada todavía): un agente
-local que solo hace llamadas salientes — le pregunta a Fideliza
-periódicamente (polling) "¿hay facturas pendientes?", resuelve cada una
-contra la API REST local de Dragon Fish, y le reporta el resultado a
-Fideliza. Nada entra a la red del negocio desde afuera. Detalle completo
-en `tareas-pendientes.md`.
+**Arquitectura implementada**: un agente local (`dragonfish-agente/`,
+script de Node aparte de la app — corre en la PC del negocio, no se
+deploya) que solo hace llamadas salientes:
 
-**Bloqueante actual**: estamos esperando la respuesta del soporte de Zoo
-Logic sobre cómo se consulta una factura por `Codigo` contra esa API REST
-local, y qué datos de identificación del cliente devuelve (email, DNI,
-teléfono) — sin eso no se puede terminar de diseñar la lógica de matching
-del lado de Fideliza.
+1. Le pregunta a Fideliza (`GET /api/dragonfish/pendientes`, autenticado
+   con un token propio por negocio, `Negocio.dragonfishAgentToken`) qué
+   facturas quedaron pendientes.
+2. Resuelve cada una contra la API REST local de Dragon Fish
+   (`consultarDragonfish` en `dragonfish-agente/index.js`).
+3. Reporta el resultado a Fideliza (`POST /api/dragonfish/resolver`), que
+   ahí sí busca al cliente (por email o teléfono) y suma los puntos, con
+   la misma transacción de idempotencia (`WebhookEvento` +
+   `MovimientoPuntos`) que Mercado Pago/Tiendanube.
+
+Nada entra a la red del negocio desde afuera. El webhook (`/api/webhooks/
+dragonfish`) ya no solo loguea: filtra por `Entidad` (solo tipos de
+comprobante de venta) y deja la fila en `FacturaPendiente`, deduplicando
+reenvíos.
+
+**Bloqueante actual**: el paso 2 de arriba (`consultarDragonfish`) tiene
+placeholders — Zoo Logic contestó parcialmente (2026-08-30):
+confirmaron que `/facturagrupada/{Codigo}` agrupa los tres tipos de
+comprobante (no hace falta ramificar por `Entidad`), pero todavía faltan
+el host/puerto real de esa API, cómo autenticarse contra ella, dónde va
+el "número de serie" que piden mandar siempre, y los nombres reales de
+los campos de la respuesta (dijeron que están en su swagger, no lo
+compartieron). Detalle completo, incluida la pregunta exacta para
+reenviarles, en `dragonfish-agente/README.md` y `tareas-pendientes.md`.
 
 ## Repositorio y ramas
 

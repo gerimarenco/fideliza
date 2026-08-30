@@ -1,0 +1,10 @@
+{
+  "name": "dragonfish-agente",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agente local que conecta Dragon Fish (facturación del local físico de Peperina) con Fideliza, sin exponer la red del negocio a internet.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  }
+}
