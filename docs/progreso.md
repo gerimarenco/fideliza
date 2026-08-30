@@ -322,3 +322,80 @@ nueva.
     que la idempotencia de Mercado Pago/Tiendanube, aplicado acá al
     descuento de puntos. Reproducido el mismo ataque después del fix:
     exactamente 1 de 8 entra en las 5 corridas, saldo y `Canje` exactos.
+14. Pedido de Cecilia: confirmaciones visuales ("¡Listo!"/"✓ Guardado") en
+    vez de que no pase nada visible después de guardar. **PR #38**:
+    componente `Toast` único, auto-oculta solo (2.5s éxito, 4s error),
+    colores fijos (no `tema`). Aplicado a sumar puntos, editar negocio,
+    editar premio y cambiar contraseña. Se dejaron a propósito **fuera**
+    del toast (siguen con `alert()` bloqueante en el éxito): crear
+    cliente y crear negocio (el mensaje trae la contraseña generada) y
+    canjear premio (el mensaje es un comprobante que la clienta necesita
+    mostrar). Probado en el navegador con Postgres real y Playwright.
+
+## 2026-08-30 — Dragon Fish: agente local construido, bloqueado en 3 datos de la API real
+
+Cecilia avisó que el soporte de Zoo Logic respondió (parcialmente) la
+consulta sobre cómo traer la factura completa por `Codigo`. La respuesta
+confirmó que `/facturagrupada/{Codigo}` agrupa los tres tipos de
+comprobante (factura manual, electrónica, fiscal — no hace falta
+ramificar por `Entidad`), pero no incluyó host/puerto de la API,
+autenticación, dónde va el "número de serie" que piden mandar siempre, ni
+un ejemplo de la respuesta (remitieron a un swagger no compartido).
+
+Con esa respuesta parcial, se construyó toda la parte de Fideliza que no
+depende de esos 3 datos faltantes, siguiendo la arquitectura ya acordada
+en sesiones previas (agente local con polling, sin exponer la red del
+negocio):
+
+1. **Prisma**: tabla `FacturaPendiente` (`negocioId`, `codigo`, `entidad`,
+   `fecha`, `hora`, `procesado`, `resultado`), única por
+   `(negocioId, codigo)`; campos `Negocio.dragonfishBaseDeDatos` (mapea
+   `BaseDeDatos` del webhook a un negocio, análogo a `tiendanubeStoreId`)
+   y `Negocio.dragonfishAgentToken` (token propio para autenticar al
+   agente, análogo a `tiendanubeAccessToken` pero generado por Fideliza).
+2. **Webhook reescrito** (`/api/webhooks/dragonfish`): pasa de solo
+   loguear a insertar una fila en `FacturaPendiente`, filtrando por
+   `Entidad` (solo tipos de comprobante de venta — Dragon Fish también
+   manda webhooks de otras entidades) y deduplicando reenvíos vía la
+   restricción única.
+3. **`GET /api/dragonfish/pendientes`**: el agente pregunta qué facturas
+   quedaron pendientes. Autenticación propia por `Authorization: Bearer
+   <dragonfishAgentToken>` en vez de sesión de NextAuth, porque no hay un
+   usuario logueado del otro lado (`lib/dragonfishAgente.js`, compartido
+   con el endpoint de abajo).
+4. **`POST /api/dragonfish/resolver`**: el agente reporta
+   `{codigo, monto, email/telefono}`. Dispara la misma transacción de
+   idempotencia que Mercado Pago/Tiendanube (`WebhookEvento` +
+   `Cliente.update` + `MovimientoPuntos.create`), con un segundo nivel de
+   idempotencia (`FacturaPendiente.procesado`) para el caso de que el
+   agente reintente un reporte. Si falta el monto o la identificación de
+   cliente, o no matchea ningún cliente registrado, marca `resultado`
+   (`sin_datos`/`sin_cliente`) sin sumar puntos ni dejar la factura
+   reintentando para siempre.
+5. **"Integraciones"**: la card de Dragon Fish, antes fija en "Bloqueada"
+   sin ningún campo, ahora tiene un input para `dragonfishBaseDeDatos` y
+   un botón "Generar/Regenerar token del agente" (con confirmación si ya
+   había uno, porque regenerarlo corta al agente que esté usándolo) — el
+   token se muestra una sola vez en un `alert()`, mismo patrón que una
+   contraseña generada.
+6. **Agente local** (`dragonfish-agente/`, script de Node aparte de la
+   app — corre en la PC del negocio, no se deploya con el resto): ciclo
+   de polling completo y probado (`pedirPendientes`/`reportarResultado`).
+   La función que consulta la API real de Dragon Fish
+   (`consultarDragonfish`) quedó con placeholders documentados con TODO
+   para los 3 datos que todavía faltan — no se asumió nada no confirmado,
+   siguiendo el criterio ya establecido en sesiones anteriores para esta
+   integración.
+
+Probado en el navegador contra Postgres real (negocio y cliente de
+prueba sembrados a mano) y con `curl` directo a los endpoints nuevos:
+el ciclo completo webhook → `FacturaPendiente` pendiente → agente la
+levanta por `GET /pendientes` → reporta con `POST /resolver` → cliente
+recibe los puntos exactos (`monto / puntosXPeso`) con un
+`MovimientoPuntos` (`origen: "dragonfish"`) registrado. Se probaron
+también los casos de reenvío de webhook duplicado, reporte duplicado del
+agente (no vuelve a sumar), entidad no-factura ignorada, y factura sin
+cliente matcheado (marca `sin_cliente`, no rompe ni reintenta para
+siempre). En el navegador (Playwright, login real): la card de Dragon
+Fish en "Integraciones" muestra "Conectada" y el flujo de generar token
+funciona de punta a punta.

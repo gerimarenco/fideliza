@@ -20,10 +20,13 @@ model Negocio {
   slug                  String?   @unique
   tiendanubeStoreId     String?   @unique
   tiendanubeAccessToken String?
+  dragonfishBaseDeDatos String?   @unique
+  dragonfishAgentToken  String?   @unique
   tema                  Json?
   createdAt             DateTime  @default(now())
   clientes    Cliente[]
   premios     Premio[]
+  facturasPendientes    FacturaPendiente[]
 }
 
 model Cliente {
@@ -77,6 +80,25 @@ model WebhookEvento {
   createdAt         DateTime @default(now())
 
   @@unique([proveedor, referenciaExterna])
+}
+
+// Facturas de Dragon Fish avisadas por webhook (que solo trae un Código, sin
+// datos de la venta) a la espera de que el agente local las resuelva contra
+// la API REST local de Dragon Fish y reporte el resultado.
+model FacturaPendiente {
+  id        String   @id @default(cuid())
+  negocioId String
+  negocio   Negocio  @relation(fields: [negocioId], references: [id])
+  codigo    String
+  entidad   String   // tipo de comprobante que mandó el webhook (FACTURA, FACTURAELECTRONICA, TICKETFACTURA, FACTURAAGRUPADA)
+  fecha     String
+  hora      String
+  procesado Boolean  @default(false)
+  resultado String?  // "acreditado" | "sin_cliente" | "sin_datos" | "duplicado", null mientras está pendiente
+  createdAt DateTime @default(now())
+
+  @@unique([negocioId, codigo])
+  @@index([negocioId, procesado])
 }
 
 // Historial de cada vez que se otorgan puntos (compra manual o webhook).

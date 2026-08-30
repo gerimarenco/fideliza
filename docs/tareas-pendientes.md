@@ -1,6 +1,6 @@
 # Tareas pendientes — Fideliza
 
-> Última actualización: 2026-08-27. Marca lo hecho (`[x]`) y lo que falta
+> Última actualización: 2026-08-30. Marca lo hecho (`[x]`) y lo que falta
 > (`[ ]`), agrupado por área. Ver `contexto-proyecto.md` para el porqué de
 > cada cosa y `progreso.md`/`sesion-actual.md` para cuándo se hizo. Ver
 > `tareas-futuras.md` para lo que sigue después de esta sesión.
@@ -12,34 +12,60 @@
       `Hora`, `Version`, `BaseDeDatos` — sin datos de la venta).
 - [x] Arquitectura acordada para no exponer la PC del negocio a internet:
       agente local que hace polling (nunca escucha conexiones entrantes).
-- [ ] **Bloqueante actual**: esperando respuesta del soporte de **Zoo
-      Logic** sobre cómo consultar la factura completa (cliente, monto,
-      artículos) usando el `Codigo` contra la API REST local de Dragon
-      Fish, y qué dato de identificación del cliente devuelve (email,
-      DNI, teléfono, o alguna combinación) — no asumir nada hasta tener
-      la respuesta.
-- [ ] Definir la lógica de matching de cliente en Fideliza una vez que se
-      sepa qué campo(s) trae la respuesta de Dragon Fish.
-- [ ] Diseñar/construir el agente local con polling:
-  - [ ] Tabla nueva en Prisma (`FacturaPendiente` o similar): `codigo`,
-        `negocioId`, `fecha`, `hora`, `procesado`.
-  - [ ] El webhook actual pasa de solo loguear a insertar una fila acá
-        (resolviendo `negocioId` a partir de `BaseDeDatos`).
-  - [ ] Campo nuevo en `Negocio` para mapear `BaseDeDatos` → `negocioId`
-        (análogo a `tiendanubeStoreId`).
-  - [ ] Endpoint `GET /api/dragonfish/pendientes` (el agente pregunta qué
-        hay pendiente).
-  - [ ] Endpoint `POST /api/dragonfish/resolver` (el agente reporta el
-        resultado; dispara la misma lógica de "buscar cliente, calcular
-        puntos, sumarlos" que ya usan Mercado Pago y las compras
-        manuales).
-  - [ ] Token secreto por negocio para autenticar al agente
-        (`dragonfishAgentToken`, mismo patrón que `tiendanubeAccessToken`).
-  - [ ] Decidir dónde corre el agente (misma PC que Dragon Fish u otra
-        máquina de la red del local) y en qué lo escribimos (probablemente
-        un script chico de Node).
-- [ ] Agregar protección de idempotencia (`WebhookEvento`) — hoy Dragon
-      Fish no la tiene, a diferencia de Mercado Pago.
+- [x] Zoo Logic confirmó (2026-08-30): la consulta de la factura completa
+      depende del tipo de comprobante (`/FACTURA/`, `/facturaelectronica/`,
+      `/ticketfactura/`), pero `/facturagrupada/{Codigo}` agrupa las tres —
+      no hace falta ramificar por tipo. Piden mandar siempre un "número de
+      serie" en las consultas. Los campos de la respuesta (incluida la
+      identificación del cliente) están en su swagger, no compartido
+      todavía.
+- [x] Tabla `FacturaPendiente` en Prisma: `negocioId`, `codigo`, `entidad`,
+      `fecha`, `hora`, `procesado`, `resultado`.
+- [x] El webhook pasa de solo loguear a insertar una fila en
+      `FacturaPendiente` (resolviendo `negocioId` a partir de
+      `BaseDeDatos`), filtrando por `Entidad` (solo tipos de comprobante de
+      venta) y deduplicando reenvíos (`@@unique([negocioId, codigo])`).
+- [x] Campo `Negocio.dragonfishBaseDeDatos` para mapear `BaseDeDatos` →
+      `negocioId` (análogo a `tiendanubeStoreId`), cargable desde
+      "Integraciones" (admin o el propio negocio).
+- [x] Endpoint `GET /api/dragonfish/pendientes` — el agente pregunta qué
+      facturas quedaron pendientes (autenticado con `dragonfishAgentToken`
+      por `Authorization: Bearer`, no con sesión de NextAuth).
+- [x] Endpoint `POST /api/dragonfish/resolver` — el agente reporta
+      `{codigo, monto, email/telefono}`; dispara la misma transacción de
+      idempotencia (`WebhookEvento` + `Cliente.update` + `MovimientoPuntos.
+      create`) que ya usan Mercado Pago y Tiendanube, más un segundo nivel
+      de idempotencia con `FacturaPendiente.procesado` para reintentos del
+      propio agente. Si no hay monto o identificación de cliente, o no
+      matchea ningún cliente, marca `resultado` (`sin_datos`/`sin_cliente`)
+      sin sumar puntos, en vez de quedar reintentando para siempre.
+- [x] Token secreto por negocio para autenticar al agente
+      (`Negocio.dragonfishAgentToken`), generado desde "Integraciones" con
+      un botón nuevo ("Generar/Regenerar token del agente") — se muestra
+      una sola vez, igual que una contraseña generada. Card de Dragon Fish
+      en "Integraciones" desbloqueada (antes decía "Bloqueada" fijo, sin
+      campos).
+- [x] Agente local escrito como script de Node (`dragonfish-agente/`,
+      fuera de la app de Next.js — corre en la PC del negocio, no se
+      deploya con el resto). El polling contra Fideliza
+      (`pedirPendientes`/`reportarResultado`) está completo y probado; la
+      consulta a la API local de Dragon Fish (`consultarDragonfish`) tiene
+      placeholders documentados con TODO, ver el punto de abajo.
+- [ ] **Bloqueante actual**: 3 datos de la API REST local de Dragon Fish
+      que Zoo Logic todavía no confirmó — sin esto el agente no puede
+      completar el paso 2 de su ciclo (consultar la factura real):
+  - [ ] Host/puerto real de esa API (`DRAGONFISH_BASE_URL`).
+  - [ ] Mecanismo de autenticación contra ella (no dijeron nada todavía).
+  - [ ] Dónde va el "número de serie" que piden mandar siempre (¿header?
+        ¿query param?) y qué valor le corresponde a la base de Peperina.
+  - [ ] Nombres reales de los campos de la respuesta (cliente, monto) —
+        pidieron el swagger o un JSON de ejemplo real, no llegó todavía.
+- [ ] Una vez con esa respuesta: completar `consultarDragonfish` en
+      `dragonfish-agente/index.js` con los valores reales (hoy usa nombres
+      de campo placeholder, sin confirmar) y probar contra Dragon Fish real.
+- [ ] Decidir formalmente dónde corre el agente en la PC de Peperina
+      (arranque automático, gestor de procesos tipo `pm2`) — hoy solo está
+      documentado un `npm start` manual en `dragonfish-agente/README.md`.
 - [ ] Sacar el `console.log` del payload crudo en
       `app/api/webhooks/dragonfish/route.js` una vez terminada la
       integración (hoy está ahí a propósito, para poder inspeccionar
