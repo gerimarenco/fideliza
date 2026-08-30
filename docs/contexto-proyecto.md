@@ -45,6 +45,10 @@ configura.
   que se vean bien con cualquier `tema` de marca propia. También trae
   `.fid-spinner` (ícono de carga, PR #34) con `currentColor`, así hereda
   el color que se le pase por `style` en vez de tener uno fijo.
+  `.fid-toast` (PR #38) es la excepción a "sin colores fijos": usa
+  verde/rojo fijos (no `tema`) a propósito, para verse igual en el
+  chrome del Admin y en paneles con marca propia — ver "Confirmaciones
+  visuales" más abajo.
 - **Deploy**: Netlify (`netlify.toml`, plugin `@netlify/plugin-nextjs`).
   Hay también una integración de Vercel que se desconectó por no ser el
   destino real de deploy (ver `progreso.md`).
@@ -129,6 +133,27 @@ configuren).
   vía migraciones de datos (no de esquema) en `prisma/migrations/`, ya
   que no hay pantalla de autogestión — ver `progreso.md` para el detalle
   de cada ajuste.
+
+## Confirmaciones visuales (toast) y alerts bloqueantes (PR #38)
+
+Feedback de las acciones del panel, dos mecanismos distintos a propósito:
+
+- **Toast** (`mostrarToast(tipo, mensaje)` + componente `Toast`, uno solo
+  para toda la app): para confirmaciones que solo hay que ver de pasada.
+  Aparece abajo al centro, se auto-oculta solo (2.5s éxito, 4s error) y
+  no bloquea nada. Usado en: sumar puntos, editar negocio, editar
+  premio, cambiar contraseña — y en el error de cualquier acción,
+  incluidas las tres de abajo.
+- **`alert()` nativo bloqueante**: para los 3 casos donde el mensaje de
+  éxito **no** es una simple confirmación, sino algo que la persona
+  necesita conservar o mostrar más allá de un vistazo — un toast que
+  desaparece solo sería activamente malo ahí:
+  - **Crear cliente** / **crear negocio**: el mensaje trae la
+    contraseña generada, que hay que copiar antes de que se pierda (no
+    hay forma de volver a verla después).
+  - **Canjear premio**: el mensaje funciona como comprobante — la
+    clienta lo tiene que poder tener en pantalla mientras camina hasta
+    la caja del negocio, no que se le borre solo.
 
 ## Modelo de datos (`prisma/schema.prisma`)
 

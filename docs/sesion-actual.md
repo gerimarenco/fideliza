@@ -413,11 +413,62 @@ cliente quedó en 400 puntos (1000 − 600) con 1 solo `Canje` registrado.
 Repetido también el caso secuencial original para confirmar que no hubo
 regresión: mismo resultado exacto que antes del cambio.
 
+## 13. Confirmaciones visuales (toast) para las acciones principales (PR #38)
+
+Pedido de Cecilia: un mensajito tipo "¡Listo!"/"✓ Guardado" que aparece y
+desaparece solo, en vez de que no pase nada visible después de guardar.
+Pidió el plan antes de tocar código: cómo se implementaría (¿un
+componente reutilizable o algo por pantalla?) y si convenía agregar
+también el caso de error.
+
+Se propuso un componente `Toast` único para toda la app (no uno por
+pantalla), con colores fijos —no atados a `tema`— para verse igual en
+el chrome del Admin (que nunca se tematiza) y en los paneles con marca
+propia, y se recomendó sí agregar el caso de error, con más tiempo en
+pantalla que el de éxito para dar lugar a leer el mensaje.
+
+Revisando las 7 acciones pedidas (sumar puntos, crear cliente, crear
+negocio, canjear premio, editar negocio, editar premio, cambiar
+contraseña) apareció una distinción importante que se sumó al plan
+antes de codear: en **crear cliente**, **crear negocio** y **canjear
+premio**, el mensaje de éxito de hoy no es una simple confirmación —
+trae la contraseña generada (que hay que copiar) o funciona como
+comprobante de canje (que la clienta necesita mostrarle al negocio). Un
+toast que se auto-oculta a los 2-3 segundos sería activamente malo en
+esos tres casos. Cecilia confirmó el criterio completo, incluido dejar
+"canjear premio" como estaba.
+
+**PR #38**: componente `Toast` + función `mostrarToast(tipo, mensaje)`,
+con un `setTimeout` que se limpia y reinicia si llega un toast nuevo
+antes de que termine el anterior. Aplicado a las 4 acciones sin la
+restricción de arriba (sumar puntos, editar negocio, editar premio,
+cambiar contraseña) — dos de ellas (editar negocio, editar premio) no
+tenían ninguna confirmación de éxito antes, quedaban en silencio.
+Crear cliente, crear negocio y canjear premio mantienen su `alert()`
+bloqueante sin cambios en el caso de éxito; se les pasó igual el
+**error** a toast, para que ese aspecto sea consistente en toda la app.
+
+Probado en el navegador contra Postgres real con Playwright:
+- Toast de error de validación (sumar puntos sin cliente/monto):
+  aparece, y se midió que se auto-oculta solo a los ~4000ms (medido
+  4366ms, coherente con el timeout más el overhead de esperar el
+  elemento con Playwright).
+- Toast de éxito en "editar negocio": aparece "✓ Negocio actualizado" —
+  confirma que el caso antes silencioso ahora sí da feedback.
+- "Crear cliente": se disparó el flujo completo y se confirmó que sigue
+  apareciendo el `alert()` nativo bloqueante, con la contraseña generada
+  intacta en el mensaje, y que no aparece ningún `.fid-toast` en su
+  lugar.
+
 ## Estado al cierre de esta sesión
 
 - PRs #19, #20, #21 (docs), #22 (docs), #23, #24 (docs), #25 (docs), #26,
-  #27 (docs), #28, #29 (docs), #30, #32, #34 y #36: todos mergeados a
-  `main`.
+  #27 (docs), #28, #29 (docs), #30, #32, #34, #36 y #38: todos
+  mergeados a `main`.
+- Las acciones de guardar del panel ya dan feedback visual consistente:
+  toast para confirmaciones de paso, `alert()` bloqueante solo donde el
+  mensaje trae algo que hay que conservar o mostrar (contraseñas
+  generadas, comprobante de canje).
 - `POST /api/canjes` ya no tiene la condición de carrera de double-spend
   — verificado que exactamente 1 de 8 canjes simultáneos entra ahora,
   sin regresión en el caso secuencial normal.
