@@ -322,3 +322,21 @@ nueva.
     que la idempotencia de Mercado Pago/Tiendanube, aplicado acá al
     descuento de puntos. Reproducido el mismo ataque después del fix:
     exactamente 1 de 8 entra en las 5 corridas, saldo y `Canje` exactos.
+14. Pedido de Cecilia: confirmaciones visuales ("¡Listo!"/"✓ Guardado")
+    en vez de que no pase nada visible después de guardar. Se charló el
+    plan antes de tocar código (componente toast reutilizable vs. algo
+    por pantalla, y si convenía el caso de error) y se confirmó.
+    **PR #38**: componente `Toast` único, auto-oculta solo (2.5s éxito,
+    4s error), colores fijos (no `tema`). Aplicado a sumar puntos,
+    editar negocio, editar premio y cambiar contraseña — dos de esas
+    cuatro (editar negocio, editar premio) no mostraban ninguna
+    confirmación antes. Se identificaron y dejaron a propósito **fuera**
+    del toast (siguen con su `alert()` bloqueante en el caso de éxito):
+    crear cliente y crear negocio (el mensaje trae la contraseña
+    generada, que hay que copiar antes de que desaparezca) y canjear
+    premio (el mensaje es un comprobante que la clienta necesita
+    mostrarle al negocio). Probado en el navegador con Postgres real y
+    Playwright: toast de error se auto-oculta a los ~4000ms medidos,
+    toast de éxito aparece en "editar negocio" (antes silencioso), y
+    "crear cliente" sigue mostrando el alert nativo con la contraseña
+    intacta, sin usar toast.
