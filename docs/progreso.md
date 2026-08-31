@@ -399,3 +399,73 @@ cliente matcheado (marca `sin_cliente`, no rompe ni reintenta para
 siempre). En el navegador (Playwright, login real): la card de Dragon
 Fish en "Integraciones" muestra "Conectada" y el flujo de generar token
 funciona de punta a punta.
+
+**PR #40 mergeado a `main`.**
+
+## 2026-08-31 — Dragon Fish: implementación real del agente contra la API de Zoo Logic
+
+Zoo Logic contestó dos veces más en el mismo hilo de mail. La primera
+respuesta aclaraba que el "número de serie" no es un parámetro de la API
+sino un dato para identificar la cuenta al escribirles por mail — un
+primer malentendido llevó a redactar una pregunta de más, hasta darse
+cuenta de que en realidad estaban pidiendo el número de serie de la
+instalación de Dragon Fish de Peperina. Se armó un mensaje para que
+Cecilia se lo pidiera a su mamá (guía paso a paso de dónde encontrarlo en
+el programa), se consiguieron los dos números de serie (una por PC:
+`706112` y `803677`) y se reenviaron a Zoo Logic.
+
+La segunda respuesta trajo la documentación completa: un PDF de 16
+páginas ("Documentación API", actualización agosto 2026) y el swagger
+real de la versión actual (`v16.0004.14968`, ~600 endpoints). Con eso se
+pudo terminar `consultarDragonfish` en `dragonfish-agente/index.js` de
+punta a punta, reemplazando los placeholders de la sesión anterior:
+
+- **Endpoint confirmado por el swagger**: `GET /Facturaagrupada/{Codigo}/`
+  (con mayúscula y barra final — no `/facturagrupada/` como se había
+  asumido). Devuelve `Total` (monto) y `Email`. Si la factura no trae
+  email cargado, se agregó un segundo pedido a
+  `GET /Cliente/{Codigo}/` (usando el código de cliente que trae la
+  factura) para sacar `EMail`/`Telefono` de la ficha del cliente — no
+  estaba en el plan original, se descubrió revisando el schema completo
+  del swagger que la ficha de cliente sí tiene esos campos aunque la
+  factura no los traiga siempre.
+- **Autenticación confirmada por el PDF**: headers `IdCliente` +
+  `Authorization` (el JWToken) en cada consulta a la API, más un paso
+  previo de `POST /Autenticar` que hay que hacer una sola vez al arrancar
+  (no en cada consulta) — agregado como función `autenticarDragonfish`,
+  llamada al inicio del agente antes de arrancar el polling.
+- **Cómo se consiguen las 3 variables de entorno nuevas**
+  (`DRAGONFISH_BASE_URL`, `DRAGONFISH_ID_CLIENTE`, `DRAGONFISH_TOKEN`):
+  documentado paso a paso en `dragonfish-agente/README.md` a partir de la
+  guía de configuración del PDF (Servicio REST API → Cliente REST API →
+  Obtener Token). Se marcó explícitamente que el token depende de la
+  versión de Dragon Fish instalada: las versiones viejas (probablemente
+  el caso de Peperina, avisado por el propio Zoo Logic que tiene más de 2
+  años sin actualizar) necesitan que Mesa de Ayuda (77005700) lo genere
+  por teléfono, dando el código y clave privada del Cliente REST API más
+  usuario/contraseña de Dragon Fish.
+
+Se armó un mock HTTP local (dos servidores de prueba: uno simulando
+Dragon Fish, otro simulando los endpoints de Fideliza) para validar el
+agente completo sin depender de la instalación real de Peperina —
+confirmando dos casos: una factura con email cargado (matchea directo) y
+una factura sin email que dispara la consulta de fallback a `/Cliente/`
+y trae el teléfono. En ambos casos el ciclo completo (autenticar →
+consultar factura → reportar a Fideliza → puntos acreditados) se
+verificó de punta a punta, incluidos los headers exactos que la API real
+va a esperar (`IdCliente`, `Authorization`, body de `/Autenticar`).
+
+Con este avance, ya no queda ninguna incógnita técnica de la integración
+con Dragon Fish — lo único que falta es específico de la instalación de
+Peperina (las 3 variables de entorno, que salen de configurar el sistema
+en esa PC) y no depende más de que Zoo Logic responda algo.
+
+De paso, charlando con Cecilia sobre el diseño a futuro, surgieron dos
+temas que se dejaron pendientes a propósito para más adelante (no se
+tocó código): creación automática de cuenta de cliente a partir de los
+datos de una venta (ella lo quiere hablar primero con su mamá), y
+rediseño de Mercado Pago por negocio (cuenta propia vía Point/QR, mismo
+patrón que Tiendanube) para negocios futuros sin Dragon Fish — se
+descartó en la misma charla el miedo de un doble conteo de puntos para
+Peperina (MP de Fideliza está atado a la cuenta de la plataforma, no a
+la de Peperina, y nada en la UI dispara ese flujo desde el PR #26).

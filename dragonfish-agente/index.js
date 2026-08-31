@@ -11,24 +11,47 @@
 //   3. Le reporta el resultado a Fideliza (POST /api/dragonfish/resolver),
 //      que ahí sí suma los puntos al cliente.
 //
-// ⚠️ ESTADO: el paso 2 (consultarDragonfish) todavía tiene 2 cosas sin
-// confirmar con el soporte de Zoo Logic — están marcadas con TODO más abajo
-// y también documentadas en docs/tareas-pendientes.md. Sin esas respuestas
-// este agente puede correr (conecta con Fideliza, hace polling), pero la
-// consulta a Dragon Fish va a fallar o devolver datos incompletos.
-//
-// (El "número de serie" que pidió Zoo Logic NO va en las llamadas a la API:
-// confirmaron que es solo un dato a incluir cuando se los consulta por mail
-// a su casilla de soporte. No hace falta acá.)
+// El paso 2 está implementado contra la documentación oficial de Zoo Logic
+// (PDF "Documentación API" + swagger v16.0004.14968) — ver
+// dragonfish-agente/README.md para cómo conseguir cada variable de entorno
+// desde el propio Dragon Fish.
 
 const FIDELIZA_BASE_URL = process.env.FIDELIZA_BASE_URL || 'https://incomparable-zabaione-b58c21.netlify.app'
 const FIDELIZA_AGENT_TOKEN = process.env.FIDELIZA_AGENT_TOKEN
-const DRAGONFISH_BASE_URL = process.env.DRAGONFISH_BASE_URL // TODO: host:puerto real de la API REST local, ej. http://localhost:PUERTO/api.Dragonfish
+
+// Ej: http://localhost:8008/api.Dragonfish (host/puerto según "Configuración >
+// Parámetros del sistema > Servicio REST API" del Dragon Fish del negocio).
+const DRAGONFISH_BASE_URL = (process.env.DRAGONFISH_BASE_URL || '').replace(/\/+$/, '')
+// Código del "Cliente REST API" configurado en Dragon Fish (en mayúscula).
+const DRAGONFISH_ID_CLIENTE = process.env.DRAGONFISH_ID_CLIENTE
+// El JWToken: se obtiene desde el propio Dragon Fish (Cliente REST API >
+// Acciones > Obtener Token, versión 15.0006.14682 o posterior) o, en
+// versiones más viejas, llamando a Mesa de Ayuda de Zoo Logic (77005700).
+const DRAGONFISH_TOKEN = process.env.DRAGONFISH_TOKEN
+// Opcional: solo hace falta si el servicio REST de Dragon Fish atiende más
+// de una base de datos y no hay que usar la que tiene configurada por
+// defecto ("Base de datos" en Servicio REST API).
+const DRAGONFISH_BASE_DE_DATOS = process.env.DRAGONFISH_BASE_DE_DATOS
+
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS || 30000)
 
 if (!FIDELIZA_AGENT_TOKEN) {
   console.error('Falta FIDELIZA_AGENT_TOKEN — generalo desde "Integraciones" > Dragon Fish en el panel del negocio.')
   process.exit(1)
+}
+
+if (!DRAGONFISH_BASE_URL || !DRAGONFISH_ID_CLIENTE || !DRAGONFISH_TOKEN) {
+  console.error('Faltan variables de Dragon Fish: DRAGONFISH_BASE_URL, DRAGONFISH_ID_CLIENTE y DRAGONFISH_TOKEN son obligatorias. Ver dragonfish-agente/README.md.')
+  process.exit(1)
+}
+
+function headersDragonfish() {
+  const headers = {
+    IdCliente: DRAGONFISH_ID_CLIENTE,
+    Authorization: DRAGONFISH_TOKEN,
+  }
+  if (DRAGONFISH_BASE_DE_DATOS) headers.BaseDeDatos = DRAGONFISH_BASE_DE_DATOS
+  return headers
 }
 
 async function pedirPendientes() {
@@ -42,26 +65,28 @@ async function pedirPendientes() {
   return pendientes
 }
 
-// Zoo Logic confirmó que el endpoint depende del tipo de comprobante, pero
-// que /facturagrupada/{Codigo} agrupa las tres variantes (factura manual,
-// electrónica y fiscal) — así que no hace falta ramificar por `entidad`.
-//
-// TODO (falta confirmar con Zoo Logic antes de que esto funcione de verdad):
-//   1. DRAGONFISH_BASE_URL real (host y puerto de la API REST local).
-//   2. Cómo autenticarse contra esa API (¿usuario/password? ¿token?) — no
-//      dijeron nada todavía.
-//   3. Los nombres reales de los campos de la respuesta (cliente, monto):
-//      dijeron que están en el swagger de la API, pero no lo compartieron
-//      todavía — falta pedirlo, o un JSON de ejemplo real.
-async function consultarDragonfish(codigo) {
-  if (!DRAGONFISH_BASE_URL) {
-    throw new Error('Falta configurar DRAGONFISH_BASE_URL (host/puerto de la API REST local de Dragon Fish)')
+// Paso 4 de la documentación de Zoo Logic: hay que "autenticar" el token
+// contra /Autenticar antes de poder usar el resto de la API. Se hace una
+// sola vez al arrancar el agente, no en cada consulta.
+async function autenticarDragonfish() {
+  const res = await fetch(`${DRAGONFISH_BASE_URL}/Autenticar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ IdCliente: DRAGONFISH_ID_CLIENTE, JWToken: DRAGONFISH_TOKEN }),
+  })
+  if (!res.ok) {
+    throw new Error(`Dragon Fish respondió ${res.status} al autenticar — revisar DRAGONFISH_ID_CLIENTE/DRAGONFISH_TOKEN`)
   }
+}
 
-  const res = await fetch(`${DRAGONFISH_BASE_URL}/facturagrupada/${codigo}`, {
-    headers: {
-      // TODO: reemplazar por el mecanismo de auth real una vez confirmado.
-    },
+// /Facturaagrupada/{Codigo}/ agrupa factura manual, electrónica y fiscal —
+// no hace falta ramificar por el tipo de comprobante (`entidad`) que vino
+// en el webhook. Devuelve `Total` (monto) y, si la factura tiene cargado un
+// email, `Email`. Si no, se busca el email/teléfono en la ficha del cliente
+// (`Cliente`, el código interno de Dragon Fish que trae la factura).
+async function consultarDragonfish(codigo) {
+  const res = await fetch(`${DRAGONFISH_BASE_URL}/Facturaagrupada/${codigo}/`, {
+    headers: headersDragonfish(),
   })
 
   if (!res.ok) {
@@ -69,15 +94,28 @@ async function consultarDragonfish(codigo) {
   }
 
   const factura = await res.json()
+  const monto = factura.Total
+  let email = factura.Email?.trim()
+  let telefono
 
-  // TODO: reemplazar por los nombres de campo reales una vez que Zoo Logic
-  // confirme el formato de la respuesta (o llegue el swagger). Estos son
-  // placeholders razonables, no confirmados.
-  return {
-    monto: factura.Total ?? factura.monto,
-    email: factura.Cliente?.Email ?? factura.email,
-    telefono: factura.Cliente?.Telefono ?? factura.telefono,
+  if (!email && factura.Cliente) {
+    const cliente = await consultarClienteDragonfish(factura.Cliente)
+    email = cliente?.EMail?.trim()
+    telefono = cliente?.Telefono?.trim()
   }
+
+  return { monto, email, telefono }
+}
+
+async function consultarClienteDragonfish(codigoCliente) {
+  const res = await fetch(`${DRAGONFISH_BASE_URL}/Cliente/${codigoCliente}/`, {
+    headers: headersDragonfish(),
+  })
+  if (!res.ok) {
+    console.warn(`Dragon Fish respondió ${res.status} al consultar el cliente ${codigoCliente}`)
+    return null
+  }
+  return res.json()
 }
 
 async function reportarResultado(codigo, datos) {
@@ -123,6 +161,16 @@ async function cicloDePolling() {
   }
 }
 
-console.log(`Agente Dragon Fish arrancado. Polling cada ${POLL_INTERVAL_MS / 1000}s contra ${FIDELIZA_BASE_URL}`)
-cicloDePolling()
-setInterval(cicloDePolling, POLL_INTERVAL_MS)
+async function arrancar() {
+  try {
+    await autenticarDragonfish()
+  } catch (error) {
+    console.error('No se pudo autenticar contra Dragon Fish:', error.message)
+    process.exit(1)
+  }
+  console.log(`Agente Dragon Fish arrancado. Polling cada ${POLL_INTERVAL_MS / 1000}s contra ${FIDELIZA_BASE_URL}`)
+  cicloDePolling()
+  setInterval(cicloDePolling, POLL_INTERVAL_MS)
+}
+
+arrancar()
