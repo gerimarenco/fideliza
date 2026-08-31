@@ -51,13 +51,16 @@
       (`pedirPendientes`/`reportarResultado`) está completo y probado; la
       consulta a la API local de Dragon Fish (`consultarDragonfish`) tiene
       placeholders documentados con TODO, ver el punto de abajo.
-- [ ] **Bloqueante actual**: 3 datos de la API REST local de Dragon Fish
+- [x] Zoo Logic aclaró (2026-08-31): el "número de serie" que pidieron
+      mandar siempre **no va en las llamadas a la API** — es solo un dato a
+      incluir cuando se los consulta por mail a su casilla de soporte, no
+      un parámetro técnico de la integración. Sacado de
+      `dragonfish-agente/` (código y README).
+- [ ] **Bloqueante actual**: 2 datos de la API REST local de Dragon Fish
       que Zoo Logic todavía no confirmó — sin esto el agente no puede
       completar el paso 2 de su ciclo (consultar la factura real):
   - [ ] Host/puerto real de esa API (`DRAGONFISH_BASE_URL`).
   - [ ] Mecanismo de autenticación contra ella (no dijeron nada todavía).
-  - [ ] Dónde va el "número de serie" que piden mandar siempre (¿header?
-        ¿query param?) y qué valor le corresponde a la base de Peperina.
   - [ ] Nombres reales de los campos de la respuesta (cliente, monto) —
         pidieron el swagger o un JSON de ejemplo real, no llegó todavía.
 - [ ] Una vez con esa respuesta: completar `consultarDragonfish` en

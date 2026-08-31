@@ -11,16 +11,19 @@
 //   3. Le reporta el resultado a Fideliza (POST /api/dragonfish/resolver),
 //      que ahí sí suma los puntos al cliente.
 //
-// ⚠️ ESTADO: el paso 2 (consultarDragonfish) todavía tiene 3 cosas sin
+// ⚠️ ESTADO: el paso 2 (consultarDragonfish) todavía tiene 2 cosas sin
 // confirmar con el soporte de Zoo Logic — están marcadas con TODO más abajo
 // y también documentadas en docs/tareas-pendientes.md. Sin esas respuestas
 // este agente puede correr (conecta con Fideliza, hace polling), pero la
 // consulta a Dragon Fish va a fallar o devolver datos incompletos.
+//
+// (El "número de serie" que pidió Zoo Logic NO va en las llamadas a la API:
+// confirmaron que es solo un dato a incluir cuando se los consulta por mail
+// a su casilla de soporte. No hace falta acá.)
 
 const FIDELIZA_BASE_URL = process.env.FIDELIZA_BASE_URL || 'https://incomparable-zabaione-b58c21.netlify.app'
 const FIDELIZA_AGENT_TOKEN = process.env.FIDELIZA_AGENT_TOKEN
 const DRAGONFISH_BASE_URL = process.env.DRAGONFISH_BASE_URL // TODO: host:puerto real de la API REST local, ej. http://localhost:PUERTO/api.Dragonfish
-const DRAGONFISH_NUMERO_SERIE = process.env.DRAGONFISH_NUMERO_SERIE // Zoo Logic pidió mandar siempre el "número de serie" — falta confirmar dónde va (¿header? ¿query param?)
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS || 30000)
 
 if (!FIDELIZA_AGENT_TOKEN) {
@@ -47,10 +50,7 @@ async function pedirPendientes() {
 //   1. DRAGONFISH_BASE_URL real (host y puerto de la API REST local).
 //   2. Cómo autenticarse contra esa API (¿usuario/password? ¿token?) — no
 //      dijeron nada todavía.
-//   3. Dónde va el "número de serie" que pidieron mandar siempre (¿header
-//      propio, query param, form field?) y qué valor le corresponde a la
-//      base de este negocio.
-//   4. Los nombres reales de los campos de la respuesta (cliente, monto):
+//   3. Los nombres reales de los campos de la respuesta (cliente, monto):
 //      dijeron que están en el swagger de la API, pero no lo compartieron
 //      todavía — falta pedirlo, o un JSON de ejemplo real.
 async function consultarDragonfish(codigo) {
@@ -61,7 +61,6 @@ async function consultarDragonfish(codigo) {
   const res = await fetch(`${DRAGONFISH_BASE_URL}/facturagrupada/${codigo}`, {
     headers: {
       // TODO: reemplazar por el mecanismo de auth real una vez confirmado.
-      // TODO: agregar acá el "número de serie" si va como header.
     },
   })
 

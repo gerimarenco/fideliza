@@ -347,14 +347,16 @@ comprobante de venta) y deja la fila en `FacturaPendiente`, deduplicando
 reenvíos.
 
 **Bloqueante actual**: el paso 2 de arriba (`consultarDragonfish`) tiene
-placeholders — Zoo Logic contestó parcialmente (2026-08-30):
-confirmaron que `/facturagrupada/{Codigo}` agrupa los tres tipos de
-comprobante (no hace falta ramificar por `Entidad`), pero todavía faltan
-el host/puerto real de esa API, cómo autenticarse contra ella, dónde va
-el "número de serie" que piden mandar siempre, y los nombres reales de
-los campos de la respuesta (dijeron que están en su swagger, no lo
-compartieron). Detalle completo, incluida la pregunta exacta para
-reenviarles, en `dragonfish-agente/README.md` y `tareas-pendientes.md`.
+placeholders — Zoo Logic contestó parcialmente (2026-08-30) y aclaró un
+punto más (2026-08-31): confirmaron que `/facturagrupada/{Codigo}` agrupa
+los tres tipos de comprobante (no hace falta ramificar por `Entidad`), y
+que el "número de serie" que pidieron mandar siempre **no va en las
+llamadas a la API** — es solo un dato para cuando se los consulta por mail
+a su casilla de soporte. Quedan 2 datos sin confirmar: el host/puerto real
+de esa API y cómo autenticarse contra ella, más los nombres reales de los
+campos de la respuesta (dijeron que están en su swagger, no lo
+compartieron). Detalle completo en `dragonfish-agente/README.md` y
+`tareas-pendientes.md`.
 
 ## Repositorio y ramas
 
