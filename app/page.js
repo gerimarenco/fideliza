@@ -841,11 +841,11 @@ export default function Home() {
         </div>
       </div>
 
-      {seccionActiva === 'canjes' && <VistaCanjes />}
-      {seccionActiva === 'clientes' && <VistaClientes />}
-      {seccionActiva === 'premios' && <VistaPremios />}
-      {seccionActiva === 'integraciones' && <VistaIntegraciones />}
-      {seccionActiva === 'ajustes' && <VistaAjustes />}
+      {seccionActiva === 'canjes' && VistaCanjes()}
+      {seccionActiva === 'clientes' && VistaClientes()}
+      {seccionActiva === 'premios' && VistaPremios()}
+      {seccionActiva === 'integraciones' && VistaIntegraciones()}
+      {seccionActiva === 'ajustes' && VistaAjustes()}
 
       {(seccionActiva === 'inicio' || seccionActiva === 'clientes') && mostrarFormCliente && (
         <div style={{ margin: '20px 24px 0', background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.primario}`, padding: 20 }}>
@@ -1072,7 +1072,7 @@ export default function Home() {
               <button className="fid-btn-primary" onClick={() => setSeccionActiva('negocios')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer' }}>Ver negocios</button>
             </div>
           ) : !negocioActivo && seccionActiva === 'ajustes' ? (
-            <VistaAjustesAdmin />
+            VistaAjustesAdmin()
           ) : !negocioActivo ? (
             <div style={{ flex: 1, overflow: 'auto' }}>
               <div style={{ padding: '14px 24px', background: '#fff', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1209,7 +1209,7 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            <PanelNegocio negocio={negocioActivo} onVolver={volverANegocios} />
+            PanelNegocio({ negocio: negocioActivo, onVolver: volverANegocios })
           )}
         </div>
       )}
@@ -1246,7 +1246,7 @@ export default function Home() {
           </div>
 
           {negocioPropio ? (
-            <PanelNegocio negocio={negocioPropio} onVolver={null} />
+            PanelNegocio({ negocio: negocioPropio, onVolver: null })
           ) : (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: '#999' }}>
               <Spinner size={16} /> Cargando tu negocio...
@@ -1256,7 +1256,7 @@ export default function Home() {
       )}
 
       {/* PANEL CLIENTE */}
-      {isCliente && <PanelCliente />}
+      {isCliente && PanelCliente()}
 
       {/* Sin acceso */}
       {!isAdmin && !isNegocio && !isCliente && (

@@ -13,10 +13,18 @@ entrantes.
    resolver (Fideliza las anota ahí cuando le llega el webhook de Dragon
    Fish, que solo trae un `Codigo`, sin datos de la venta).
 2. Por cada una, consulta la API REST local de Dragon Fish
-   (`/facturagrupada/{Codigo}`) para traer los datos completos: cliente y
-   monto.
+   (`GET /Facturaagrupada/{Codigo}/`) para traer el monto (`Total`) y el
+   email del cliente (`Email`). Si la factura no tiene email cargado, busca
+   el email/teléfono en la ficha del cliente (`GET /Cliente/{Codigo}/`,
+   usando el código de cliente que trae la factura).
 3. Reporta el resultado a Fideliza (`POST /api/dragonfish/resolver`), que
    ahí sí busca al cliente y le suma los puntos.
+
+Implementado contra la documentación oficial de Zoo Logic (PDF
+"Documentación API", actualización agosto 2026) y el swagger
+`v16.0004.14968` que compartieron — no quedan incógnitas técnicas del lado
+de la API. Lo que falta es específico de la instalación de cada negocio,
+ver "Configuración" abajo.
 
 ## Variables de entorno
 
@@ -24,38 +32,77 @@ entrantes.
 |---|---|---|
 | `FIDELIZA_AGENT_TOKEN` | Sí | Token del negocio, generado desde "Integraciones" > Dragon Fish en el panel de Fideliza. Se muestra una sola vez al generarlo. |
 | `FIDELIZA_BASE_URL` | No (default: producción) | URL de Fideliza. |
-| `DRAGONFISH_BASE_URL` | Sí, para que funcione de verdad | Host/puerto de la API REST local de Dragon Fish. **Todavía no confirmado**, ver estado abajo. |
-| `DRAGONFISH_NUMERO_SERIE` | Sí, para que funcione de verdad | El "número de serie" que Zoo Logic pidió mandar siempre. **Todavía no confirmado dónde va**, ver estado abajo. |
+| `DRAGONFISH_BASE_URL` | Sí | Host, puerto y `basePath` de la API REST local de Dragon Fish, ej. `http://localhost:8008/api.Dragonfish`. Sale de configurar el "Servicio REST API" en el propio Dragon Fish — ver paso 1 abajo. |
+| `DRAGONFISH_ID_CLIENTE` | Sí | El "Código" del "Cliente REST API" configurado en Dragon Fish (en mayúscula) — ver paso 2 abajo. |
+| `DRAGONFISH_TOKEN` | Sí | El token (JWToken) para autenticarse — ver paso 3 abajo. Vigencia de 2 años. |
+| `DRAGONFISH_BASE_DE_DATOS` | No | Solo hace falta si el servicio REST de Dragon Fish atiende más de una base y no alcanza con la que tiene configurada por defecto. |
 | `POLL_INTERVAL_MS` | No (default: 30000) | Cada cuánto hace polling. |
 
-## Estado: bloqueado en 3 puntos, esperando a Zoo Logic
+## Configuración en Dragon Fish (a hacer una sola vez, en la PC del negocio)
 
-El agente ya puede correr y conectarse a Fideliza (`pedirPendientes` /
-`reportarResultado` están completos), pero `consultarDragonfish` en
-`index.js` tiene placeholders porque faltan confirmar:
+### Paso 1: Servicio REST API
 
-1. **Host/puerto real** de la API REST local (`DRAGONFISH_BASE_URL`).
-2. **Autenticación** contra esa API — Zoo Logic no dijo nada todavía sobre
-   usuario/password o token.
-3. **Dónde va el "número de serie"** que pidieron mandar siempre en las
-   consultas (¿header propio? ¿query param?) y qué valor le corresponde a
-   la base de este negocio.
-4. **Nombres reales de los campos de la respuesta** (cliente, monto) — Zoo
-   Logic dijo que están en el swagger de la API, pero no lo compartieron
-   todavía. Los campos que usa hoy `consultarDragonfish` (`factura.Total`,
-   `factura.Cliente?.Email`, etc.) son un placeholder razonable, no
-   confirmado.
+En Dragon Fish: **Configuración → Parámetros del sistema → Servicio REST
+API**. Ahí se define el **puerto de escucha** y la **base de datos** por
+defecto. Con eso arma `DRAGONFISH_BASE_URL`:
+`http://<IP o nombre del equipo>:<puerto>/api.Dragonfish` (usar
+`localhost` solo si el agente corre en la misma PC que el servicio).
 
-Confirmado hasta ahora: el endpoint es `/facturagrupada/{Codigo}` (agrupa
-factura manual, electrónica y fiscal, así que no hace falta ramificar por
-tipo de comprobante).
+Para confirmar que el servicio quedó activo: entrar a
+`http://localhost:<puerto>/api.Dragonfish/docs/` desde esa PC — si carga
+el swagger, está andando.
 
-## Instalación en la PC del negocio
+### Paso 2: Cliente REST API
+
+En Dragon Fish: **Configuración → Parámetros del sistema → Cliente REST
+API**. Ahí se genera:
+- **Código** → `DRAGONFISH_ID_CLIENTE`.
+- **Clave privada** → se pide en el paso 3 si hay que llamar a soporte.
+
+### Paso 3: Obtener el token
+
+Depende de la versión de Dragon Fish instalada:
+
+- **Versión 15.0006.14682 o posterior**: desde Cliente REST API →
+  **Acciones → Obtener Token**, elegir usuario de Dragon Fish y fecha de
+  expiración. El token se copia solo al portapapeles → `DRAGONFISH_TOKEN`.
+- **Versión 14.0012.14529 o anterior**: hay que llamar a **Mesa de Ayuda
+  de Zoo Logic (77005700, o 011-77005700 desde el interior)** y darles el
+  **Código** y **Clave privada** del paso 2, más usuario y contraseña de
+  Dragon Fish. Te devuelven el token por teléfono → `DRAGONFISH_TOKEN`.
+
+  ⚠️ El sistema de Peperina tiene más de 2 años sin actualizar (avisado
+  por el propio soporte de Zoo Logic) — es probable que corresponda a este
+  caso. Zoo Logic recomienda además actualizar el sistema en algún
+  momento, ya que hubo varios cambios al servicio REST API desde esa
+  versión.
+
+### Paso 4: activar
+
+Después de los pasos 1-3, cerrar y volver a abrir Dragon Fish para que
+arranque el servicio REST API. Esperar unos minutos y confirmar que
+`http://localhost:<puerto>/api.Dragonfish/docs/` responde.
+
+## Instalación del agente
 
 ```bash
 npm install
-FIDELIZA_AGENT_TOKEN=... DRAGONFISH_BASE_URL=... DRAGONFISH_NUMERO_SERIE=... npm start
+FIDELIZA_AGENT_TOKEN=... DRAGONFISH_BASE_URL=... DRAGONFISH_ID_CLIENTE=... DRAGONFISH_TOKEN=... npm start
 ```
 
 (O cargar las variables en un `.env` y un gestor de procesos tipo `pm2`
 para que quede corriendo en segundo plano y arranque solo con la PC.)
+
+Al arrancar, el agente hace un chequeo de autenticación contra Dragon Fish
+(`POST /Autenticar`) antes de empezar a hacer polling — si falla, revisa
+`DRAGONFISH_ID_CLIENTE`/`DRAGONFISH_TOKEN` y corta.
+
+## Configurar el webhook en Dragon Fish
+
+En Dragon Fish: **Configuración → Parámetros del sistema → Webhook**
+(disponible desde la versión 12.0004.13576). Crear uno nuevo con:
+
+- **URL de notificación**: `https://<tu-dominio-de-fideliza>/api/webhooks/dragonfish`
+- **Entidad**: "Factura de venta" (tildar **Ing.**, no hace falta Mod./Elim.)
+- **Base de datos**: la del negocio (tiene que coincidir con
+  `Negocio.dragonfishBaseDeDatos` cargado en "Integraciones" de Fideliza).

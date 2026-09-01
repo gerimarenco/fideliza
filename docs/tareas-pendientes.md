@@ -1,6 +1,6 @@
 # Tareas pendientes — Fideliza
 
-> Última actualización: 2026-08-30. Marca lo hecho (`[x]`) y lo que falta
+> Última actualización: 2026-08-31. Marca lo hecho (`[x]`) y lo que falta
 > (`[ ]`), agrupado por área. Ver `contexto-proyecto.md` para el porqué de
 > cada cosa y `progreso.md`/`sesion-actual.md` para cuándo se hizo. Ver
 > `tareas-futuras.md` para lo que sigue después de esta sesión.
@@ -51,18 +51,44 @@
       (`pedirPendientes`/`reportarResultado`) está completo y probado; la
       consulta a la API local de Dragon Fish (`consultarDragonfish`) tiene
       placeholders documentados con TODO, ver el punto de abajo.
-- [ ] **Bloqueante actual**: 3 datos de la API REST local de Dragon Fish
-      que Zoo Logic todavía no confirmó — sin esto el agente no puede
-      completar el paso 2 de su ciclo (consultar la factura real):
-  - [ ] Host/puerto real de esa API (`DRAGONFISH_BASE_URL`).
-  - [ ] Mecanismo de autenticación contra ella (no dijeron nada todavía).
-  - [ ] Dónde va el "número de serie" que piden mandar siempre (¿header?
-        ¿query param?) y qué valor le corresponde a la base de Peperina.
-  - [ ] Nombres reales de los campos de la respuesta (cliente, monto) —
-        pidieron el swagger o un JSON de ejemplo real, no llegó todavía.
-- [ ] Una vez con esa respuesta: completar `consultarDragonfish` en
-      `dragonfish-agente/index.js` con los valores reales (hoy usa nombres
-      de campo placeholder, sin confirmar) y probar contra Dragon Fish real.
+- [x] Zoo Logic aclaró (2026-08-31): el "número de serie" que pidieron
+      mandar siempre **no va en las llamadas a la API** — es solo un dato a
+      incluir cuando se los consulta por mail a su casilla de soporte, no
+      un parámetro técnico de la integración. Sacado de
+      `dragonfish-agente/` (código y README).
+- [x] Zoo Logic mandó (2026-08-31) la documentación completa de la API
+      (PDF) y el swagger real (`v16.0004.14968`) — con eso se terminó
+      `consultarDragonfish` en `dragonfish-agente/index.js` con la
+      implementación real, ya no hay incógnitas técnicas:
+  - Endpoint: `GET /Facturaagrupada/{Codigo}/` (agrupa los tres tipos de
+    comprobante, confirmado). Devuelve `Total` (monto) y `Email`; si la
+    factura no tiene email cargado, se hace un segundo pedido a
+    `GET /Cliente/{Codigo}/` (con el código de cliente que trae la
+    factura) para sacar `EMail`/`Telefono` de la ficha del cliente.
+  - Autenticación: headers `IdCliente` + `Authorization` (el JWToken) en
+    cada consulta, más un chequeo de `POST /Autenticar` al arrancar el
+    agente (una sola vez, no en cada request).
+  - Probado contra un mock local que simula las dos respuestas reales
+    (factura con email, factura sin email con fallback a `/Cliente/`) —
+    el ciclo completo (consulta → reporte a Fideliza → puntos) funciona.
+- [ ] **Bloqueante actual — ya no es técnico, es de configuración local**:
+      3 datos que salen de configurar Dragon Fish en la PC de Peperina
+      (documentado paso a paso en `dragonfish-agente/README.md`), no de
+      una respuesta de soporte:
+  - [ ] `DRAGONFISH_BASE_URL` — sale de armar el "Servicio REST API" en
+        Dragon Fish (Configuración → Parámetros del sistema).
+  - [ ] `DRAGONFISH_ID_CLIENTE` — sale de armar el "Cliente REST API".
+  - [ ] `DRAGONFISH_TOKEN` — se obtiene desde el propio Dragon Fish si la
+        versión es 15.0006.14682 o posterior, o si no, **llamando a Mesa
+        de Ayuda de Zoo Logic (77005700)** con el `DRAGONFISH_ID_CLIENTE` +
+        clave privada + usuario/contraseña de Dragon Fish. El sistema de
+        Peperina tiene más de 2 años sin actualizar — es probable que
+        corresponda a este segundo caso.
+- [ ] Configurar el webhook de "Factura de venta" en Dragon Fish apuntando
+      a `/api/webhooks/dragonfish` (paso a paso en el README del agente) —
+      hoy solo está probado con webhooks simulados a mano.
+- [ ] Con las 3 variables de arriba: correr el agente contra el Dragon
+      Fish real de Peperina y hacer una venta de prueba de punta a punta.
 - [ ] Decidir formalmente dónde corre el agente en la PC de Peperina
       (arranque automático, gestor de procesos tipo `pm2`) — hoy solo está
       documentado un `npm start` manual en `dragonfish-agente/README.md`.

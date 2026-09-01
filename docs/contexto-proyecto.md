@@ -346,15 +346,25 @@ dragonfish`) ya no solo loguea: filtra por `Entidad` (solo tipos de
 comprobante de venta) y deja la fila en `FacturaPendiente`, deduplicando
 reenvíos.
 
-**Bloqueante actual**: el paso 2 de arriba (`consultarDragonfish`) tiene
-placeholders — Zoo Logic contestó parcialmente (2026-08-30):
-confirmaron que `/facturagrupada/{Codigo}` agrupa los tres tipos de
-comprobante (no hace falta ramificar por `Entidad`), pero todavía faltan
-el host/puerto real de esa API, cómo autenticarse contra ella, dónde va
-el "número de serie" que piden mandar siempre, y los nombres reales de
-los campos de la respuesta (dijeron que están en su swagger, no lo
-compartieron). Detalle completo, incluida la pregunta exacta para
-reenviarles, en `dragonfish-agente/README.md` y `tareas-pendientes.md`.
+**`consultarDragonfish` ya está implementado contra la API real** (Zoo
+Logic mandó el PDF de documentación y el swagger completo el 2026-08-31):
+`GET /Facturaagrupada/{Codigo}/` con headers `IdCliente` +
+`Authorization` (el JWToken), más un chequeo de `POST /Autenticar` al
+arrancar el agente. Devuelve `Total` (monto) y `Email`; si la factura no
+trae email, hace un segundo pedido a `GET /Cliente/{Codigo}/` para sacar
+`EMail`/`Telefono` de la ficha del cliente. Probado contra un mock local
+que simula ambos casos.
+
+**Bloqueante actual — ya no es técnico**: las 3 variables de entorno del
+agente (`DRAGONFISH_BASE_URL`, `DRAGONFISH_ID_CLIENTE`,
+`DRAGONFISH_TOKEN`) salen de configurar el "Servicio REST API" y el
+"Cliente REST API" en el propio Dragon Fish de Peperina — son pasos que
+tiene que hacer alguien en el local, no una respuesta que falte de
+soporte. El token en particular depende de la versión de Dragon Fish
+instalada: si es una versión vieja (probable — el sistema de Peperina
+tiene más de 2 años sin actualizar, según avisó el propio Zoo Logic), hay
+que conseguirlo llamando a Mesa de Ayuda (77005700). Guía paso a paso
+completa en `dragonfish-agente/README.md`.
 
 ## Repositorio y ramas
 
