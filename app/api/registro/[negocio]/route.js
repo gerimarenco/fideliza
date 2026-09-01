@@ -45,14 +45,27 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Crear el cliente, asociado al negocio encontrado
-    const nuevoCliente = await prisma.cliente.create({
-      data: {
-        email,
-        password: await hashPassword(password),
-        negocioId: negocioEncontrado.id,
-        puntos: 0,
-      },
+    // Crear el cliente, asociado al negocio encontrado. Si el negocio tiene
+    // configurado un bono de bienvenida, se acredita en la misma transacción
+    // junto con su MovimientoPuntos (mismo patrón que el resto de los
+    // orígenes de puntos) — transacción interactiva porque MovimientoPuntos
+    // necesita el id del cliente recién creado.
+    const puntosBienvenida = negocioEncontrado.puntosBienvenida || 0;
+    const nuevoCliente = await prisma.$transaction(async (tx) => {
+      const cliente = await tx.cliente.create({
+        data: {
+          email,
+          password: await hashPassword(password),
+          negocioId: negocioEncontrado.id,
+          puntos: puntosBienvenida,
+        },
+      });
+      if (puntosBienvenida > 0) {
+        await tx.movimientoPuntos.create({
+          data: { clienteId: cliente.id, negocioId: negocioEncontrado.id, puntos: puntosBienvenida, origen: 'bienvenida' },
+        });
+      }
+      return cliente;
     });
 
     return NextResponse.json(

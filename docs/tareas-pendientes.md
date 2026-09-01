@@ -1,9 +1,30 @@
 # Tareas pendientes — Fideliza
 
-> Última actualización: 2026-08-31. Marca lo hecho (`[x]`) y lo que falta
+> Última actualización: 2026-09-01. Marca lo hecho (`[x]`) y lo que falta
 > (`[ ]`), agrupado por área. Ver `contexto-proyecto.md` para el porqué de
 > cada cosa y `progreso.md`/`sesion-actual.md` para cuándo se hizo. Ver
 > `tareas-futuras.md` para lo que sigue después de esta sesión.
+
+## Ideas del programa "Friends" de Portsaid (investigado 2026-09-01)
+
+- [x] **Bono de bienvenida**: construido, ver "Bono de bienvenida" en
+      `contexto-proyecto.md`.
+- [ ] **Vencimiento de puntos** (con recordatorio por mail antes de que
+      caduquen): el vencimiento en sí se puede construir ya, pero el
+      recordatorio por mail depende de sumar un servicio de email al
+      proyecto (no existe todavía, ver la idea ya pausada de notificar
+      compras por mail en `tareas-futuras.md`). Falta que Cecilia confirme
+      si construir el vencimiento ahora sin el recordatorio, o esperar a
+      tener las dos cosas juntas.
+- [ ] **Canje como descuento flexible** (en vez de/además de premios
+      fijos del catálogo): solo sería viable para "compra manual" (el
+      negocio ve cuánto puede cubrir el cliente y lo aplica ahí mismo) —
+      para ventas automáticas por Tiendanube/Dragon Fish, Fideliza no
+      controla el checkout, así que no se puede aplicar un descuento en el
+      momento. Falta que Cecilia confirme si le sirve así, limitado a
+      compra manual.
+- [ ] **Tope de descuento por compra** (ej. máximo 50% del total): depende
+      de que exista el punto anterior.
 
 ## Dragon Fish
 

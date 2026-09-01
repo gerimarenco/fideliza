@@ -469,3 +469,64 @@ patrón que Tiendanube) para negocios futuros sin Dragon Fish — se
 descartó en la misma charla el miedo de un doble conteo de puntos para
 Peperina (MP de Fideliza está atado a la cuenta de la plataforma, no a
 la de Peperina, y nada en la UI dispara ese flujo desde el PR #26).
+
+## 2026-09-01 — Zoo Logic destraba el token, bug de foco encontrado y arreglado, bono de bienvenida (PR #41)
+
+1. Zoo Logic contestó (por mail, tras pedirle a la mamá de Cecilia el
+   número de serie de la instalación de Dragon Fish) con la documentación
+   completa de la API y su swagger real. **PR #41**: se terminó
+   `consultarDragonfish` contra el contrato real (`GET
+   /Facturaagrupada/{Codigo}/`, fallback a `GET /Cliente/{Codigo}/` para
+   email/teléfono si la factura no los trae, autenticación por headers
+   `IdCliente`/`Authorization` con un chequeo de `POST /Autenticar` al
+   arrancar). Ver `tareas-pendientes.md` para el detalle técnico completo.
+2. Guiada paso a paso por WhatsApp (con fotos de la pantalla de Dragon
+   Fish en el local), la mamá de Cecilia armó el "Servicio REST API" y el
+   "Cliente REST API" en Dragon Fish, y consiguió el token real llamando a
+   Mesa de Ayuda de Zoo Logic (versión de Dragon Fish `v14.0006.14379`, de
+   las que no permiten autogenerar el token desde el propio programa).
+   Con eso Cecilia cargó desde el panel de Fideliza el `dragonfishBaseDeDatos`
+   y generó el `FIDELIZA_AGENT_TOKEN` real de Peperina — quedan los 4
+   datos reales del agente listos, solo falta instalarlo en la PC del
+   local (con AnyDesk, coordinado para cuando la mamá esté de vuelta).
+3. **Bug real encontrado por Cecilia**: al escribir "PEPERINA" a mano en
+   el campo nuevo de Dragon Fish (Integraciones), el campo perdía el foco
+   en cada letra — había que hacer clic de nuevo para cada carácter.
+   Causa: `PanelNegocio`, `PanelCliente` y las 6 pantallas "VistaX"
+   (Canjes, Clientes, Premios, Integraciones, Ajustes, AjustesAdmin)
+   estaban definidas como funciones dentro del propio componente `Home` e
+   invocadas como componentes JSX (`<VistaX />`) — cada tecla actualiza
+   estado en `Home`, redefiniendo esas funciones como referencias nuevas
+   en cada render, y React las trataba como un tipo de componente
+   distinto, remontando el árbol entero. **PR #41**: se solucionó
+   invocándolas como funciones planas (`VistaX()`) en vez de elementos
+   JSX. Afectaba a cualquier input de esas pantallas tecleado a mano (no
+   pegado) — probablemente no se había notado antes porque la mayoría de
+   esos campos se pegan. Probado con Playwright tecleando carácter por
+   carácter con delay (simulando una persona escribiendo real).
+4. Cecilia pidió investigar el programa de fidelización "Friends" de
+   Portsaid (mandó el link de un producto de su sitio) para sacar ideas.
+   Se investigó vía búsqueda web (el dominio de Portsaid está bloqueado
+   para fetch directo desde el sandbox) — acumulan 10 puntos cada $100
+   ($1 c/u), canjeables como descuento de hasta 50% de una compra futura
+   (no premios fijos), vencen a los 6 meses con recordatorio por mail, dan
+   un bono de bienvenida al registrarse, y piden identificarse con DNI en
+   caja. De las 4 ideas identificadas, se marcó cuál se podía construir
+   ya y cuál necesitaba una decisión de diseño antes:
+   - **Bono de bienvenida**: sin ninguna vuelta, se construyó ya
+     (`Negocio.puntosBienvenida`, default 0 = sin cambio para negocios
+     existentes; se acredita en `POST /api/registro/[negocio]` y `POST
+     /api/clientes` con una transacción interactiva de Prisma —
+     `MovimientoPuntos` necesita el id del cliente recién creado, así que
+     no alcanza con un array de transacción simple; editable desde
+     "Ajustes"). Probado contra Postgres real: auto-registro y alta
+     manual acreditan el bono configurado, un negocio sin bono
+     configurado (default 0) no genera ningún `MovimientoPuntos` de más,
+     y el campo nuevo en "Ajustes" no tiene el bug de foco del punto 3
+     (probado con Playwright tecleando de a un carácter).
+   - **Vencimiento de puntos**, **canje como descuento flexible** y
+     **tope de descuento**: quedaron pendientes de que Cecilia confirme
+     el alcance (el vencimiento necesita el servicio de email que todavía
+     no existe para el recordatorio; el descuento flexible solo sería
+     viable en compra manual, no en las automáticas). Ver
+     `tareas-pendientes.md`.

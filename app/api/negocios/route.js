@@ -16,6 +16,7 @@ const NEGOCIO_SELECT = {
   emoji: true,
   activo: true,
   puntosXPeso: true,
+  puntosBienvenida: true,
   tema: true,
   slug: true,
   tiendanubeStoreId: true,
@@ -176,6 +177,16 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'Puntos por peso tiene que ser un número entero mayor a 0' }, { status: 400 })
     }
     data.puntosXPeso = puntosXPeso
+  }
+
+  // Puntos de regalo al registrarse un cliente nuevo (0 = sin bono, default).
+  // Mismo criterio de autorización que puntosXPeso.
+  if (body.puntosBienvenida !== undefined) {
+    const puntosBienvenida = parseInt(body.puntosBienvenida)
+    if (!Number.isInteger(puntosBienvenida) || puntosBienvenida < 0) {
+      return NextResponse.json({ error: 'Puntos de bienvenida tiene que ser un número entero mayor o igual a 0' }, { status: 400 })
+    }
+    data.puntosBienvenida = puntosBienvenida
   }
 
   // Nombre/tipo/ciudad/emoji/activo son datos administrativos del negocio:

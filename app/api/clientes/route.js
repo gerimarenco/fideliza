@@ -55,15 +55,31 @@ export async function POST(request) {
 
   const passwordGenerada = Math.random().toString(36).slice(-8)
 
-  const { password, ...cliente } = await prisma.cliente.create({
-    data: {
-      nombre: body.nombre,
-      telefono: body.telefono,
-      email: body.email,
-      password: await hashPassword(passwordGenerada),
-      negocioId: body.negocioId,
+  const negocio = await prisma.negocio.findUnique({ where: { id: body.negocioId } })
+  const puntosBienvenida = negocio?.puntosBienvenida || 0
+
+  // Igual que en el auto-registro: si el negocio tiene bono de bienvenida
+  // configurado, se acredita en la misma transacción junto con su
+  // MovimientoPuntos.
+  const clienteCreado = await prisma.$transaction(async (tx) => {
+    const nuevo = await tx.cliente.create({
+      data: {
+        nombre: body.nombre,
+        telefono: body.telefono,
+        email: body.email,
+        password: await hashPassword(passwordGenerada),
+        negocioId: body.negocioId,
+        puntos: puntosBienvenida,
+      }
+    })
+    if (puntosBienvenida > 0) {
+      await tx.movimientoPuntos.create({
+        data: { clienteId: nuevo.id, negocioId: body.negocioId, puntos: puntosBienvenida, origen: 'bienvenida' },
+      })
     }
+    return nuevo
   })
+  const { password, ...cliente } = clienteCreado
 
   // passwordGenerada va en texto plano en la respuesta: el negocio la
   // necesita para pasársela al cliente. El hash (password) se descarta acá,

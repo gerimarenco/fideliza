@@ -15,6 +15,7 @@ model Negocio {
   emoji                 String
   activo                Boolean   @default(true)
   puntosXPeso           Int       @default(1000)
+  puntosBienvenida      Int       @default(0)
   email                 String?   @unique
   password              String?
   slug                  String?   @unique
@@ -109,7 +110,7 @@ model MovimientoPuntos {
   clienteId String
   negocioId String   // denormalizado a propósito, para no tener que hacer join en las consultas de stats
   puntos    Int
-  origen    String   // "manual" | "mercadopago" | "tiendanube" | "dragonfish"
+  origen    String   // "manual" | "mercadopago" | "tiendanube" | "dragonfish" | "bienvenida"
   createdAt DateTime @default(now())
 
   @@index([negocioId, createdAt])

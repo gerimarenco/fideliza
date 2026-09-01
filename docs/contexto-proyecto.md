@@ -134,7 +134,9 @@ configuren).
 
 - **`Negocio`**: `nombre`, `tipo`, `ciudad`, `emoji`, `puntosXPeso`
   (default 1000, editable desde "Ajustes" del propio negocio o por el
-  admin), `email`/`password` (login propio, password cambiable desde
+  admin), `puntosBienvenida` (default 0 = sin bono, editable desde
+  "Ajustes" — puntos de regalo al registrarse un cliente nuevo, ver más
+  abajo), `email`/`password` (login propio, password cambiable desde
   "Ajustes" vía `POST /api/negocios/password`), `slug` (para el link
   público de auto-registro y para Mercado Pago — editable desde
   "Integraciones"), `tiendanubeStoreId` / `tiendanubeAccessToken`
@@ -160,9 +162,10 @@ configuren).
 - **`MovimientoPuntos`** (agregado 2026-08-22): historial de cada vez que
   se otorgan puntos — `clienteId`, `negocioId` (denormalizado a
   propósito), `puntos`, `origen` (`"manual"` | `"mercadopago"` |
-  `"tiendanube"` | `"dragonfish"`), `createdAt`. Antes de esto, `Cliente.
-  puntos` era solo un contador sin ningún registro histórico — este
-  modelo es lo que permite calcular estadísticas por rango de fechas.
+  `"tiendanube"` | `"dragonfish"` | `"bienvenida"`), `createdAt`. Antes de
+  esto, `Cliente.puntos` era solo un contador sin ningún registro
+  histórico — este modelo es lo que permite calcular estadísticas por
+  rango de fechas.
 - **`WebhookEvento`** (agregado 2026-08-21): idempotencia de webhooks —
   `proveedor` + `referenciaExterna` (unique), para no procesar la misma
   notificación externa dos veces. La usan Mercado Pago, Tiendanube y
@@ -177,6 +180,26 @@ configuren).
 Índices agregados sobre las foreign keys que no los tenían:
 `Cliente.negocioId`, `Premio.negocioId`, `Canje.clienteId`,
 `Canje.premioId`, y el compuesto `MovimientoPuntos(negocioId, createdAt)`.
+
+## Bono de bienvenida (agregado 2026-09-01)
+
+Un negocio puede configurar `puntosBienvenida` (default 0, editable desde
+"Ajustes") — esa cantidad de puntos se acredita automáticamente cuando se
+crea un `Cliente` nuevo, sea por auto-registro (`POST
+/api/registro/[negocio]`) o alta manual desde el panel (`POST
+/api/clientes`). Ambos endpoints usan una transacción interactiva de
+Prisma (necesaria porque `MovimientoPuntos` necesita el id del cliente
+recién creado) para crear el cliente con `puntos: puntosBienvenida` y, si
+es mayor a 0, un `MovimientoPuntos` con `origen: "bienvenida"`. Con
+`puntosBienvenida` en 0 (el default, y el valor de todos los negocios
+existentes hasta que lo configuren) no se crea ningún `MovimientoPuntos`
+de más — sin cambios de comportamiento para negocios que no lo usan.
+
+Idea tomada de investigar el programa de fidelización "Friends" de
+Portsaid (ver `progreso.md`, entrada 2026-09-01) — junto con otras 3 que
+quedaron pendientes de definir mejor antes de construirlas (vencimiento de
+puntos, canje como descuento flexible, tope de descuento por compra), ver
+`tareas-pendientes.md`.
 
 ## Lógica de puntos
 

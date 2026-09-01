@@ -57,6 +57,7 @@ export default function Home() {
   const [formIntegraciones, setFormIntegraciones] = useState({ tiendanubeStoreId: '', tiendanubeAccessToken: '', slug: '', dragonfishBaseDeDatos: '' });
   const [formPassword, setFormPassword] = useState({ actual: '', nueva: '', confirmar: '' });
   const [formPuntosXPeso, setFormPuntosXPeso] = useState('');
+  const [formPuntosBienvenida, setFormPuntosBienvenida] = useState('');
 
   const isAdmin = session?.user?.role === 'admin';
   const isNegocio = session?.user?.role === 'negocio';
@@ -178,6 +179,7 @@ export default function Home() {
   useEffect(() => {
     if (seccionActiva !== 'ajustes') return;
     setFormPuntosXPeso(negocioMostrado?.puntosXPeso ? String(negocioMostrado.puntosXPeso) : '');
+    setFormPuntosBienvenida(negocioMostrado?.puntosBienvenida !== undefined ? String(negocioMostrado.puntosBienvenida) : '0');
     setFormPassword({ actual: '', nueva: '', confirmar: '' });
   }, [negocioMostrado?.id, seccionActiva]);
 
@@ -475,6 +477,29 @@ export default function Home() {
         return;
       }
       alert('✅ Puntos por peso actualizados');
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
+    }
+  };
+
+  const guardarPuntosBienvenida = async () => {
+    if (formPuntosBienvenida === '' || parseInt(formPuntosBienvenida) < 0) {
+      alert('Puntos de bienvenida tiene que ser un número entero mayor o igual a 0');
+      return;
+    }
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: negocioMostrado.id, puntosBienvenida: formPuntosBienvenida })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
+        return;
+      }
+      alert('✅ Puntos de bienvenida actualizados');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -807,6 +832,13 @@ export default function Home() {
         <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Cuántos pesos gastados equivalen a 1 punto</label>
         <input type="number" min="1" value={formPuntosXPeso} onChange={e => setFormPuntosXPeso(e.target.value)} placeholder="1000" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 12 }} />
         <button className="fid-btn-primary" onClick={guardarPuntosXPeso} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+      </div>
+
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Bono de bienvenida</div>
+        <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Puntos de regalo al registrarse un cliente nuevo (0 = sin bono)</label>
+        <input type="number" min="0" value={formPuntosBienvenida} onChange={e => setFormPuntosBienvenida(e.target.value)} placeholder="0" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 12 }} />
+        <button className="fid-btn-primary" onClick={guardarPuntosBienvenida} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
       </div>
     </div>
   );
