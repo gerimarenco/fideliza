@@ -181,7 +181,7 @@ export default function Home() {
     setFormPassword({ actual: '', nueva: '', confirmar: '' });
   }, [negocioMostrado?.id, seccionActiva]);
 
-  const pts = Math.floor((parseFloat(monto) || 0) / 1000);
+  const pts = Math.floor((parseFloat(monto) || 0) / (negocioMostrado?.puntosXPeso || 1000));
 
   const sumarPuntos = async (negId) => {
     if (!monto || !clienteSeleccionado) { mostrarToast('error', 'Seleccioná un cliente y un monto'); return; }
@@ -197,7 +197,8 @@ export default function Home() {
         mostrarToast('error', data.error || 'No se pudieron sumar los puntos');
         return;
       }
-      mostrarToast('exito', `+${data.puntosASumados} puntos acreditados a ${negocio.clientes.find(c => c.id === clienteSeleccionado)?.nombre}`);
+      const clienteAcreditado = negocio.clientes.find(c => c.id === clienteSeleccionado);
+      mostrarToast('exito', `+${data.puntosASumados} puntos acreditados a ${clienteAcreditado?.nombre || clienteAcreditado?.email}`);
       setMonto('');
       setClienteSeleccionado('');
       cargarNegocios();
@@ -860,7 +861,7 @@ export default function Home() {
               <input value={nuevoCliente.telefono} onChange={e => setNuevoCliente({...nuevoCliente, telefono: e.target.value})} placeholder="2324123456" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13 }} />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Email (opcional)</label>
+              <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Email *</label>
               <input value={nuevoCliente.email} onChange={e => setNuevoCliente({...nuevoCliente, email: e.target.value})} placeholder="maria@email.com" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13 }} />
             </div>
           </div>
