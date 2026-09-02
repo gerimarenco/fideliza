@@ -40,7 +40,10 @@ const SLUG_VALIDO = /^[a-z0-9]+(-[a-z0-9]+)*$/
 const TEMA_CLAVES_COLOR = ['fondo', 'superficie', 'borde', 'texto', 'textoSecundario', 'primario', 'primarioTexto', 'resaltado']
 const TEMA_CLAVES_TEXTO = ['fuenteTitulo']
 const TEMA_CLAVES_URL = ['imagenPortada']
-const COLOR_HEX_VALIDO = /^#[0-9a-fA-F]{3,8}$/
+// Los únicos largos válidos de un hex color CSS son 3, 4, 6 u 8 dígitos
+// (RGB, RGBA corto, RGB, RGBA) — 5 y 7 no son válidos y el navegador los
+// ignora en silencio, dejando el color anterior o el heredado.
+const COLOR_HEX_VALIDO = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
 const URL_HTTP_VALIDA = /^https?:\/\/.+/
 
 function validarTema(tema) {
