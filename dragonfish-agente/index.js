@@ -136,7 +136,7 @@ async function reportarResultado(codigo, datos) {
 async function procesarPendiente(pendiente) {
   try {
     const { monto, email, telefono } = await consultarDragonfish(pendiente.codigo)
-    if (!monto || (!email && !telefono)) {
+    if (!Number.isFinite(monto) || (!email && !telefono)) {
       console.warn(`Factura ${pendiente.codigo}: Dragon Fish no trajo monto o identificación de cliente, se marca sin datos`)
       await reportarResultado(pendiente.codigo, { sinDatos: true })
       return

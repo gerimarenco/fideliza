@@ -39,7 +39,7 @@ export async function POST(request) {
   const emailNormalizado = email?.trim().toLowerCase()
   const telefonoNormalizado = telefono?.trim()
 
-  if (sinDatos || (!monto && monto !== 0) || (!emailNormalizado && !telefonoNormalizado)) {
+  if (sinDatos || !Number.isFinite(Number(monto)) || (!emailNormalizado && !telefonoNormalizado)) {
     await prisma.facturaPendiente.update({
       where: { id: factura.id },
       data: { procesado: true, resultado: 'sin_datos' },
