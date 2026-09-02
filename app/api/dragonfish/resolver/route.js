@@ -39,7 +39,11 @@ export async function POST(request) {
   const emailNormalizado = email?.trim().toLowerCase()
   const telefonoNormalizado = telefono?.trim()
 
-  if (sinDatos || !Number.isFinite(Number(monto)) || (!emailNormalizado && !telefonoNormalizado)) {
+  // Number.isFinite (sin coaccionar con Number()) para que null/''/false no
+  // cuelen como monto 0 — y monto < 0 para no acreditar (ni descontar)
+  // puntos si Dragon Fish llega a mandar una nota de crédito con Total
+  // negativo, que /Facturaagrupada agrupa junto con las facturas de venta.
+  if (sinDatos || !Number.isFinite(monto) || monto < 0 || (!emailNormalizado && !telefonoNormalizado)) {
     await prisma.facturaPendiente.update({
       where: { id: factura.id },
       data: { procesado: true, resultado: 'sin_datos' },

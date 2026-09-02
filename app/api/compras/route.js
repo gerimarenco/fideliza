@@ -16,8 +16,8 @@ export async function POST(request) {
   }
 
   const montoNumerico = Number(monto)
-  if (!clienteId || !Number.isFinite(montoNumerico) || montoNumerico <= 0) {
-    return NextResponse.json({ error: 'clienteId y un monto mayor a 0 son obligatorios' }, { status: 400 })
+  if (!negocioId || !clienteId || !Number.isFinite(montoNumerico) || montoNumerico <= 0) {
+    return NextResponse.json({ error: 'negocioId, clienteId y un monto mayor a 0 son obligatorios' }, { status: 400 })
   }
 
   const negocio = await prisma.negocio.findUnique({
