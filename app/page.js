@@ -946,7 +946,7 @@ export default function Home() {
                 <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Cliente</label>
                 <select value={clienteSeleccionado} onChange={e => setClienteSeleccionado(e.target.value)} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13 }}>
                   <option value="">Seleccionar cliente...</option>
-                  {negocio.clientes?.map(c => <option key={c.id} value={c.id}>{c.nombre} ({c.puntos} pts)</option>)}
+                  {negocio.clientes?.map(c => <option key={c.id} value={c.id}>{c.nombre ? `${c.nombre} (${c.email})` : c.email} — {c.puntos} pts</option>)}
                 </select>
               </div>
               <div style={{ marginBottom: 12 }}>
