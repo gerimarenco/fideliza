@@ -55,12 +55,32 @@ export async function POST(request) {
   // Un cliente solo puede canjear para sí mismo, nunca en nombre de otro.
   const clienteId = session.user.role === 'cliente' ? session.user.id : body.clienteId
 
+  if (!clienteId) {
+    return NextResponse.json({ error: 'clienteId es obligatorio' }, { status: 400 })
+  }
+
   const premio = await prisma.premio.findUnique({
     where: { id: premioId }
   })
 
   if (!premio || !premio.activo) {
     return NextResponse.json({ error: 'Este premio ya no está disponible' }, { status: 400 })
+  }
+
+  // Un negocio solo puede canjear premios propios para clientes propios —
+  // antes alcanzaba con estar logueado como negocio y mandar cualquier
+  // premioId/clienteId por fuera de la UI (que hoy no expone este camino,
+  // pero el endpoint no lo impedía).
+  if (session.user.role === 'negocio') {
+    if (premio.negocioId !== session.user.id) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+    const cliente = await prisma.cliente.findUnique({ where: { id: clienteId }, select: { negocioId: true } })
+    if (!cliente || cliente.negocioId !== session.user.id) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+  } else if (session.user.role !== 'admin' && session.user.role !== 'cliente') {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   try {
