@@ -92,24 +92,41 @@
   - Probado contra un mock local que simula las dos respuestas reales
     (factura con email, factura sin email con fallback a `/Cliente/`) —
     el ciclo completo (consulta → reporte a Fideliza → puntos) funciona.
-- [ ] **Bloqueante actual — ya no es técnico, es de configuración local**:
-      3 datos que salen de configurar Dragon Fish en la PC de Peperina
-      (documentado paso a paso en `dragonfish-agente/README.md`), no de
-      una respuesta de soporte:
-  - [ ] `DRAGONFISH_BASE_URL` — sale de armar el "Servicio REST API" en
-        Dragon Fish (Configuración → Parámetros del sistema).
-  - [ ] `DRAGONFISH_ID_CLIENTE` — sale de armar el "Cliente REST API".
-  - [ ] `DRAGONFISH_TOKEN` — se obtiene desde el propio Dragon Fish si la
-        versión es 15.0006.14682 o posterior, o si no, **llamando a Mesa
-        de Ayuda de Zoo Logic (77005700)** con el `DRAGONFISH_ID_CLIENTE` +
-        clave privada + usuario/contraseña de Dragon Fish. El sistema de
-        Peperina tiene más de 2 años sin actualizar — es probable que
-        corresponda a este segundo caso.
-- [ ] Configurar el webhook de "Factura de venta" en Dragon Fish apuntando
-      a `/api/webhooks/dragonfish` (paso a paso en el README del agente) —
-      hoy solo está probado con webhooks simulados a mano.
-- [ ] Con las 3 variables de arriba: correr el agente contra el Dragon
-      Fish real de Peperina y hacer una venta de prueba de punta a punta.
+- [x] **Configuración real completada en la PC de Peperina (2026-09-01)**:
+      `DRAGONFISH_BASE_URL` (`http://localhost:8009/api.Dragonfish`,
+      Servicio REST API armado en Dragon Fish), `DRAGONFISH_ID_CLIENTE`
+      (`FIDELIZA`, Cliente REST API), y `DRAGONFISH_TOKEN` (conseguido por
+      Mesa de Ayuda — la versión instalada, `v14.0006.14379`, es de las
+      que no permiten autogenerarlo). Las 3 variables reales viven solo en
+      el `iniciar.bat` de esa PC, nunca en el repositorio.
+- [x] El webhook de "Factura de venta" en Dragon Fish **ya estaba
+      configurado** (no hizo falta armarlo en esta sesión — probablemente
+      lo dejó Zoo Logic al habilitar el módulo REST API).
+- [x] Agente corrido contra el Dragon Fish real de Peperina: se autenticó
+      con éxito y procesó **9 facturas reales** que ya estaban pendientes.
+      Ninguna acreditó puntos todavía (6 "sin datos", 3 "sin cliente") —
+      verificado con un `curl` directo que los nombres de campo de la
+      respuesta real coinciden exactamente con lo implementado (`Total`,
+      `Email`, `Cliente`), así que no es un bug de parseo. El motivo real:
+      esas ventas se cargaron en Dragon Fish sin asociarles un cliente ni
+      email.
+- [ ] **Hallazgo operativo (no de código)**: para que la automatización
+      sirva de verdad, quien cobra en el local tiene que cargar el email
+      del cliente (o elegir el cliente ya guardado) al facturar en Dragon
+      Fish — sin eso, Fideliza no tiene cómo saber quién compró. Falta
+      charlar esto con el personal del local.
+- [ ] **Prueba real en curso, sin confirmar**: Cecilia se registró como
+      clienta de Peperina (`cecilia@fideliza.com`) y le pidió a su mamá
+      una venta de prueba con ese email — retomar para ver si acreditó
+      los puntos.
+- [ ] **Bug/duda sin resolver**: la card de Dragon Fish en "Integraciones"
+      mostraba "No conectada" a pesar de que el agente ya se había
+      autenticado con éxito usando ese token (confirmado con logs reales).
+      Se revisó `dragonfishConectado` (`!!dragonfishAgentToken` en
+      `app/api/negocios/route.js`) y el código parece correcto — no se
+      pudo explicar la discrepancia sin acceso directo a la base de
+      producción. Investigar en la próxima sesión (¿el token no se guardó
+      como se esperaba? ¿vista vieja/cacheada?).
 - [ ] Decidir formalmente dónde corre el agente en la PC de Peperina
       (arranque automático, gestor de procesos tipo `pm2`) — hoy solo está
       documentado un `npm start` manual en `dragonfish-agente/README.md`.

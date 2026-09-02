@@ -530,3 +530,73 @@ la de Peperina, y nada en la UI dispara ese flujo desde el PR #26).
      no existe para el recordatorio; el descuento flexible solo sería
      viable en compra manual, no en las automáticas). Ver
      `tareas-pendientes.md`.
+
+## 2026-09-01 (parte 2) — Dragon Fish conectado de punta a punta en la PC real de Peperina
+
+Sesión larga de soporte en vivo por WhatsApp, guiando paso a paso (con
+fotos de la pantalla) a la mamá de Cecilia, que no tiene perfil técnico,
+para terminar de conectar el Dragon Fish real del local — sin acceso
+directo a esa red desde el sandbox, todo a través de indicaciones y
+capturas.
+
+1. **Configuración dentro de Dragon Fish**: se armó "Servicio REST API"
+   (puerto `8009`, puesto `PEPERINA_SERVER`, base `PEPERINA`) y "Cliente
+   REST API" (código `FIDELIZA`, clave privada generada sola) desde las
+   pantallas de Configuración del propio Dragon Fish. Encontrado en el
+   camino: la versión instalada es `v14.0006.14379` (más de 2 años vieja,
+   como había avisado Zoo Logic), así que no se puede autogenerar el
+   token desde el programa — se consiguió llamando a Mesa de Ayuda
+   (77005700) con el código, la clave privada y el usuario/contraseña de
+   Dragon Fish. El token es un JWT válido por 2 años (verificado
+   decodificándolo: vence 31/08/2028).
+2. **Instalación del agente**: Cecilia se conectó por AnyDesk a esa PC
+   desde su casa (instalado en vivo mientras su mamá estaba físicamente
+   en el local para aceptar la conexión una vez). Instaló Node.js, bajó
+   `dragonfish-agente/` del repo de GitHub como ZIP, y armó un
+   `iniciar.bat` con las 4 variables reales (`FIDELIZA_AGENT_TOKEN`
+   generado desde el panel de Fideliza, `DRAGONFISH_BASE_URL=http://
+   localhost:8009/api.Dragonfish`, `DRAGONFISH_ID_CLIENTE=FIDELIZA`,
+   `DRAGONFISH_TOKEN` el JWT real) — esas variables quedan solo en ese
+   archivo, en esa PC, nunca en el repositorio.
+3. **Primer obstáculo real**: Node.js no estaba instalado, `npm` no se
+   reconocía — se instaló y confirmado con `node -v`. Segundo intento de
+   correr el agente: un primer arranque tiró `401` al autenticar contra
+   Dragon Fish, un segundo arranque inmediato después funcionó sin
+   cambiar nada (parece un hipo pasajero, no se investigó más a fondo).
+4. **El agente arrancó de verdad contra producción**: encontró **9
+   facturas reales** que ya estaban pendientes (el webhook de Dragon Fish
+   ya estaba configurado de antes, seguramente por Zoo Logic al habilitar
+   el módulo — no hizo falta configurarlo en esta sesión). Ninguna
+   acreditó puntos: 6 "sin datos", 3 "sin cliente".
+5. **Verificación con curl real**: para descartar un bug de nombres de
+   campo (dado que la versión de Dragon Fish es vieja y el swagger que
+   mandó Zoo Logic es de la versión actual), se le pidió a Cecilia correr
+   un `curl` directo contra `/Facturaagrupada/{Codigo}/` con las
+   credenciales reales. La respuesta confirmó que **los campos coinciden
+   exactamente** con lo implementado (`Total`, `Email`, `Cliente`, y el
+   fallback a `/Cliente/{Codigo}/` para el caso de invoice sin email) —
+   la implementación está bien. El motivo real de "sin datos" en esa
+   factura puntual: `"Cliente":""` y `"Email":""` en la respuesta real —
+   la venta ($149.990, campera + perfume, pagada con tarjeta) se cargó en
+   Dragon Fish sin asociarle ningún dato de cliente. **Hallazgo
+   operativo, no de código**: para que la automatización sirva de
+   verdad, quien cobra en el local tiene que cargar el email del cliente
+   al facturar — sin eso, Fideliza no tiene cómo identificar a quién
+   sumarle puntos. Queda como conversación pendiente con el personal del
+   local.
+6. **Prueba real en curso**: Cecilia se registró como clienta de Peperina
+   (`cecilia@fideliza.com`) y le pidió a su mamá facturar una venta de
+   prueba con ese email — quedó sin confirmar el resultado al cierre de
+   la sesión (ver `tareas-futuras.md`/`sesion-actual.md` para retomar).
+7. **Bug/duda sin resolver**: la card de Dragon Fish en "Integraciones"
+   muestra "No conectada" a pesar de que el agente ya se autenticó con
+   éxito usando ese mismo token (confirmado con los logs reales de la
+   PC). Se revisó el código de `dragonfishConectado` y parece correcto —
+   no se pudo explicar la discrepancia sin acceso directo a la base de
+   producción. Queda para investigar en la próxima sesión.
+
+Además, en el medio de la sesión se armó un mensaje con los dos números
+de serie de las PCs de Peperina para reenviarle a Zoo Logic (por si hacía
+falta precisar cuál correspondía), aunque terminó no siendo necesario una
+vez que la mamá de Cecilia consiguió el token por Mesa de Ayuda con solo
+el código y la clave privada del Cliente REST API.
