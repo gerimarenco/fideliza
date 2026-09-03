@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 export default function RegistroPage() {
@@ -12,6 +12,14 @@ export default function RegistroPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [datosNegocio, setDatosNegocio] = useState(null);
+
+  useEffect(() => {
+    fetch(`/api/registro/${negocio}`)
+      .then(res => (res.ok ? res.json() : null))
+      .then(setDatosNegocio)
+      .catch(() => {});
+  }, [negocio]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -69,13 +77,14 @@ export default function RegistroPage() {
             fontWeight: 'bold',
             marginBottom: '4px',
             color: '#111827',
-            textTransform: 'capitalize',
           }}
         >
-          {negocio}
+          {datosNegocio ? `${datosNegocio.nombre} ${datosNegocio.emoji || ''}`.trim() : (
+            <span style={{ textTransform: 'capitalize' }}>{negocio}</span>
+          )}
         </h1>
         <p style={{ color: '#6b7280', marginBottom: '24px', fontSize: '14px' }}>
-          Creá tu cuenta para empezar a sumar puntos
+          {datosNegocio?.mensajeRegistro || 'Creá tu cuenta para empezar a sumar puntos'}
         </p>
 
         <form onSubmit={handleSubmit}>

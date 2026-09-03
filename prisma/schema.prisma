@@ -23,6 +23,10 @@ model Negocio {
   dragonfishBaseDeDatos String?   @unique
   dragonfishAgentToken  String?   @unique
   tema                  Json?
+  // Mensaje/promoción propia que se muestra en la pantalla pública de
+  // auto-registro (/registro/[slug]) — ej. "a las 6 hamburguesas, la 7ma
+  // gratis". Si no está cargado, la pantalla usa un texto genérico.
+  mensajeRegistro       String?
   createdAt             DateTime  @default(now())
   clientes    Cliente[]
   premios     Premio[]

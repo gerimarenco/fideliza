@@ -18,6 +18,7 @@ const NEGOCIO_SELECT = {
   puntosXPeso: true,
   tema: true,
   slug: true,
+  mensajeRegistro: true,
   tiendanubeStoreId: true,
   tiendanubeAccessToken: true,
   dragonfishBaseDeDatos: true,
@@ -179,6 +180,18 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'Puntos por peso tiene que ser un número entero mayor a 0' }, { status: 400 })
     }
     data.puntosXPeso = puntosXPeso
+  }
+
+  // Mensaje/promoción propia de la pantalla pública de auto-registro — a
+  // diferencia de tiendanubeStoreId/dragonfishBaseDeDatos, acá sí hace falta
+  // poder vaciarlo (dejarlo en null), así que se acepta string vacío tal
+  // cual en vez de tratarlo como "no tocar este campo".
+  if (body.mensajeRegistro !== undefined) {
+    const mensajeRegistro = String(body.mensajeRegistro).trim()
+    if (mensajeRegistro.length > 300) {
+      return NextResponse.json({ error: 'El mensaje no puede superar los 300 caracteres' }, { status: 400 })
+    }
+    data.mensajeRegistro = mensajeRegistro || null
   }
 
   // Nombre/tipo/ciudad/emoji/activo son datos administrativos del negocio:
