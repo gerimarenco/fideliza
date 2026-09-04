@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { autenticarAgente } from '@/lib/dragonfishAgente'
 import { hashPassword } from '@/lib/password'
-import { enviarEmailBienvenida } from '@/lib/email'
+import { enviarEmailBienvenida, enviarEmailPuntosAcreditados } from '@/lib/email'
 
 // El agente local reporta acá el resultado de consultar una factura pendiente
 // contra la API REST de Dragon Fish: monto de la venta y el dato de
@@ -111,8 +111,9 @@ export async function POST(request) {
   // Cliente.update + MovimientoPuntos.create en una sola transacción, más el
   // FacturaPendiente.procesado de arriba como segunda barrera si el agente
   // reintenta muy rápido (antes de ver la respuesta anterior).
+  let clienteActualizado
   try {
-    await prisma.$transaction([
+    [, clienteActualizado] = await prisma.$transaction([
       prisma.webhookEvento.create({
         data: { proveedor: 'dragonfish', referenciaExterna: `${negocio.id}:${codigo}` },
       }),
@@ -139,8 +140,23 @@ export async function POST(request) {
     throw error
   }
 
+  // Con cuenta nueva se manda un solo mail combinado (bienvenida + puntos
+  // de esta compra); con cliente ya existente, el aviso de puntos solo.
   if (passwordGenerada) {
-    await enviarEmailBienvenida({ email: cliente.email, passwordGenerada, negocioNombre: negocio.nombre })
+    await enviarEmailBienvenida({
+      email: cliente.email,
+      passwordGenerada,
+      puntosAcreditados: puntos,
+      puntosTotales: clienteActualizado.puntos,
+      negocioNombre: negocio.nombre,
+    })
+  } else {
+    await enviarEmailPuntosAcreditados({
+      email: cliente.email,
+      puntosAcreditados: puntos,
+      puntosTotales: clienteActualizado.puntos,
+      negocioNombre: negocio.nombre,
+    })
   }
 
   return NextResponse.json({ codigo, procesado: true, resultado: 'acreditado', puntosAcreditados: puntos })

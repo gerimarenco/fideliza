@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import { prisma } from '@/lib/db';
+import { enviarEmailPuntosAcreditados } from '@/lib/email';
 
 const client = new MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
@@ -43,8 +44,9 @@ export async function POST(request) {
     // transacción: si MP reenvía la misma notificación, la restricción
     // única de WebhookEvento hace fallar la transacción entera (P2002) y
     // no se suman los puntos una segunda vez.
+    let clienteActualizado;
     try {
-      await prisma.$transaction([
+      [, clienteActualizado] = await prisma.$transaction([
         prisma.webhookEvento.create({
           data: { proveedor: 'mercadopago', referenciaExterna: String(paymentId) },
         }),
@@ -63,6 +65,13 @@ export async function POST(request) {
       }
       throw error;
     }
+
+    await enviarEmailPuntosAcreditados({
+      email: clienteActualizado.email,
+      puntosAcreditados: puntosASumar,
+      puntosTotales: clienteActualizado.puntos,
+      negocioNombre: negocio?.nombre,
+    });
 
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
