@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { enviarEmailPuntosAcreditados } from '@/lib/email'
 
 export async function POST(request) {
   const session = await getServerSession(authOptions)
@@ -49,6 +50,13 @@ export async function POST(request) {
   ])
 
   const { password, ...cliente } = clienteActualizado
+
+  await enviarEmailPuntosAcreditados({
+    email: clienteActualizado.email,
+    puntosAcreditados: puntosASumar,
+    puntosTotales: clienteActualizado.puntos,
+    negocioNombre: negocio.nombre,
+  })
 
   return NextResponse.json({ cliente, puntosASumados: puntosASumar })
 }

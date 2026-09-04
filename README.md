@@ -80,7 +80,7 @@ npm run lint    # eslint
 | `GOOGLE_CLIENT_SECRET` | Para "Iniciar sesión con Google" | Client secret de la misma credencial OAuth. Callback URL a autorizar en Google: `<NEXTAUTH_URL>/api/auth/callback/google`. |
 | `MERCADOPAGO_ACCESS_TOKEN` | Para cobrar con Mercado Pago | Access token de la cuenta de Mercado Pago del negocio/plataforma. |
 | `NEXT_PUBLIC_BASE_URL` | Para Mercado Pago y el mail de bienvenida | URL pública del sitio, usada para armar las `back_urls`/`notification_url` de Mercado Pago y el link de login del mail de bienvenida. |
-| `RESEND_API_KEY` | Para el mail de bienvenida (cuenta creada automáticamente por Dragon Fish) | API key de [Resend](https://resend.com). Si falta, el mail simplemente no se manda (no rompe la acreditación de puntos). |
+| `RESEND_API_KEY` | Para los mails de puntos acreditados y de bienvenida (cuenta creada automáticamente por Dragon Fish) | API key de [Resend](https://resend.com). Si falta, el mail simplemente no se manda (no rompe la acreditación de puntos). |
 | `RESEND_FROM_EMAIL` | No (default: `Fideliza <onboarding@resend.dev>`) | Remitente de los mails. El remitente de prueba de Resend (`onboarding@resend.dev`) solo entrega a la casilla con la que se creó la cuenta de Resend — para mandarle mails a clientes reales hace falta verificar un dominio propio en Resend y poner acá una dirección de ese dominio. |
 
 Las credenciales de Tiendanube (`tiendanubeStoreId`, `tiendanubeAccessToken`)
@@ -129,16 +129,27 @@ falta resetear nada a mano.
 
 Hay una tabla `WebhookEvento` (`proveedor` + `referenciaExterna`, única) que
 registra qué notificaciones de cada integración ya se procesaron, para no
-sumar puntos dos veces si un proveedor reenvía la misma notificación. Hoy la
-usa el webhook de Mercado Pago; Tiendanube y Dragon Fish todavía no la tienen
-conectada (ver estado de cada uno abajo).
+sumar puntos dos veces si un proveedor reenvía la misma notificación. La usan
+los tres orígenes automáticos: Mercado Pago, Tiendanube y Dragon Fish (ver
+estado de cada uno abajo).
+
+### Notificación por email después de cada compra
+
+Cada vez que se acreditan puntos — manual, Mercado Pago, Tiendanube o Dragon
+Fish — se le manda un mail al cliente avisándole cuántos puntos sumó y cuántos
+tiene en total (`enviarEmailPuntosAcreditados` en `lib/email.js`). La única
+excepción es la primera compra de una cuenta creada automáticamente por Dragon
+Fish, donde se manda un solo mail combinado con la contraseña generada más los
+puntos de esa compra (`enviarEmailBienvenida`), en vez de dos mails seguidos.
+Sin `RESEND_API_KEY` configurada no se manda ningún mail, pero tampoco se
+rompe la acreditación de puntos.
 
 ## Integraciones
 
 | Integración | Estado | Qué falta |
 |---|---|---|
 | **Mercado Pago** | ✅ Lista, en producción | Genera el link de pago (`/api/mercadopago/crear-preferencia`) y el webhook (`/api/webhooks/mercadopago`) acredita los puntos cuando el pago queda `approved`, buscando al cliente por el `cliente_id`/`negocio_id` que viaja en la metadata de la preferencia. Protegida contra notificaciones duplicadas. |
-| **Tiendanube** | 🚧 En progreso | El webhook (`/api/webhooks/tiendanube`) escucha `order/paid`, resuelve el negocio por `tiendanubeStoreId`, pide la orden completa a la API de Tiendanube (el webhook solo manda `{store_id, event, id}`, no el pedido completo) y acredita puntos por email. **Falta**: cargar `tiendanubeStoreId` y `tiendanubeAccessToken` de cada negocio (vía `PATCH /api/negocios`, obtenidos del flujo OAuth2 de Tiendanube — ese flujo todavía no está armado en este proyecto) y agregar protección de idempotencia (`WebhookEvento`), hoy no la tiene. |
+| **Tiendanube** | 🚧 En progreso | El webhook (`/api/webhooks/tiendanube`) escucha `order/paid`, resuelve el negocio por `tiendanubeStoreId`, pide la orden completa a la API de Tiendanube (el webhook solo manda `{store_id, event, id}`, no el pedido completo), busca al cliente por email y le acredita puntos, con la misma protección de idempotencia (`WebhookEvento`) que Mercado Pago y Dragon Fish. **Falta**: cargar `tiendanubeStoreId` y `tiendanubeAccessToken` de cada negocio (vía `PATCH /api/negocios`, obtenidos del flujo OAuth2 de Tiendanube — ese flujo todavía no está armado en este proyecto). |
 | **Dragon Fish** | ✅ Lista, en producción (Peperina) | El webhook (`/api/webhooks/dragonfish`) recibe la notificación liviana de Dragon Fish (`Entidad`, `Codigo`, `BaseDeDatos`, sin datos de la venta) y la deja anotada en `FacturaPendiente`. El agente local (`dragonfish-agente/`, corre en la PC del negocio) hace polling contra `GET /api/dragonfish/pendientes`, consulta la factura completa contra la API REST local de Dragon Fish, y reporta el resultado a `POST /api/dragonfish/resolver` (que ahí sí suma los puntos, con la misma idempotencia que Mercado Pago/Tiendanube). Si la venta es de alguien que todavía no tiene cuenta en Fideliza (pero Dragon Fish trae su email), se le crea la cuenta sola y se le manda un mail de bienvenida con la contraseña (ver `RESEND_API_KEY` arriba) — sin eso, esa venta queda marcada `sin_cliente` y no suma puntos. Configuración local por negocio documentada paso a paso en `dragonfish-agente/README.md`. |
 
 ## Deploy

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { enviarEmailPuntosAcreditados } from '@/lib/email'
 
 // Tiendanube manda un payload liviano (store_id, event, id de la orden), no la
 // orden completa. Hay que pedirla a la API con el access_token del negocio.
@@ -68,8 +69,9 @@ export async function POST(request) {
     // fallar la transacción entera (P2002) y no se suman los puntos de nuevo.
     // referenciaExterna incluye el storeId porque el orderId de Tiendanube
     // solo es único dentro de una tienda, no entre negocios distintos.
+    let clienteActualizado
     try {
-      await prisma.$transaction([
+      [, clienteActualizado] = await prisma.$transaction([
         prisma.webhookEvento.create({
           data: { proveedor: 'tiendanube', referenciaExterna: `${storeId}:${orderId}` },
         }),
@@ -88,6 +90,13 @@ export async function POST(request) {
       }
       throw error
     }
+
+    await enviarEmailPuntosAcreditados({
+      email: clienteActualizado.email,
+      puntosAcreditados: puntos,
+      puntosTotales: clienteActualizado.puntos,
+      negocioNombre: negocio.nombre,
+    })
 
     return NextResponse.json({ success: true, puntosAcreditados: puntos })
   } catch (error) {
