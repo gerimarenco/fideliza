@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { autenticarAgente } from '@/lib/dragonfishAgente'
+import { hashPassword } from '@/lib/password'
+import { enviarEmailBienvenida } from '@/lib/email'
 
 // El agente local reporta acá el resultado de consultar una factura pendiente
 // contra la API REST de Dragon Fish: monto de la venta y el dato de
@@ -51,7 +53,7 @@ export async function POST(request) {
     return NextResponse.json({ codigo, procesado: true, resultado: 'sin_datos' })
   }
 
-  const cliente = await prisma.cliente.findFirst({
+  let cliente = await prisma.cliente.findFirst({
     where: {
       negocioId: negocio.id,
       OR: [
@@ -61,12 +63,46 @@ export async function POST(request) {
     },
   })
 
+  let passwordGenerada
   if (!cliente) {
-    await prisma.facturaPendiente.update({
-      where: { id: factura.id },
-      data: { procesado: true, resultado: 'sin_cliente' },
-    })
-    return NextResponse.json({ codigo, procesado: true, resultado: 'sin_cliente' })
+    // Sin email no hay con qué loguearse — no se puede crear cuenta, solo
+    // queda identificar al cliente por teléfono si ya estaba registrado.
+    if (!emailNormalizado) {
+      await prisma.facturaPendiente.update({
+        where: { id: factura.id },
+        data: { procesado: true, resultado: 'sin_cliente' },
+      })
+      return NextResponse.json({ codigo, procesado: true, resultado: 'sin_cliente' })
+    }
+
+    // Cliente no registrado en Fideliza: se crea la cuenta sola a partir de
+    // los datos de la venta, con una contraseña generada que se manda por
+    // mail (ver lib/email.js) — es la única forma de que se entere, porque
+    // nadie está mirando la pantalla cuando llega este webhook.
+    try {
+      passwordGenerada = Math.random().toString(36).slice(-8)
+      cliente = await prisma.cliente.create({
+        data: {
+          email: emailNormalizado,
+          telefono: telefonoNormalizado || null,
+          password: await hashPassword(passwordGenerada),
+          negocioId: negocio.id,
+          puntos: 0,
+        },
+      })
+    } catch (error) {
+      // El email es único en toda la base: si ya existe (de otro negocio,
+      // o una carrera con otro reporte del agente), no se puede crear —
+      // se deja como sin_cliente en vez de romper el flujo.
+      if (error.code === 'P2002') {
+        await prisma.facturaPendiente.update({
+          where: { id: factura.id },
+          data: { procesado: true, resultado: 'sin_cliente' },
+        })
+        return NextResponse.json({ codigo, procesado: true, resultado: 'sin_cliente' })
+      }
+      throw error
+    }
   }
 
   const puntos = Math.floor(Number(monto) / negocio.puntosXPeso)
@@ -101,6 +137,10 @@ export async function POST(request) {
       return NextResponse.json({ codigo, procesado: true, resultado: 'duplicado' })
     }
     throw error
+  }
+
+  if (passwordGenerada) {
+    await enviarEmailBienvenida({ email: cliente.email, passwordGenerada, negocioNombre: negocio.nombre })
   }
 
   return NextResponse.json({ codigo, procesado: true, resultado: 'acreditado', puntosAcreditados: puntos })
