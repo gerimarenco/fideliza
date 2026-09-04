@@ -51,10 +51,15 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Nombre, puntos y emoji son obligatorios' }, { status: 400 })
   }
 
+  const puntos = parseInt(body.puntos)
+  if (!Number.isInteger(puntos) || puntos <= 0) {
+    return NextResponse.json({ error: 'Puntos tiene que ser un número entero mayor a 0' }, { status: 400 })
+  }
+
   const premio = await prisma.premio.create({
     data: {
       nombre: body.nombre,
-      puntos: parseInt(body.puntos),
+      puntos,
       emoji: body.emoji,
       negocioId: body.negocioId,
     }
@@ -84,7 +89,13 @@ export async function PATCH(request) {
 
   const data = {}
   if (body.nombre !== undefined) data.nombre = body.nombre
-  if (body.puntos !== undefined) data.puntos = parseInt(body.puntos)
+  if (body.puntos !== undefined) {
+    const puntos = parseInt(body.puntos)
+    if (!Number.isInteger(puntos) || puntos <= 0) {
+      return NextResponse.json({ error: 'Puntos tiene que ser un número entero mayor a 0' }, { status: 400 })
+    }
+    data.puntos = puntos
+  }
   if (body.emoji !== undefined) data.emoji = body.emoji
   if (body.activo !== undefined) data.activo = !!body.activo
 

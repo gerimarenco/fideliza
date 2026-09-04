@@ -15,11 +15,28 @@ export async function POST(request) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
+  const montoNumerico = Number(monto)
+  if (!negocioId || !clienteId || !Number.isFinite(montoNumerico) || montoNumerico <= 0) {
+    return NextResponse.json({ error: 'negocioId, clienteId y un monto mayor a 0 son obligatorios' }, { status: 400 })
+  }
+
   const negocio = await prisma.negocio.findUnique({
     where: { id: negocioId }
   })
 
-  const puntosASumar = Math.floor(monto / negocio.puntosXPeso)
+  if (!negocio) {
+    return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
+  }
+
+  // Sin esto, cualquier negocio autenticado podía sumarle puntos a un
+  // cliente de otro negocio: alcanzaba con mandar su propio negocioId (que
+  // sí se valida arriba) junto con el clienteId de cualquier cliente ajeno.
+  const clienteExistente = await prisma.cliente.findUnique({ where: { id: clienteId } })
+  if (!clienteExistente || clienteExistente.negocioId !== negocioId) {
+    return NextResponse.json({ error: 'El cliente no pertenece a este negocio' }, { status: 403 })
+  }
+
+  const puntosASumar = Math.floor(montoNumerico / negocio.puntosXPeso)
 
   const [clienteActualizado] = await prisma.$transaction([
     prisma.cliente.update({

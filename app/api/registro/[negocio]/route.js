@@ -2,6 +2,25 @@ import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { hashPassword } from '@/lib/password';
 
+// Datos públicos del negocio para la pantalla de auto-registro (nombre real
+// y mensaje/promoción propia en vez de mostrar el slug pelado). Nunca
+// incluir acá nada sensible: esta ruta no requiere sesión.
+export async function GET(request, { params }) {
+  const { negocio } = await params;
+
+  const negocioEncontrado = await prisma.negocio.findUnique({
+    where: { slug: negocio },
+    select: { nombre: true, emoji: true, mensajeRegistro: true, activo: true },
+  });
+
+  if (!negocioEncontrado || !negocioEncontrado.activo) {
+    return NextResponse.json({ error: 'No encontramos ese negocio.' }, { status: 404 });
+  }
+
+  const { activo, ...negocioPublico } = negocioEncontrado;
+  return NextResponse.json(negocioPublico);
+}
+
 export async function POST(request, { params }) {
   try {
     const { negocio } = await params;

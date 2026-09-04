@@ -18,6 +18,7 @@ const NEGOCIO_SELECT = {
   puntosXPeso: true,
   tema: true,
   slug: true,
+  mensajeRegistro: true,
   tiendanubeStoreId: true,
   tiendanubeAccessToken: true,
   dragonfishBaseDeDatos: true,
@@ -40,7 +41,10 @@ const SLUG_VALIDO = /^[a-z0-9]+(-[a-z0-9]+)*$/
 const TEMA_CLAVES_COLOR = ['fondo', 'superficie', 'borde', 'texto', 'textoSecundario', 'primario', 'primarioTexto', 'resaltado']
 const TEMA_CLAVES_TEXTO = ['fuenteTitulo']
 const TEMA_CLAVES_URL = ['imagenPortada']
-const COLOR_HEX_VALIDO = /^#[0-9a-fA-F]{3,8}$/
+// Los únicos largos válidos de un hex color CSS son 3, 4, 6 u 8 dígitos
+// (RGB, RGBA corto, RGB, RGBA) — 5 y 7 no son válidos y el navegador los
+// ignora en silencio, dejando el color anterior o el heredado.
+const COLOR_HEX_VALIDO = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
 const URL_HTTP_VALIDA = /^https?:\/\/.+/
 
 function validarTema(tema) {
@@ -176,6 +180,18 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'Puntos por peso tiene que ser un número entero mayor a 0' }, { status: 400 })
     }
     data.puntosXPeso = puntosXPeso
+  }
+
+  // Mensaje/promoción propia de la pantalla pública de auto-registro — a
+  // diferencia de tiendanubeStoreId/dragonfishBaseDeDatos, acá sí hace falta
+  // poder vaciarlo (dejarlo en null), así que se acepta string vacío tal
+  // cual en vez de tratarlo como "no tocar este campo".
+  if (body.mensajeRegistro !== undefined) {
+    const mensajeRegistro = String(body.mensajeRegistro).trim()
+    if (mensajeRegistro.length > 300) {
+      return NextResponse.json({ error: 'El mensaje no puede superar los 300 caracteres' }, { status: 400 })
+    }
+    data.mensajeRegistro = mensajeRegistro || null
   }
 
   // Nombre/tipo/ciudad/emoji/activo son datos administrativos del negocio:
