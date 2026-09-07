@@ -16,6 +16,11 @@
 // dragonfish-agente/README.md para cómo conseguir cada variable de entorno
 // desde el propio Dragon Fish.
 
+// Carga las variables desde un .env si existe (ver .env.example) — así el
+// agente puede arrancar solo con Windows sin depender de que alguien haya
+// dejado las variables cargadas a mano en esa sesión de PowerShell/cmd.
+require('dotenv').config({ quiet: true })
+
 const FIDELIZA_BASE_URL = process.env.FIDELIZA_BASE_URL || 'https://incomparable-zabaione-b58c21.netlify.app'
 const FIDELIZA_AGENT_TOKEN = process.env.FIDELIZA_AGENT_TOKEN
 
