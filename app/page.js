@@ -59,6 +59,7 @@ export default function Home() {
   const [formPuntosXPeso, setFormPuntosXPeso] = useState('');
   const [formMensajeRegistro, setFormMensajeRegistro] = useState('');
   const [formRegaloCumpleanos, setFormRegaloCumpleanos] = useState('');
+  const [formSitioWeb, setFormSitioWeb] = useState('');
 
   const isAdmin = session?.user?.role === 'admin';
   const isNegocio = session?.user?.role === 'negocio';
@@ -183,6 +184,7 @@ export default function Home() {
     setFormPuntosXPeso(negocioMostrado?.puntosXPeso ? String(negocioMostrado.puntosXPeso) : '');
     setFormMensajeRegistro(negocioMostrado?.mensajeRegistro || '');
     setFormRegaloCumpleanos(negocioMostrado?.regaloCumpleanosPuntos ? String(negocioMostrado.regaloCumpleanosPuntos) : '');
+    setFormSitioWeb(negocioMostrado?.sitioWeb || '');
     setFormPassword({ actual: '', nueva: '', confirmar: '' });
   }, [negocioMostrado?.id, seccionActiva]);
 
@@ -523,6 +525,25 @@ export default function Home() {
         return;
       }
       alert('✅ Mensaje de registro actualizado');
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
+    }
+  };
+
+  const guardarSitioWeb = async () => {
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: negocioMostrado.id, sitioWeb: formSitioWeb })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
+        return;
+      }
+      alert(formSitioWeb ? '✅ Sitio web guardado' : '✅ Sitio web sacado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -870,6 +891,13 @@ export default function Home() {
         <textarea maxLength={300} rows={3} value={formMensajeRegistro} onChange={e => setFormMensajeRegistro(e.target.value)} placeholder="Ej: ¡Sumate y a las 6 hamburguesas la 7ma es gratis!" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 12, resize: 'vertical', fontFamily: 'inherit' }} />
         <button className="fid-btn-primary" onClick={guardarMensajeRegistro} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
       </div>
+
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Sitio web</div>
+        <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Tu tienda online u otro sitio propio — aparece como link en el panel de tus clientes. Dejalo vacío para no mostrar nada.</label>
+        <input type="url" value={formSitioWeb} onChange={e => setFormSitioWeb(e.target.value)} placeholder="https://tu-tienda.com" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 12 }} />
+        <button className="fid-btn-primary" onClick={guardarSitioWeb} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+      </div>
     </div>
   );
 
@@ -1088,6 +1116,17 @@ export default function Home() {
               </div>
             </div>
           ))}
+
+          {negocioDelCliente.sitioWeb && (
+            <a
+              href={negocioDelCliente.sitioWeb}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'block', textAlign: 'center', marginTop: 24, fontSize: 13, color: tema.primario, textDecoration: 'none', fontWeight: 500 }}
+            >
+              Visitar {negocioDelCliente.nombre} →
+            </a>
+          )}
         </div>
       </div>
     );
