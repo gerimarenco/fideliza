@@ -145,7 +145,41 @@ propio panel (`session.user.name`, gestión de negocios), ni la
 descripción del ítem de pago de Mercado Pago ("Compra en Peperina" — ahí
 es una transacción con el negocio, no con el club).
 
-## 9. Otros pendientes menores (de sesiones previas, sin resolver)
+## 9. Integración de premios con Tiendanube — código hecho, falta cargar datos y verificar permisos del token (2026-09-07)
+
+Cada premio (`Premio`) se puede vincular opcionalmente a la tienda
+Tiendanube del negocio, de dos formas (ver detalle técnico en el README,
+sección "Premios vinculados a Tiendanube"):
+
+- **Producto puntual**: cargando `tiendanubeProductoId` (para el precio,
+  consultado en el momento a la API) y `tiendanubeProductoUrl` (a mano, el
+  link al producto en la tienda) desde Ajustes → Premios. Al clickear el
+  premio en el panel del cliente, lleva a ese link; al canjearlo, genera un
+  cupón de un solo uso por el valor del producto.
+- **Descuento porcentual**: cargando `tiendanubeDescuentoPorcentaje` (ej.
+  `10` para el premio de 10%). Al canjearlo, genera un cupón de un solo uso
+  por ese porcentaje sobre toda la compra.
+
+El cupón se muestra en pantalla al canjear (mismo `alert()` bloqueante que
+ya se usaba de comprobante) y queda guardado en el canje para que el
+negocio lo pueda consultar después en el historial de canjes.
+
+**Pendiente real**:
+- Cargar `tiendanubeProductoId`/`tiendanubeProductoUrl` en los premios de
+  pañuelo y aromatizante, y `tiendanubeDescuentoPorcentaje: 10` en el de
+  10% (Peperina) — nada de esto se carga solo.
+- Verificar que el `tiendanubeAccessToken` ya cargado tenga permiso de
+  lectura de productos y escritura de cupones/descuentos — se generó en su
+  momento solo pensando en leer órdenes para acreditar puntos, puede que
+  haga falta regenerarlo con más permisos desde el panel de Tiendanube.
+- Limitación de la API de Tiendanube (no de este código): un cupón no se
+  puede atar técnicamente a un producto específico, así que el de
+  "producto puntual" es, en rigor, un cupón por ese valor con un piso de
+  compra igual al precio del producto — ver el detalle completo en el
+  README antes de prometerle a una clienta que el cupón "solo sirve para
+  ese producto".
+
+## 10. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado

@@ -3,6 +3,46 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
+const URL_HTTP_VALIDA = /^https?:\/\/.+/
+
+// Campos opcionales de integración con Tiendanube (Grupo 7), compartidos
+// entre alta y edición de premio porque la validación es idéntica en los
+// dos casos. tiendanubeProductoId/Url habilitan "ver producto" + cupón por
+// el precio del producto al canjear; tiendanubeDescuentoPorcentaje es la
+// alternativa para un premio de % de descuento en toda la tienda (ver
+// app/api/canjes y lib/tiendanube.js). Nunca se piden juntos ni son
+// obligatorios: un premio sin ninguno de los dos sigue funcionando como
+// siempre (se entrega en persona, sin cupón).
+function datosTiendanube(body) {
+  const data = {}
+
+  if (body.tiendanubeProductoId !== undefined) {
+    data.tiendanubeProductoId = String(body.tiendanubeProductoId).trim() || null
+  }
+
+  if (body.tiendanubeProductoUrl !== undefined) {
+    const url = String(body.tiendanubeProductoUrl).trim()
+    if (url && (url.length > 500 || !URL_HTTP_VALIDA.test(url))) {
+      return { error: 'La URL del producto tiene que ser una URL válida (http:// o https://)' }
+    }
+    data.tiendanubeProductoUrl = url || null
+  }
+
+  if (body.tiendanubeDescuentoPorcentaje !== undefined) {
+    if (body.tiendanubeDescuentoPorcentaje === null || body.tiendanubeDescuentoPorcentaje === '') {
+      data.tiendanubeDescuentoPorcentaje = null
+    } else {
+      const porcentaje = parseInt(body.tiendanubeDescuentoPorcentaje)
+      if (!Number.isInteger(porcentaje) || porcentaje <= 0 || porcentaje > 100) {
+        return { error: 'El descuento tiene que ser un número entero entre 1 y 100 (o vacío para desactivarlo)' }
+      }
+      data.tiendanubeDescuentoPorcentaje = porcentaje
+    }
+  }
+
+  return { data }
+}
+
 export async function GET(request) {
   const session = await getServerSession(authOptions)
   if (!session || session.user.role === 'cliente') {
@@ -29,6 +69,7 @@ export async function GET(request) {
       take: pageSize,
       select: {
         id: true, nombre: true, puntos: true, emoji: true, activo: true, negocioId: true,
+        tiendanubeProductoId: true, tiendanubeProductoUrl: true, tiendanubeDescuentoPorcentaje: true,
       }
     })
   ])
@@ -56,12 +97,18 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Puntos tiene que ser un número entero mayor a 0' }, { status: 400 })
   }
 
+  const { data: datosTn, error: errorTn } = datosTiendanube(body)
+  if (errorTn) {
+    return NextResponse.json({ error: errorTn }, { status: 400 })
+  }
+
   const premio = await prisma.premio.create({
     data: {
       nombre: body.nombre,
       puntos,
       emoji: body.emoji,
       negocioId: body.negocioId,
+      ...datosTn,
     }
   })
   return NextResponse.json(premio)
@@ -98,6 +145,12 @@ export async function PATCH(request) {
   }
   if (body.emoji !== undefined) data.emoji = body.emoji
   if (body.activo !== undefined) data.activo = !!body.activo
+
+  const { data: datosTn, error: errorTn } = datosTiendanube(body)
+  if (errorTn) {
+    return NextResponse.json({ error: errorTn }, { status: 400 })
+  }
+  Object.assign(data, datosTn)
 
   const actualizado = await prisma.premio.update({
     where: { id: body.id },

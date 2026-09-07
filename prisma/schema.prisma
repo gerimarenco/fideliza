@@ -70,6 +70,18 @@ model Premio {
   negocioId String
   negocio   Negocio @relation(fields: [negocioId], references: [id])
   canjes    Canje[]
+  // Vínculo opcional con un producto real de la tienda Tiendanube del
+  // negocio: habilita el click "ver producto" y, al canjear, un cupón de
+  // Tiendanube por el valor de ese producto (ver Canje abajo). El id es el
+  // que usa la API de Tiendanube para pedir el precio actual; la URL la
+  // carga el negocio a mano (copiada de su propia tienda), no se arma sola.
+  tiendanubeProductoId  String?
+  tiendanubeProductoUrl String?
+  // Alternativa a lo de arriba: el premio da un % de descuento en toda la
+  // tienda en vez de un producto puntual (ej. "10% descuento" → 10). Un
+  // premio no debería tener las dos cosas cargadas a la vez, pero no hace
+  // falta impedirlo a nivel de base: si pasara, tiendanubeProductoId gana.
+  tiendanubeDescuentoPorcentaje Int?
 
   @@index([negocioId])
 }
@@ -82,6 +94,14 @@ model Canje {
   premio    Premio   @relation(fields: [premioId], references: [id])
   createdAt DateTime @default(now())
   entregado Boolean  @default(false)
+  // Cupón de Tiendanube generado al canjear un premio vinculado (ver Premio
+  // arriba). Se guarda para que el negocio lo pueda consultar si la clienta
+  // lo perdió, y tiendanubeCuponError para diagnosticar canjes donde los
+  // puntos ya se descontaron pero el cupón no se pudo generar (token sin
+  // permisos, producto borrado, Tiendanube caído, etc.) — en ese caso el
+  // negocio tiene que entregar el descuento a mano.
+  tiendanubeCuponCodigo String?
+  tiendanubeCuponError  String?
 
   @@index([clienteId])
   @@index([premioId])

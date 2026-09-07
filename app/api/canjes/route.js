@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { obtenerPrecioProducto, crearCuponProductoGratis, crearCuponPorcentaje } from '@/lib/tiendanube'
 
 export async function GET(request) {
   const session = await getServerSession(authOptions)
@@ -35,6 +36,8 @@ export async function GET(request) {
         id: true,
         createdAt: true,
         entregado: true,
+        tiendanubeCuponCodigo: true,
+        tiendanubeCuponError: true,
         cliente: { select: { id: true, nombre: true, email: true } },
         premio: { select: { id: true, nombre: true, puntos: true, emoji: true } },
       }
@@ -104,7 +107,49 @@ export async function POST(request) {
       return tx.canje.create({ data: { clienteId, premioId } })
     })
 
-    return NextResponse.json(canje)
+    // El cupón de Tiendanube se genera después de confirmar el canje, nunca
+    // adentro de la transacción de arriba: es una llamada HTTP externa, y si
+    // fallara no tiene sentido revertir el descuento de puntos ya
+    // confirmado (mismo criterio que enviarEmailPuntosAcreditados en los
+    // webhooks: un problema en el paso externo no le cuesta el canje a la
+    // clienta, solo se guarda para que el negocio lo resuelva a mano).
+    let cuponCodigo, cuponError
+    if (premio.tiendanubeProductoId || premio.tiendanubeDescuentoPorcentaje) {
+      try {
+        const negocio = await prisma.negocio.findUnique({
+          where: { id: premio.negocioId },
+          select: { tiendanubeStoreId: true, tiendanubeAccessToken: true },
+        })
+
+        if (!negocio?.tiendanubeStoreId || !negocio?.tiendanubeAccessToken) {
+          cuponError = 'El negocio todavía no conectó Tiendanube'
+        } else if (premio.tiendanubeProductoId) {
+          const precio = await obtenerPrecioProducto(negocio, premio.tiendanubeProductoId)
+          cuponCodigo = await crearCuponProductoGratis(negocio, canje.id, precio)
+        } else {
+          cuponCodigo = await crearCuponPorcentaje(negocio, canje.id, premio.tiendanubeDescuentoPorcentaje)
+        }
+      } catch (error) {
+        console.error('Error al crear el cupón de Tiendanube para el canje', canje.id, error)
+        cuponError = 'No se pudo generar el cupón automáticamente'
+      }
+
+      // Igual que arriba: si esto llegara a fallar (ej. un problema
+      // transitorio de conexión justo acá), el canje ya está confirmado y
+      // los puntos ya se descontaron — no hay que tirar un 500 por esto,
+      // solo queda sin guardar el resultado del cupón para consulta
+      // posterior (el código sigue siendo válido si se llegó a crear).
+      try {
+        await prisma.canje.update({
+          where: { id: canje.id },
+          data: { tiendanubeCuponCodigo: cuponCodigo, tiendanubeCuponError: cuponError },
+        })
+      } catch (error) {
+        console.error('No se pudo guardar el resultado del cupón en el canje', canje.id, error)
+      }
+    }
+
+    return NextResponse.json({ ...canje, tiendanubeCuponCodigo: cuponCodigo, tiendanubeCuponError: cuponError, tiendanubeProductoUrl: premio.tiendanubeProductoUrl })
   } catch (error) {
     if (error.message === 'PUNTOS_INSUFICIENTES') {
       return NextResponse.json({ error: 'Puntos insuficientes' }, { status: 400 })

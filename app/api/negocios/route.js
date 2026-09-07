@@ -30,7 +30,11 @@ const NEGOCIO_SELECT = {
   },
   premios: {
     where: { activo: true },
-    select: { id: true, nombre: true, puntos: true, emoji: true }
+    // tiendanubeProductoUrl es lo único de la integración de Tiendanube que
+    // necesita ver el cliente (el link "ver producto" del panel) — el resto
+    // (tiendanubeProductoId, tiendanubeDescuentoPorcentaje) solo lo usa el
+    // backend al canjear, ver app/api/canjes.
+    select: { id: true, nombre: true, puntos: true, emoji: true, tiendanubeProductoUrl: true }
   },
 }
 
