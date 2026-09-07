@@ -20,6 +20,7 @@ const NEGOCIO_SELECT = {
   slug: true,
   mensajeRegistro: true,
   regaloCumpleanosPuntos: true,
+  sitioWeb: true,
   tiendanubeStoreId: true,
   tiendanubeAccessToken: true,
   dragonfishBaseDeDatos: true,
@@ -209,6 +210,17 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'El mensaje no puede superar los 300 caracteres' }, { status: 400 })
     }
     data.mensajeRegistro = mensajeRegistro || null
+  }
+
+  // Sitio propio del negocio (ej. su tienda online) — se muestra como link
+  // en el panel del cliente. Igual que mensajeRegistro, se acepta vacío
+  // para poder sacarlo.
+  if (body.sitioWeb !== undefined) {
+    const sitioWeb = String(body.sitioWeb).trim()
+    if (sitioWeb && (sitioWeb.length > 500 || !URL_HTTP_VALIDA.test(sitioWeb))) {
+      return NextResponse.json({ error: 'El sitio web tiene que ser una URL válida (http:// o https://)' }, { status: 400 })
+    }
+    data.sitioWeb = sitioWeb || null
   }
 
   // Nombre/tipo/ciudad/emoji/activo son datos administrativos del negocio:

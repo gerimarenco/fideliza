@@ -31,6 +31,9 @@ model Negocio {
   // (ver netlify/functions/regalo-cumpleanos.mjs). null/0 = desactivado —
   // por ahora solo Peperina lo tiene cargado.
   regaloCumpleanosPuntos Int?
+  // Sitio propio del negocio (ej. su tienda online) — se muestra como link
+  // en el panel del cliente para cruzar tráfico entre los dos. Opcional.
+  sitioWeb              String?
   createdAt             DateTime  @default(now())
   clientes    Cliente[]
   premios     Premio[]

@@ -115,7 +115,22 @@ Sin confirmar todavía en producción que la Scheduled Function corre
 como se espera (recién se deployó) — revisar los logs de Netlify
 Functions el primer día que le toque el cumpleaños a alguien.
 
-## 7. Otros pendientes menores (de sesiones previas, sin resolver)
+## 7. Enlaces cruzados Peperina ↔ Retornar — código hecho, falta un paso externo (2026-09-07)
+
+- **Panel del cliente → sitio de Peperina**: nuevo campo
+  `Negocio.sitioWeb` (Ajustes en el panel, self-service, igual que
+  `puntosXPeso`/`regaloCumpleanosPuntos`) que muestra un link "Visitar
+  {negocio} →" al pie del panel del cliente cuando está cargado. Falta
+  que alguien lo cargue con `https://peperina.com` en Ajustes.
+- **peperina.com → registro de Retornar**: pendiente por completo, es
+  un cambio del lado de Tiendanube (no de este repo) — agregar un ítem
+  de menú "Sumate al club Peperina" que linkee a
+  `/registro/peperina` de Retornar. En Tiendanube esto suele hacerse
+  desde el editor de menús como un "Enlace externo", sin necesitar
+  tocar código de la tienda (a diferencia del widget, que sí necesitó
+  el editor de código).
+
+## 8. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado
