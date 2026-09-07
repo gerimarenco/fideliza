@@ -87,15 +87,60 @@ arranque el servicio REST API. Esperar unos minutos y confirmar que
 
 ```bash
 npm install
-FIDELIZA_AGENT_TOKEN=... DRAGONFISH_BASE_URL=... DRAGONFISH_ID_CLIENTE=... DRAGONFISH_TOKEN=... npm start
 ```
 
-(O cargar las variables en un `.env` y un gestor de procesos tipo `pm2`
-para que quede corriendo en segundo plano y arranque solo con la PC.)
+Copiar `.env.example` a `.env` (misma carpeta) y completar ahí los valores
+reales — el agente los carga solos al arrancar (nunca hace falta escribir
+`$env:...` a mano en PowerShell). Después:
+
+```bash
+npm start
+```
 
 Al arrancar, el agente hace un chequeo de autenticación contra Dragon Fish
 (`POST /Autenticar`) antes de empezar a hacer polling — si falla, revisa
 `DRAGONFISH_ID_CLIENTE`/`DRAGONFISH_TOKEN` y corta.
+
+Probarlo así una vez a mano antes de configurar el arranque automático
+(abajo), para confirmar que el `.env` está bien cargado.
+
+## Arranque automático con Windows
+
+Para que el agente arranque solo cuando se prende la PC del negocio (sin
+que nadie tenga que abrir una consola y correr `npm start` a mano todos
+los días):
+
+1. Confirmar que `npm install` ya se corrió una vez en esta carpeta y que
+   `.env` tiene los valores reales (ver arriba).
+2. Probar `iniciar-agente.bat` (en esta misma carpeta) haciéndole doble
+   clic. Tiene que abrir una ventana negra y, a los pocos segundos, no
+   cerrarse sola — si Dragon Fish ya está andando, en `agente.log` (se
+   crea en esta carpeta) va a ir apareciendo una línea por cada ciclo de
+   polling. Este mismo `.bat` reinicia el agente solo si se llega a
+   cerrar por un error, así no hace falta supervisarlo.
+3. Abrir el **Programador de tareas** de Windows (`Win + R` → escribir
+   `taskschd.msc` → Enter).
+4. **Acción → Crear tarea básica...** y completar:
+   - **Nombre**: `Agente Dragon Fish - Fideliza`.
+   - **Desencadenador**: "Al iniciar sesión".
+   - **Acción**: "Iniciar un programa" → buscar `iniciar-agente.bat` en
+     esta carpeta.
+5. Antes de terminar el asistente, tildar **"Abrir las propiedades..."**
+   para dos ajustes más:
+   - Pestaña **General**: tildar "Ejecutar tanto si el usuario inició
+     sesión como si no" únicamente si van a dejar la PC con una sesión
+     de Windows que quede siempre abierta; si no, dejarlo en "Ejecutar
+     solo cuando el usuario haya iniciado sesión" (más simple, no pide
+     guardar la contraseña de Windows).
+   - Pestaña **Condiciones**: destildar "Iniciar la tarea solo si el
+     equipo funciona con corriente alterna" (para que no se corte si es
+     una notebook y se desenchufa).
+6. Guardar y, para probarlo sin reiniciar la PC, click derecho sobre la
+   tarea → **Ejecutar**. Confirmar en `agente.log` que arrancó.
+
+Con esto el agente queda corriendo solo cada vez que se prende la PC y se
+reinicia solo si se cae por algún error de red o de Dragon Fish — no
+hace falta que nadie lo controle a mano.
 
 ## Configurar el webhook en Dragon Fish
 
