@@ -4,6 +4,33 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { obtenerPrecioProducto, crearCuponProductoGratis, crearCuponPorcentaje } from '@/lib/tiendanube'
 
+// Descuenta `cantidad` puntos de los lotes de MovimientoPuntos más viejos
+// del cliente que todavía tengan saldo vivo (FIFO), para que el vencimiento
+// a los 6 meses (ver netlify/functions/vencimiento-puntos.mjs) sepa cuánto
+// de cada compra sigue sin usarse. No es la fuente de verdad del saldo total
+// —eso sigue siendo Cliente.puntos, ya protegido contra condiciones de
+// carrera arriba— así que si un cliente tiene puntos de antes de este
+// campo existir (sin lotes registrados), esta consumición simplemente no
+// encuentra nada para descontar y no pasa nada: esos puntos viejos quedan
+// sin trackear y nunca vencen, no hay forma de reconstruir su fecha real.
+async function consumirPuntosFifo(tx, clienteId, cantidad) {
+  const lotes = await tx.movimientoPuntos.findMany({
+    where: { clienteId, saldoRestante: { gt: 0 } },
+    orderBy: { createdAt: 'asc' },
+  })
+
+  let restante = cantidad
+  for (const lote of lotes) {
+    if (restante <= 0) break
+    const consumido = Math.min(lote.saldoRestante, restante)
+    await tx.movimientoPuntos.update({
+      where: { id: lote.id },
+      data: { saldoRestante: { decrement: consumido } },
+    })
+    restante -= consumido
+  }
+}
+
 export async function GET(request) {
   const session = await getServerSession(authOptions)
   if (!session || session.user.role === 'cliente') {
@@ -103,6 +130,8 @@ export async function POST(request) {
       if (count === 0) {
         throw new Error('PUNTOS_INSUFICIENTES')
       }
+
+      await consumirPuntosFifo(tx, clienteId, premio.puntos)
 
       return tx.canje.create({ data: { clienteId, premioId } })
     })

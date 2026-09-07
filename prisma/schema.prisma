@@ -34,6 +34,10 @@ model Negocio {
   // Sitio propio del negocio (ej. su tienda online) — se muestra como link
   // en el panel del cliente para cruzar tráfico entre los dos. Opcional.
   sitioWeb              String?
+  // Meses sin usar un lote de puntos para que venza (ver
+  // netlify/functions/vencimiento-puntos.mjs). null/0 = desactivado — por
+  // ahora solo Peperina lo tiene cargado, en 6.
+  vencimientoPuntosMeses Int?
   createdAt             DateTime  @default(now())
   clientes    Cliente[]
   premios     Premio[]
@@ -146,8 +150,17 @@ model MovimientoPuntos {
   clienteId String
   negocioId String   // denormalizado a propósito, para no tener que hacer join en las consultas de stats
   puntos    Int
-  origen    String   // "manual" | "mercadopago" | "tiendanube" | "dragonfish"
+  origen    String   // "manual" | "mercadopago" | "tiendanube" | "dragonfish" | "cumpleanos" | "vencimiento"
   createdAt DateTime @default(now())
+  // Cuánto de este lote de puntos sigue "vivo" (ni canjeado ni vencido) —
+  // solo tiene sentido en un lote que suma puntos (puntos > 0); arranca
+  // igual a `puntos` y baja a medida que un canje lo consume (FIFO, el lote
+  // más viejo primero, ver app/api/canjes) o que vence a los 6 meses (ver
+  // netlify/functions/vencimiento-puntos.mjs). En los movimientos que restan
+  // puntos (canjes no generan movimiento propio; vencimiento sí, con
+  // `origen: "vencimiento"`) queda en null, no aplica.
+  saldoRestante Int?
 
   @@index([negocioId, createdAt])
+  @@index([clienteId, saldoRestante])
 }

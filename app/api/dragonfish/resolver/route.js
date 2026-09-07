@@ -123,7 +123,7 @@ export async function POST(request) {
         data: { puntos: { increment: puntos } },
       }),
       prisma.movimientoPuntos.create({
-        data: { clienteId: cliente.id, negocioId: negocio.id, puntos, origen: 'dragonfish' },
+        data: { clienteId: cliente.id, negocioId: negocio.id, puntos, origen: 'dragonfish', saldoRestante: puntos },
       }),
       prisma.facturaPendiente.update({
         where: { id: factura.id },
