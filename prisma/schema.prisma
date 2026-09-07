@@ -27,6 +27,10 @@ model Negocio {
   // auto-registro (/registro/[slug]) — ej. "a las 6 hamburguesas, la 7ma
   // gratis". Si no está cargado, la pantalla usa un texto genérico.
   mensajeRegistro       String?
+  // Puntos que se acreditan solos el día del cumpleaños de cada cliente
+  // (ver netlify/functions/regalo-cumpleanos.mjs). null/0 = desactivado —
+  // por ahora solo Peperina lo tiene cargado.
+  regaloCumpleanosPuntos Int?
   createdAt             DateTime  @default(now())
   clientes    Cliente[]
   premios     Premio[]

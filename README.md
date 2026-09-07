@@ -187,6 +187,31 @@ negocio, calcula los puntos y arma un link a `/registro/[slug]` con esos
 colores. Si el negocio no existe, está inactivo, o falla la llamada, no
 muestra nada (nunca rompe la página de la tienda).
 
+## Regalo de cumpleaños
+
+`netlify/functions/regalo-cumpleanos.mjs` es una [Scheduled Function de
+Netlify](https://docs.netlify.com/functions/scheduled-functions/) (cron
+declarado en el propio archivo vía `export const config = { schedule }`,
+corre todos los días a las 9am de Argentina) que le acredita puntos solos a
+cada cliente el día de su cumpleaños — mismo mail de aviso
+(`enviarEmailPuntosAcreditados`) que cualquier otra acreditación.
+
+- Se activa por negocio cargando `Negocio.regaloCumpleanosPuntos` (desde
+  Ajustes en el panel, o `PATCH /api/negocios`) — vacío/`0`/`null` lo deja
+  desactivado. Por ahora solo Peperina lo tiene cargado.
+- Necesita que el cliente haya cargado su fecha de nacimiento al
+  registrarse (ver "Registro extendido" — clientes de antes de esa
+  funcionalidad, o dados de alta por otras vías, no tienen `fechaNacimiento`
+  y quedan afuera).
+- Idempotente: antes de acreditar busca si ya existe un `MovimientoPuntos`
+  con `origen: 'cumpleanos'` para ese cliente creado hoy mismo, para no
+  duplicar los puntos si la función se reintenta o se dispara a mano dos
+  veces el mismo día.
+- Es una función de Netlify aparte del deploy de Next.js (no una ruta de la
+  app) — por eso `netlify.toml` necesita `included_files` para que el motor
+  nativo de Prisma (un binario) se empaquete tal cual en vez de que el
+  bundler lo intente procesar como código.
+
 ## Deploy
 
 Pensado para Netlify (`netlify.toml`): build con `prisma generate && npm run

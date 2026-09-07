@@ -19,6 +19,7 @@ const NEGOCIO_SELECT = {
   tema: true,
   slug: true,
   mensajeRegistro: true,
+  regaloCumpleanosPuntos: true,
   tiendanubeStoreId: true,
   tiendanubeAccessToken: true,
   dragonfishBaseDeDatos: true,
@@ -180,6 +181,22 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'Puntos por peso tiene que ser un número entero mayor a 0' }, { status: 400 })
     }
     data.puntosXPeso = puntosXPeso
+  }
+
+  // Puntos que se acreditan solos el día del cumpleaños de cada cliente
+  // (ver netlify/functions/regalo-cumpleanos.mjs) — igual que puntosXPeso,
+  // lo edita el admin o el propio negocio. Vacío/0/null desactiva el
+  // regalo (a diferencia de puntosXPeso, acá "apagado" es un estado válido).
+  if (body.regaloCumpleanosPuntos !== undefined) {
+    if (body.regaloCumpleanosPuntos === null || body.regaloCumpleanosPuntos === '' || body.regaloCumpleanosPuntos === 0) {
+      data.regaloCumpleanosPuntos = null
+    } else {
+      const regaloCumpleanosPuntos = parseInt(body.regaloCumpleanosPuntos)
+      if (!Number.isInteger(regaloCumpleanosPuntos) || regaloCumpleanosPuntos <= 0) {
+        return NextResponse.json({ error: 'Los puntos de regalo de cumpleaños tienen que ser un número entero mayor a 0 (o vacío para desactivarlo)' }, { status: 400 })
+      }
+      data.regaloCumpleanosPuntos = regaloCumpleanosPuntos
+    }
   }
 
   // Mensaje/promoción propia de la pantalla pública de auto-registro — a

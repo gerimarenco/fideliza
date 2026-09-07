@@ -9,3 +9,15 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+[functions]
+  # Funciones propias (ver netlify/functions/) además de las que arma
+  # @netlify/plugin-nextjs para las rutas de la app — no interfieren entre sí.
+  # El horario de regalo-cumpleanos se declara en el propio archivo de la
+  # función (export const config), no acá.
+  directory = "netlify/functions"
+  # El motor nativo de Prisma es un binario, no JS: hay que empaquetarlo tal
+  # cual en vez de que el bundler (esbuild) intente procesarlo como código.
+  # @netlify/plugin-nextjs ya resuelve esto solo para las rutas de la app;
+  # las funciones propias necesitan esta línea aparte.
+  included_files = ["node_modules/.prisma/client/**"]
