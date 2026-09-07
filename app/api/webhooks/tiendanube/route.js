@@ -80,7 +80,7 @@ export async function POST(request) {
           data: { puntos: { increment: puntos } },
         }),
         prisma.movimientoPuntos.create({
-          data: { clienteId: cliente.id, negocioId: negocio.id, puntos, origen: 'tiendanube' },
+          data: { clienteId: cliente.id, negocioId: negocio.id, puntos, origen: 'tiendanube', saldoRestante: puntos },
         }),
       ])
     } catch (error) {

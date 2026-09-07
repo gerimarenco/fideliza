@@ -48,7 +48,7 @@ async function regaloCumpleanos() {
           data: { puntos: { increment: negocio.regaloCumpleanosPuntos } },
         }),
         prisma.movimientoPuntos.create({
-          data: { clienteId: cliente.id, negocioId: negocio.id, puntos: negocio.regaloCumpleanosPuntos, origen: 'cumpleanos' },
+          data: { clienteId: cliente.id, negocioId: negocio.id, puntos: negocio.regaloCumpleanosPuntos, origen: 'cumpleanos', saldoRestante: negocio.regaloCumpleanosPuntos },
         }),
       ])
 

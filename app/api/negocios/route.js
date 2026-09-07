@@ -21,6 +21,7 @@ const NEGOCIO_SELECT = {
   mensajeRegistro: true,
   regaloCumpleanosPuntos: true,
   sitioWeb: true,
+  vencimientoPuntosMeses: true,
   tiendanubeStoreId: true,
   tiendanubeAccessToken: true,
   dragonfishBaseDeDatos: true,
@@ -201,6 +202,21 @@ export async function PATCH(request) {
         return NextResponse.json({ error: 'Los puntos de regalo de cumpleaños tienen que ser un número entero mayor a 0 (o vacío para desactivarlo)' }, { status: 400 })
       }
       data.regaloCumpleanosPuntos = regaloCumpleanosPuntos
+    }
+  }
+
+  // Meses sin usar un lote de puntos para que venza (ver
+  // netlify/functions/vencimiento-puntos.mjs) — mismo criterio que
+  // regaloCumpleanosPuntos: vacío/0/null desactiva el vencimiento.
+  if (body.vencimientoPuntosMeses !== undefined) {
+    if (body.vencimientoPuntosMeses === null || body.vencimientoPuntosMeses === '' || body.vencimientoPuntosMeses === 0) {
+      data.vencimientoPuntosMeses = null
+    } else {
+      const vencimientoPuntosMeses = parseInt(body.vencimientoPuntosMeses)
+      if (!Number.isInteger(vencimientoPuntosMeses) || vencimientoPuntosMeses <= 0) {
+        return NextResponse.json({ error: 'Los meses para el vencimiento tienen que ser un número entero mayor a 0 (o vacío para desactivarlo)' }, { status: 400 })
+      }
+      data.vencimientoPuntosMeses = vencimientoPuntosMeses
     }
   }
 

@@ -260,6 +260,38 @@ cada cliente el día de su cumpleaños — mismo mail de aviso
   nativo de Prisma (un binario) se empaquete tal cual en vez de que el
   bundler lo intente procesar como código.
 
+## Vencimiento de puntos
+
+`netlify/functions/vencimiento-puntos.mjs` es otra Scheduled Function de
+Netlify (corre todos los días a las 10am de Argentina, después de la de
+regalo de cumpleaños) que vence los puntos que un cliente no usó dentro de
+los N meses de haberlos ganado — cada compra vence por separado, según su
+propia fecha, no el saldo total de una sola vez.
+
+- Se activa por negocio cargando `Negocio.vencimientoPuntosMeses` (desde
+  Ajustes en el panel, o `PATCH /api/negocios`) — vacío/`0`/`null` lo deja
+  desactivado. Por ahora solo Peperina lo tiene cargado, en 6 meses.
+- Para trackear "cuánto de cada compra sigue sin usarse", cada
+  `MovimientoPuntos` que suma puntos (compras, Mercado Pago, Tiendanube,
+  Dragon Fish, regalo de cumpleaños) ahora también guarda
+  `saldoRestante`, arrancando igual al monto ganado. Al canjear un premio
+  (`POST /api/canjes`), se descuenta ese `saldoRestante` de los lotes más
+  viejos del cliente primero (FIFO) antes de vencer nada — así un canje
+  "gasta" primero los puntos más próximos a vencer.
+- **Los puntos de un cliente de antes de este campo existir no tienen
+  ningún lote asociado** (`saldoRestante: null`, no se hizo un backfill al
+  migrar) y por lo tanto **nunca vencen**: no hay forma de reconstruir de
+  qué compra salió cada punto ya acreditado antes de este cambio, así que
+  quedan afuera del vencimiento en vez de arriesgarse a vencer de más (o de
+  menos) con un cálculo inventado.
+- Idempotente por construcción: un lote vencido queda en `saldoRestante: 0`
+  para siempre, así que nunca vuelve a aparecer en una corrida posterior —
+  no hace falta ningún chequeo aparte como el de regalo de cumpleaños.
+- Manda un mail de aviso (`enviarEmailPuntosVencidos`) con el total vencido
+  ese día (agrupando todos los lotes que le vencieron juntos a un mismo
+  cliente en un solo mail) y el saldo que le queda — sin esto, el cliente
+  vería bajar sus puntos sin ninguna explicación.
+
 ## Deploy
 
 Pensado para Netlify (`netlify.toml`): build con `prisma generate && npm run

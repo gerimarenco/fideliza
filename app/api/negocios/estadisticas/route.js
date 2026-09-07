@@ -34,8 +34,12 @@ export async function GET(request) {
       },
     }),
 
+    // puntos: { gt: 0 } para no restar los vencimientos (origen:
+    // "vencimiento", puntos negativo) de "otorgados" — un mes con vencimientos
+    // no tiene que mostrar menos puntos otorgados de los que realmente se
+    // dieron.
     prisma.movimientoPuntos.aggregate({
-      where: { negocioId, createdAt: { gte: inicioMes, lt: inicioMesSiguiente } },
+      where: { negocioId, createdAt: { gte: inicioMes, lt: inicioMesSiguiente }, puntos: { gt: 0 } },
       _sum: { puntos: true },
     }),
   ])

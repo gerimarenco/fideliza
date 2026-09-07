@@ -179,7 +179,32 @@ negocio lo pueda consultar después en el historial de canjes.
   README antes de prometerle a una clienta que el cupón "solo sirve para
   ese producto".
 
-## 10. Otros pendientes menores (de sesiones previas, sin resolver)
+## 10. Vencimiento de puntos a los 6 meses — código hecho, falta activarlo (2026-09-07)
+
+Cada compra (o regalo de cumpleaños) vence por separado a los N meses de
+haberse ganado, si no se usó para ningún canje antes — Cecilia definió 6
+meses como el valor a usar. Detalle técnico completo en el README, sección
+"Vencimiento de puntos".
+
+- Se activa por negocio cargando `Negocio.vencimientoPuntosMeses` (Ajustes
+  en el panel) — todavía no está cargado para Peperina, hay que ponerle
+  `6` para que arranque a vencer.
+- **Importante**: los puntos que los clientes ya tienen acumulados de
+  antes de este cambio no quedan "marcados" con ninguna fecha de origen
+  (no había forma de trackear eso hasta ahora) — por diseño, esos puntos
+  viejos nunca van a vencer, solo lo hacen las compras nuevas de acá en
+  adelante. No hace falta ni conviene intentar "adivinar" cuándo se
+  ganaron para vencerlos retroactivamente.
+- Manda un mail cuando le vencen puntos a un cliente
+  (`enviarEmailPuntosVencidos`) — sin `RESEND_API_KEY`/dominio propio
+  verificado en Resend, mismo límite que el resto de los mails (ver ítem 2
+  arriba): solo le llega a la casilla de prueba, no a clientas reales
+  todavía.
+- Sin confirmar todavía en producción que la Scheduled Function corre
+  como se espera (recién se va a deployar) — revisar los logs de Netlify
+  Functions cuando pase el primer vencimiento real.
+
+## 11. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado

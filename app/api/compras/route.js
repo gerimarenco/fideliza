@@ -45,7 +45,7 @@ export async function POST(request) {
       data: { puntos: { increment: puntosASumar } }
     }),
     prisma.movimientoPuntos.create({
-      data: { clienteId, negocioId, puntos: puntosASumar, origen: 'manual' }
+      data: { clienteId, negocioId, puntos: puntosASumar, origen: 'manual', saldoRestante: puntosASumar }
     }),
   ])
 
