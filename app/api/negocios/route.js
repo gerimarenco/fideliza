@@ -31,6 +31,10 @@ const NEGOCIO_SELECT = {
   },
   premios: {
     where: { activo: true },
+    // De menor a mayor puntaje: así el cliente ve sus premios en el panel
+    // como una progresión natural (y "Próximos premios" queda ordenado por
+    // cuánto le falta), sin que el negocio tenga que acomodar nada a mano.
+    orderBy: { puntos: 'asc' },
     // tiendanubeProductoUrl es lo único de la integración de Tiendanube que
     // necesita ver el cliente (el link "ver producto" del panel) — el resto
     // (tiendanubeProductoId, tiendanubeDescuentoPorcentaje) solo lo usa el
