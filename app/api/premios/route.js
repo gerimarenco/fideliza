@@ -64,7 +64,10 @@ export async function GET(request) {
     prisma.premio.count({ where }),
     prisma.premio.findMany({
       where,
-      orderBy: { id: 'desc' },
+      // De menor a mayor puntaje, para que el negocio/admin vea la misma
+      // progresión que el cliente en su panel (ver también GET
+      // /api/negocios) sin tener que acomodar nada a mano.
+      orderBy: { puntos: 'asc' },
       skip: (page - 1) * pageSize,
       take: pageSize,
       select: {

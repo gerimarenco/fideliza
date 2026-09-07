@@ -215,7 +215,18 @@ de premios ni de cargar los datos de Tiendanube del ítem 9. Se agregó
 igual que Clientes/Canjes: primero hay que elegir un negocio en
 "Negocios", después aparece Premios con la lista editable.
 
-## 12. Otros pendientes menores (de sesiones previas, sin resolver)
+## 12. Premios ordenados de menor a mayor puntaje — ✅ resuelto (2026-09-07)
+
+Con varios premios cargados (5000, 2500, 15000, 2500, 12500 puntos),
+Cecilia pidió una forma fácil de ordenarlos de menor a mayor. En vez de
+armar un reordenamiento manual (drag & drop, guardar una posición por
+premio), se resolvió más simple: los premios ahora siempre se listan
+ordenados por puntos ascendente — tanto en el panel de negocio/admin
+(Premios) como en el panel del cliente (Premios disponibles/Próximos
+premios). No hace falta acomodar nada a mano ni ahora ni cuando se
+agreguen premios nuevos, el orden queda bien solo.
+
+## 13. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado
