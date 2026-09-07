@@ -28,7 +28,12 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: 'No encontramos ese negocio.' }, { status: 404, headers: CORS_HEADERS });
   }
 
-  const { activo, tema, ...negocioPublico } = negocioEncontrado;
+  const { activo, tema, nombre, ...negocioPublico } = negocioEncontrado;
+  // Cara pública del programa de fidelización ("Club Peperina") en vez del
+  // nombre pelado del negocio — esta ruta es exclusivamente para consumo de
+  // clientes (pantalla de registro y widget embebible), nunca para el admin
+  // o el propio negocio, así que siempre corresponde el prefijo acá.
+  negocioPublico.nombre = `Club ${nombre}`;
   negocioPublico.temaPrimario = tema?.primario;
   negocioPublico.temaPrimarioTexto = tema?.primarioTexto;
   return NextResponse.json(negocioPublico, { headers: CORS_HEADERS });
