@@ -847,7 +847,10 @@ export default function Home() {
                   <div style={{ fontSize: 13, fontWeight: 500 }}>{p.nombre}{!p.activo && <span style={{ marginLeft: 8, fontSize: 11, color: tema.textoSecundario }}>(desactivado)</span>}</div>
                   <div style={{ fontSize: 11, color: tema.textoSecundario }}>
                     {p.puntos} puntos
-                    {p.tiendanubeProductoId && ' · 🔗 producto Tiendanube'}
+                    {p.tiendanubeProductoId && ' · con precio de Tiendanube'}
+                    {p.tiendanubeProductoUrl && (
+                      <> · <a href={p.tiendanubeProductoUrl} target="_blank" rel="noopener noreferrer" style={{ color: tema.primario }}>🔗 ver producto</a></>
+                    )}
                     {p.tiendanubeDescuentoPorcentaje ? ` · 🎟️ cupón ${p.tiendanubeDescuentoPorcentaje}%` : ''}
                   </div>
                 </div>
