@@ -153,7 +153,7 @@ sección "Premios vinculados a Tiendanube"):
 
 - **Producto puntual**: cargando `tiendanubeProductoId` (para el precio,
   consultado en el momento a la API) y `tiendanubeProductoUrl` (a mano, el
-  link al producto en la tienda) desde Ajustes → Premios. Al clickear el
+  link al producto en la tienda) desde Premios (menú de la izquierda, no adentro de Ajustes). Al clickear el
   premio en el panel del cliente, lleva a ese link; al canjearlo, genera un
   cupón de un solo uso por el valor del producto.
 - **Descuento porcentual**: cargando `tiendanubeDescuentoPorcentaje` (ej.
@@ -204,7 +204,18 @@ meses como el valor a usar. Detalle técnico completo en el README, sección
   como se espera (recién se va a deployar) — revisar los logs de Netlify
   Functions cuando pase el primer vencimiento real.
 
-## 11. Otros pendientes menores (de sesiones previas, sin resolver)
+## 11. El admin no podía llegar a Premios — ✅ resuelto (2026-09-07)
+
+El menú de la izquierda del panel de **Admin** no tenía ningún ítem para
+"Premios" — esa sección solo existía en el menú del negocio cuando se
+loguea con su propia cuenta. Como Cecilia gestiona todo desde la cuenta de
+admin, no tenía forma de llegar a la pantalla (ya armada) de alta/edición
+de premios ni de cargar los datos de Tiendanube del ítem 9. Se agregó
+"🎁 Premios" al menú de Admin, entre Clientes y Puntos y canjes — funciona
+igual que Clientes/Canjes: primero hay que elegir un negocio en
+"Negocios", después aparece Premios con la lista editable.
+
+## 12. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado
