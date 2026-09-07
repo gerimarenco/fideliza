@@ -44,6 +44,12 @@ model Cliente {
   negocio   Negocio  @relation(fields: [negocioId], references: [id])
   createdAt DateTime @default(now())
   canjes    Canje[]
+  // Nullable porque solo se piden en el auto-registro público
+  // (/registro/[slug]) — un cliente creado a mano por el negocio o de alta
+  // automática por Dragon Fish no los tiene.
+  fechaNacimiento DateTime?
+  dni             String?
+  sexo            String?
 
   @@index([negocioId])
 }

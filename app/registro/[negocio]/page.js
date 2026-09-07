@@ -10,6 +10,9 @@ export default function RegistroPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fechaNacimiento, setFechaNacimiento] = useState('');
+  const [dni, setDni] = useState('');
+  const [sexo, setSexo] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [datosNegocio, setDatosNegocio] = useState(null);
@@ -30,7 +33,7 @@ export default function RegistroPage() {
       const res = await fetch(`/api/registro/${negocio}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, fechaNacimiento, dni, sexo }),
       });
 
       const data = await res.json();
@@ -116,7 +119,7 @@ export default function RegistroPage() {
             />
           </div>
 
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ marginBottom: '16px' }}>
             <label
               style={{
                 display: 'block',
@@ -143,6 +146,100 @@ export default function RegistroPage() {
                 boxSizing: 'border-box',
               }}
             />
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '6px',
+                fontSize: '14px',
+                color: '#374151',
+                fontWeight: '500',
+              }}
+            >
+              Fecha de nacimiento
+            </label>
+            <input
+              type="date"
+              value={fechaNacimiento}
+              onChange={(e) => setFechaNacimiento(e.target.value)}
+              required
+              max={new Date().toISOString().split('T')[0]}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid #d1d5db',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '6px',
+                fontSize: '14px',
+                color: '#374151',
+                fontWeight: '500',
+              }}
+            >
+              DNI
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={dni}
+              onChange={(e) => setDni(e.target.value.replace(/\D/g, ''))}
+              required
+              minLength={7}
+              maxLength={8}
+              placeholder="Sin puntos"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid #d1d5db',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '6px',
+                fontSize: '14px',
+                color: '#374151',
+                fontWeight: '500',
+              }}
+            >
+              Sexo
+            </label>
+            <select
+              value={sexo}
+              onChange={(e) => setSexo(e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid #d1d5db',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+                backgroundColor: 'white',
+              }}
+            >
+              <option value="" disabled>Seleccioná una opción</option>
+              <option value="femenino">Femenino</option>
+              <option value="masculino">Masculino</option>
+              <option value="otro">Otro</option>
+            </select>
           </div>
 
           {error && (
