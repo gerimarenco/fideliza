@@ -8,6 +8,10 @@ import { hashPassword } from '@/lib/password';
 // No hay problema de seguridad: esta ruta nunca devuelve nada sensible.
 const CORS_HEADERS = { 'Access-Control-Allow-Origin': '*' };
 
+const SEXO_VALIDO = ['femenino', 'masculino', 'otro'];
+// DNI argentino: 7 u 8 dígitos, sin puntos ni espacios.
+const DNI_VALIDO = /^\d{7,8}$/;
+
 // Datos públicos del negocio para la pantalla de auto-registro (nombre real
 // y mensaje/promoción propia en vez de mostrar el slug pelado) y para el
 // widget embebible que muestra cuántos puntos suma una compra. Nunca
@@ -33,7 +37,7 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   try {
     const { negocio } = await params;
-    const { email, password } = await request.json();
+    const { email, password, fechaNacimiento, dni, sexo } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -45,6 +49,35 @@ export async function POST(request, { params }) {
     if (password.length < 6) {
       return NextResponse.json(
         { error: 'La contraseña debe tener al menos 6 caracteres.' },
+        { status: 400 }
+      );
+    }
+
+    if (!fechaNacimiento || !dni || !sexo) {
+      return NextResponse.json(
+        { error: 'Fecha de nacimiento, DNI y sexo son obligatorios.' },
+        { status: 400 }
+      );
+    }
+
+    const fechaNacimientoDate = new Date(fechaNacimiento);
+    if (Number.isNaN(fechaNacimientoDate.getTime()) || fechaNacimientoDate > new Date()) {
+      return NextResponse.json(
+        { error: 'La fecha de nacimiento no es válida.' },
+        { status: 400 }
+      );
+    }
+
+    if (!DNI_VALIDO.test(dni)) {
+      return NextResponse.json(
+        { error: 'El DNI tiene que tener 7 u 8 números, sin puntos.' },
+        { status: 400 }
+      );
+    }
+
+    if (!SEXO_VALIDO.includes(sexo)) {
+      return NextResponse.json(
+        { error: 'Sexo inválido.' },
         { status: 400 }
       );
     }
@@ -80,6 +113,9 @@ export async function POST(request, { params }) {
         password: await hashPassword(password),
         negocioId: negocioEncontrado.id,
         puntos: 0,
+        fechaNacimiento: fechaNacimientoDate,
+        dni,
+        sexo,
       },
     });
 
