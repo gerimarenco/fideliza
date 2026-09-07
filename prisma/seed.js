@@ -11,7 +11,7 @@ async function main() {
       ciudad: 'Mercedes, Bs As',
       emoji: '👗',
       puntosXPeso: 1000,
-      email: 'peperina@fideliza.com',
+      email: 'peperina@retornar.com.ar',
       password: await bcrypt.hash('peperina123', 10),
       slug: 'peperina',
       premios: {

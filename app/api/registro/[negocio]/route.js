@@ -4,7 +4,7 @@ import { hashPassword } from '@/lib/password';
 
 // CORS abierto porque también la consume el widget embebible (public/widget.js)
 // desde el dominio de la tienda online del negocio (ver README) — no un
-// dominio propio de Fideliza, así que hace falta habilitarlo explícitamente.
+// dominio propio de Retornar, así que hace falta habilitarlo explícitamente.
 // No hay problema de seguridad: esta ruta nunca devuelve nada sensible.
 const CORS_HEADERS = { 'Access-Control-Allow-Origin': '*' };
 

@@ -1,9 +1,37 @@
-# Tareas futuras — Fideliza
+# Tareas futuras — Retornar
 
 > Lo que sigue una vez retomado el proyecto. Ver `sesion-actual.md` para
-> el detalle completo de cómo se llegó a este punto.
+> el detalle completo de cómo se llegó a este punto. El proyecto se
+> llamaba "Fideliza" hasta el 2026-09-07 — ver ítem 1 abajo.
 
-## 1. Notificar a clientes por email — ✅ resuelto (2026-09-04)
+## 1. Cambio de nombre: Fideliza → Retornar — ✅ resuelto (2026-09-07)
+
+Buscando un dominio para comprar, apareció que **"Fideliza" ya lo usa otra
+empresa** en Argentina para lo mismo (programa de puntos de fidelización
+sin app): existe `fideliza.app` y `fideliza.ar` con esa marca, más una
+"Grupo Fideliza" en LinkedIn. Para evitar el choque de marca se
+renombró el proyecto a **Retornar** y se registró `retornar.com.ar`.
+
+Quedó actualizado en el código lo que se ve (título de la app, login,
+mails, README) y los comentarios/mensajes internos. **A propósito no se
+tocó**:
+- Los nombres de variables de entorno `FIDELIZA_AGENT_TOKEN` /
+  `FIDELIZA_BASE_URL` del agente de Dragon Fish — cambiarlos rompería el
+  `.env` ya cargado en la PC de Peperina sin que nadie se entere.
+- El `name` en `package.json` (interno, nunca se publica, cero impacto).
+- Los archivos de `docs/` anteriores a esta fecha (`sesion-actual.md`,
+  `progreso.md`, etc.) — quedan como registro histórico de cuando el
+  proyecto se llamaba Fideliza, no se reescriben.
+- El repo de GitHub sigue llamándose `fideliza` — renombrarlo es una
+  decisión aparte (rompe/redirige links existentes), no se hizo todavía.
+
+**Pendiente real**: `retornar.com.ar` está registrado pero **todavía no
+apunta al deploy de Netlify** (falta cargarlo como dominio personalizado
+en Netlify + los registros DNS que pida en NIC.ar). Hasta que eso esté
+hecho, la URL real de producción sigue siendo la de Netlify
+(`incomparable-zabaione-b58c21.netlify.app`).
+
+## 2. Notificar a clientes por email — ✅ resuelto (2026-09-04)
 
 Su mamá (dueña de Peperina) quería que sus clientas **no tengan que
 entrar a ninguna web** — que casi ni se enteren de que existe un panel —
@@ -20,7 +48,7 @@ sumaron. Quedó implementado así:
   Tiendanube o Dragon Fish (los cuatro webhooks/endpoints llaman a
   `enviarEmailPuntosAcreditados` después de la transacción que suma los
   puntos).
-- Si Dragon Fish reporta una venta de alguien sin cuenta en Fideliza (y
+- Si Dragon Fish reporta una venta de alguien sin cuenta en Retornar (y
   trae su email), se le crea la cuenta sola con una contraseña generada
   y se le manda un mail de bienvenida combinado (cuenta + puntos de esa
   compra) en vez del aviso genérico — ver `enviarEmailBienvenida` y
@@ -33,7 +61,7 @@ sumaron. Quedó implementado así:
   eventualmente si hace falta algo de personalización visual del mail en
   sí (coherente con la marca de cada negocio).
 
-## 2. Dragon Fish — ✅ resuelto (2026-09-03/04, arranque automático 2026-09-07)
+## 3. Dragon Fish — ✅ resuelto (2026-09-03/04, arranque automático 2026-09-07)
 
 Cecilia planteó que no quería que el negocio cargue compra por compra a
 mano (no escala con miles de clientes) ni que la clienta tenga que hacer
@@ -46,14 +74,14 @@ El agente local ya puede arrancar solo con Windows (`.env` +
 en vez de tener que iniciarlo a mano — sin probar todavía en la PC real de
 Peperina.
 
-## 3. Widget embebible para tiendas online — MVP hecho (2026-09-07)
+## 4. Widget embebible para tiendas online — MVP hecho (2026-09-07)
 
 Peperina sí tiene tienda online (no solo el local físico con Dragon
 Fish). A partir de una captura de referencia de Portsaid/Frunds (cartel
 "Registrate y sumá X puntos" en la página de producto), se armó
 `public/widget.js`: un script chico que la tienda agrega a sus páginas de
 producto y muestra cuántos puntos suma esa compra si el cliente se
-registra en Fideliza. Detalle de uso e integración en el README, sección
+registra en Retornar. Detalle de uso e integración en el README, sección
 "Widget de fidelización para tiendas online". No depende del flujo de
 Tiendanube (que es para acreditar puntos automáticamente después del
 pago, ver abajo) — es solo promocional, con los datos que pone la propia
@@ -64,11 +92,11 @@ también decidir si conviene una segunda versión más parecida a Frunds
 (burbuja flotante en vez de un cartel fijo en la página) — quedó afuera
 del MVP a propósito.
 
-## 4. Otros pendientes menores (de sesiones previas, sin resolver)
+## 5. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado
-  a propósito hasta que se retome. El widget de fidelización (punto 3
+  a propósito hasta que se retome. El widget de fidelización (punto 4
   arriba) no depende de esto y ya se puede usar.
 - No hay pantalla de autogestión del tema visual para el propio negocio
   (hoy solo lo carga el admin, y para Peperina se cargó a mano vía

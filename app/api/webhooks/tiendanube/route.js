@@ -8,7 +8,7 @@ async function obtenerOrden(storeId, orderId, accessToken) {
   const response = await fetch(`https://api.tiendanube.com/2025-03/${storeId}/orders/${orderId}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
-      'User-Agent': 'Fideliza (soporte@fideliza.app)',
+      'User-Agent': 'Retornar (soporte@retornar.com.ar)',
     },
   })
 
@@ -58,7 +58,7 @@ export async function POST(request) {
     })
 
     if (!cliente) {
-      return NextResponse.json({ message: 'Cliente no registrado en Fideliza' }, { status: 200 })
+      return NextResponse.json({ message: 'Cliente no registrado en Retornar' }, { status: 200 })
     }
 
     // Calcular y sumar los puntos

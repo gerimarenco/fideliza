@@ -1,23 +1,23 @@
 # Agente local de Dragon Fish
 
 Script chico de Node que corre en la PC del negocio (donde vive Dragon
-Fish) y conecta esa facturación con Fideliza, sin exponer la red del
-negocio a internet: solo hace llamadas salientes (polling a Fideliza,
+Fish) y conecta esa facturación con Retornar, sin exponer la red del
+negocio a internet: solo hace llamadas salientes (polling a Retornar,
 consultas a la API local de Dragon Fish), nunca escucha conexiones
 entrantes.
 
 ## Cómo funciona
 
-1. Cada `POLL_INTERVAL_MS` le pregunta a Fideliza (`GET
+1. Cada `POLL_INTERVAL_MS` le pregunta a Retornar (`GET
    /api/dragonfish/pendientes`) qué facturas quedaron pendientes de
-   resolver (Fideliza las anota ahí cuando le llega el webhook de Dragon
+   resolver (Retornar las anota ahí cuando le llega el webhook de Dragon
    Fish, que solo trae un `Codigo`, sin datos de la venta).
 2. Por cada una, consulta la API REST local de Dragon Fish
    (`GET /Facturaagrupada/{Codigo}/`) para traer el monto (`Total`) y el
    email del cliente (`Email`). Si la factura no tiene email cargado, busca
    el email/teléfono en la ficha del cliente (`GET /Cliente/{Codigo}/`,
    usando el código de cliente que trae la factura).
-3. Reporta el resultado a Fideliza (`POST /api/dragonfish/resolver`), que
+3. Reporta el resultado a Retornar (`POST /api/dragonfish/resolver`), que
    ahí sí busca al cliente y le suma los puntos.
 
 Implementado contra la documentación oficial de Zoo Logic (PDF
@@ -28,10 +28,15 @@ ver "Configuración" abajo.
 
 ## Variables de entorno
 
+El prefijo de estas dos primeras variables sigue siendo `FIDELIZA_` (el
+nombre del proyecto antes de renombrarse a Retornar) a propósito: cambiarlo
+rompería el `.env` ya cargado en la PC de Peperina sin avisar. Nuevas
+instalaciones pueden seguir usando estos mismos nombres.
+
 | Variable | Obligatoria | Para qué |
 |---|---|---|
-| `FIDELIZA_AGENT_TOKEN` | Sí | Token del negocio, generado desde "Integraciones" > Dragon Fish en el panel de Fideliza. Se muestra una sola vez al generarlo. |
-| `FIDELIZA_BASE_URL` | No (default: producción) | URL de Fideliza. |
+| `FIDELIZA_AGENT_TOKEN` | Sí | Token del negocio, generado desde "Integraciones" > Dragon Fish en el panel de Retornar. Se muestra una sola vez al generarlo. |
+| `FIDELIZA_BASE_URL` | No (default: producción) | URL de Retornar. |
 | `DRAGONFISH_BASE_URL` | Sí | Host, puerto y `basePath` de la API REST local de Dragon Fish, ej. `http://localhost:8008/api.Dragonfish`. Sale de configurar el "Servicio REST API" en el propio Dragon Fish — ver paso 1 abajo. |
 | `DRAGONFISH_ID_CLIENTE` | Sí | El "Código" del "Cliente REST API" configurado en Dragon Fish (en mayúscula) — ver paso 2 abajo. |
 | `DRAGONFISH_TOKEN` | Sí | El token (JWToken) para autenticarse — ver paso 3 abajo. Vigencia de 2 años. |
@@ -121,7 +126,7 @@ los días):
 3. Abrir el **Programador de tareas** de Windows (`Win + R` → escribir
    `taskschd.msc` → Enter).
 4. **Acción → Crear tarea básica...** y completar:
-   - **Nombre**: `Agente Dragon Fish - Fideliza`.
+   - **Nombre**: `Agente Dragon Fish - Retornar`.
    - **Desencadenador**: "Al iniciar sesión".
    - **Acción**: "Iniciar un programa" → buscar `iniciar-agente.bat` en
      esta carpeta.
@@ -147,7 +152,9 @@ hace falta que nadie lo controle a mano.
 En Dragon Fish: **Configuración → Parámetros del sistema → Webhook**
 (disponible desde la versión 12.0004.13576). Crear uno nuevo con:
 
-- **URL de notificación**: `https://<tu-dominio-de-fideliza>/api/webhooks/dragonfish`
+- **URL de notificación**: `https://retornar.com.ar/api/webhooks/dragonfish` (o
+  la URL real de Netlify mientras el dominio propio no esté apuntado, ver
+  README principal)
 - **Entidad**: "Factura de venta" (tildar **Ing.**, no hace falta Mod./Elim.)
 - **Base de datos**: la del negocio (tiene que coincidir con
-  `Negocio.dragonfishBaseDeDatos` cargado en "Integraciones" de Fideliza).
+  `Negocio.dragonfishBaseDeDatos` cargado en "Integraciones" de Retornar).

@@ -1,4 +1,4 @@
-# Fideliza
+# Retornar
 
 Programa de fidelización de clientes por puntos para comercios chicos. Cada
 negocio define cuánto gasto equivale a un punto (`puntosXPeso`), sus clientes
@@ -81,7 +81,7 @@ npm run lint    # eslint
 | `MERCADOPAGO_ACCESS_TOKEN` | Para cobrar con Mercado Pago | Access token de la cuenta de Mercado Pago del negocio/plataforma. |
 | `NEXT_PUBLIC_BASE_URL` | Para Mercado Pago y el mail de bienvenida | URL pública del sitio, usada para armar las `back_urls`/`notification_url` de Mercado Pago y el link de login del mail de bienvenida. |
 | `RESEND_API_KEY` | Para los mails de puntos acreditados y de bienvenida (cuenta creada automáticamente por Dragon Fish) | API key de [Resend](https://resend.com). Si falta, el mail simplemente no se manda (no rompe la acreditación de puntos). |
-| `RESEND_FROM_EMAIL` | No (default: `Fideliza <onboarding@resend.dev>`) | Remitente de los mails. El remitente de prueba de Resend (`onboarding@resend.dev`) solo entrega a la casilla con la que se creó la cuenta de Resend — para mandarle mails a clientes reales hace falta verificar un dominio propio en Resend y poner acá una dirección de ese dominio. |
+| `RESEND_FROM_EMAIL` | No (default: `Retornar <onboarding@resend.dev>`) | Remitente de los mails. El remitente de prueba de Resend (`onboarding@resend.dev`) solo entrega a la casilla con la que se creó la cuenta de Resend — para mandarle mails a clientes reales hace falta verificar el dominio propio (`retornar.com.ar`) en Resend y poner acá una dirección de ese dominio. |
 
 Las credenciales de Tiendanube (`tiendanubeStoreId`, `tiendanubeAccessToken`)
 y de Dragon Fish **no van en variables de entorno**: se guardan por negocio en
@@ -150,27 +150,30 @@ rompe la acreditación de puntos.
 |---|---|---|
 | **Mercado Pago** | ✅ Lista, en producción | Genera el link de pago (`/api/mercadopago/crear-preferencia`) y el webhook (`/api/webhooks/mercadopago`) acredita los puntos cuando el pago queda `approved`, buscando al cliente por el `cliente_id`/`negocio_id` que viaja en la metadata de la preferencia. Protegida contra notificaciones duplicadas. |
 | **Tiendanube** | 🚧 En progreso | El webhook (`/api/webhooks/tiendanube`) escucha `order/paid`, resuelve el negocio por `tiendanubeStoreId`, pide la orden completa a la API de Tiendanube (el webhook solo manda `{store_id, event, id}`, no el pedido completo), busca al cliente por email y le acredita puntos, con la misma protección de idempotencia (`WebhookEvento`) que Mercado Pago y Dragon Fish. **Falta**: cargar `tiendanubeStoreId` y `tiendanubeAccessToken` de cada negocio (vía `PATCH /api/negocios`, obtenidos del flujo OAuth2 de Tiendanube — ese flujo todavía no está armado en este proyecto). |
-| **Dragon Fish** | ✅ Lista, en producción (Peperina) | El webhook (`/api/webhooks/dragonfish`) recibe la notificación liviana de Dragon Fish (`Entidad`, `Codigo`, `BaseDeDatos`, sin datos de la venta) y la deja anotada en `FacturaPendiente`. El agente local (`dragonfish-agente/`, corre en la PC del negocio) hace polling contra `GET /api/dragonfish/pendientes`, consulta la factura completa contra la API REST local de Dragon Fish, y reporta el resultado a `POST /api/dragonfish/resolver` (que ahí sí suma los puntos, con la misma idempotencia que Mercado Pago/Tiendanube). Si la venta es de alguien que todavía no tiene cuenta en Fideliza (pero Dragon Fish trae su email), se le crea la cuenta sola y se le manda un mail de bienvenida con la contraseña (ver `RESEND_API_KEY` arriba) — sin eso, esa venta queda marcada `sin_cliente` y no suma puntos. Configuración local por negocio documentada paso a paso en `dragonfish-agente/README.md`. |
+| **Dragon Fish** | ✅ Lista, en producción (Peperina) | El webhook (`/api/webhooks/dragonfish`) recibe la notificación liviana de Dragon Fish (`Entidad`, `Codigo`, `BaseDeDatos`, sin datos de la venta) y la deja anotada en `FacturaPendiente`. El agente local (`dragonfish-agente/`, corre en la PC del negocio) hace polling contra `GET /api/dragonfish/pendientes`, consulta la factura completa contra la API REST local de Dragon Fish, y reporta el resultado a `POST /api/dragonfish/resolver` (que ahí sí suma los puntos, con la misma idempotencia que Mercado Pago/Tiendanube). Si la venta es de alguien que todavía no tiene cuenta en Retornar (pero Dragon Fish trae su email), se le crea la cuenta sola y se le manda un mail de bienvenida con la contraseña (ver `RESEND_API_KEY` arriba) — sin eso, esa venta queda marcada `sin_cliente` y no suma puntos. Configuración local por negocio documentada paso a paso en `dragonfish-agente/README.md`. |
 
 ## Widget de fidelización para tiendas online
 
 Para un negocio con tienda online (Tiendanube o cualquier otra), `public/widget.js`
 es un script embebible chico (sin dependencias) que se agrega a la página de
 producto de la tienda y muestra un cartel con los puntos que esa compra le
-sumaría al cliente si se registra en Fideliza — la misma idea que usan
-servicios como Frunds. No depende del flujo de Tiendanube de arriba (que es
-para acreditar puntos automáticamente después del pago): esto es solo
-promocional, así que anda incluso sin tener `tiendanubeStoreId`/
+sumaría al cliente si se registra en Retornar — la misma idea que usan
+servicios como Frunds (el de Portsaid). No depende del flujo de Tiendanube de
+arriba (que es para acreditar puntos automáticamente después del pago): esto
+es solo promocional, así que anda incluso sin tener `tiendanubeStoreId`/
 `tiendanubeAccessToken` cargados.
 
 Se agrega así en el HTML de la página de producto de la tienda:
 
 ```html
-<div data-fideliza-widget data-negocio="peperina" data-precio="18320"></div>
-<script src="https://<tu-dominio-de-fideliza>/widget.js" defer></script>
+<div data-retornar-widget data-negocio="peperina" data-precio="18320"></div>
+<script src="https://retornar.com.ar/widget.js" defer></script>
 ```
 
-- `data-negocio`: el `slug` del negocio en Fideliza (el mismo que usa la URL
+(Mientras `retornar.com.ar` no esté apuntado al deploy de Netlify — ver
+"Deploy" más abajo — usar la URL real de Netlify en el `src` en su lugar.)
+
+- `data-negocio`: el `slug` del negocio en Retornar (el mismo que usa la URL
   pública `/registro/[slug]`).
 - `data-precio`: el precio final del producto, en pesos, sin separadores ni
   símbolo de moneda — lo pone la propia tienda ahí (el script no scrapea el
@@ -189,3 +192,10 @@ muestra nada (nunca rompe la página de la tienda).
 Pensado para Netlify (`netlify.toml`): build con `prisma generate && npm run
 build`, plugin `@netlify/plugin-nextjs`. Cargar las variables de entorno de la
 tabla de arriba en el dashboard de Netlify antes de deployar.
+
+Dominio propio: se registró `retornar.com.ar`, pero todavía no está
+apuntado al deploy de Netlify (hay que agregarlo como dominio personalizado
+en el dashboard de Netlify + cargar los registros DNS que pida en NIC.ar).
+Hasta que esté hecho, la URL real sigue siendo la de Netlify
+(`incomparable-zabaione-b58c21.netlify.app`) — `NEXT_PUBLIC_BASE_URL` y el
+`src` del widget deben usarla mientras tanto.

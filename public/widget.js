@@ -1,11 +1,11 @@
-// Widget embebible de Fideliza para tiendas online (ver README, sección
+// Widget embebible de Retornar para tiendas online (ver README, sección
 // "Widget de fidelización para tiendas online"). Uso en la página de
 // producto de la tienda:
 //
-//   <div data-fideliza-widget data-negocio="peperina" data-precio="18320"></div>
-//   <script src="https://<tu-dominio-de-fideliza>/widget.js" defer></script>
+//   <div data-retornar-widget data-negocio="peperina" data-precio="18320"></div>
+//   <script src="https://retornar.com.ar/widget.js" defer></script>
 //
-// data-negocio: el slug del negocio en Fideliza (ver "Integraciones" en el
+// data-negocio: el slug del negocio en Retornar (ver "Integraciones" en el
 // panel del negocio). data-precio: el precio final del producto, en pesos,
 // sin separadores de miles ni símbolo de moneda.
 //
@@ -14,7 +14,7 @@
 // precio lo pone la propia tienda en el data-precio de este div.
 (function () {
   function crearLink(el, datos, puntos) {
-    var base = el.getAttribute('data-fideliza-base') || 'https://incomparable-zabaione-b58c21.netlify.app'
+    var base = el.getAttribute('data-retornar-base') || 'https://incomparable-zabaione-b58c21.netlify.app'
     var primario = datos.temaPrimario || '#111827'
     var primarioTexto = datos.temaPrimarioTexto || '#ffffff'
 
@@ -36,7 +36,7 @@
     var precio = parseFloat(el.getAttribute('data-precio'))
     if (!negocio || !Number.isFinite(precio) || precio < 0) return
 
-    var base = el.getAttribute('data-fideliza-base') || 'https://incomparable-zabaione-b58c21.netlify.app'
+    var base = el.getAttribute('data-retornar-base') || 'https://incomparable-zabaione-b58c21.netlify.app'
 
     fetch(base + '/api/registro/' + encodeURIComponent(negocio))
       .then(function (res) {
@@ -54,7 +54,7 @@
       })
   }
 
-  var elementos = document.querySelectorAll('[data-fideliza-widget]')
+  var elementos = document.querySelectorAll('[data-retornar-widget]')
   for (var i = 0; i < elementos.length; i++) {
     iniciar(elementos[i])
   }
