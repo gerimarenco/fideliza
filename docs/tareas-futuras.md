@@ -92,7 +92,30 @@ también decidir si conviene una segunda versión más parecida a Frunds
 (burbuja flotante en vez de un cartel fijo en la página) — quedó afuera
 del MVP a propósito.
 
-## 5. Otros pendientes menores (de sesiones previas, sin resolver)
+## 5. Registro extendido: fecha de nacimiento, DNI y sexo — ✅ resuelto (2026-09-07)
+
+Se agregaron estos tres campos, obligatorios, al auto-registro público
+(`/registro/[slug]`) — paso previo necesario para el regalo de cumpleaños
+(punto 6 abajo), que depende de tener la fecha de nacimiento cargada.
+Nullable en el modelo porque un cliente creado a mano por el negocio o de
+alta automática por Dragon Fish no pasa por ese formulario.
+
+## 6. Regalo de cumpleaños — ✅ resuelto (2026-09-07)
+
+500 puntos automáticos el día del cumpleaños de cada cliente, por ahora
+solo para Peperina. Implementado como una Scheduled Function de Netlify
+(`netlify/functions/regalo-cumpleanos.mjs`, corre todos los días a las 9am
+de Argentina) — se activa por negocio cargando
+`Negocio.regaloCumpleanosPuntos` desde Ajustes en el panel (vacío/0 lo
+desactiva). Manda el mismo mail de aviso que cualquier otra acreditación
+de puntos. Depende de tener cargada la fecha de nacimiento (punto 5
+arriba) — clientes sin ese dato quedan afuera del regalo.
+
+Sin confirmar todavía en producción que la Scheduled Function corre
+como se espera (recién se deployó) — revisar los logs de Netlify
+Functions el primer día que le toque el cumpleaños a alguien.
+
+## 7. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado

@@ -58,6 +58,7 @@ export default function Home() {
   const [formPassword, setFormPassword] = useState({ actual: '', nueva: '', confirmar: '' });
   const [formPuntosXPeso, setFormPuntosXPeso] = useState('');
   const [formMensajeRegistro, setFormMensajeRegistro] = useState('');
+  const [formRegaloCumpleanos, setFormRegaloCumpleanos] = useState('');
 
   const isAdmin = session?.user?.role === 'admin';
   const isNegocio = session?.user?.role === 'negocio';
@@ -181,6 +182,7 @@ export default function Home() {
     if (seccionActiva !== 'ajustes') return;
     setFormPuntosXPeso(negocioMostrado?.puntosXPeso ? String(negocioMostrado.puntosXPeso) : '');
     setFormMensajeRegistro(negocioMostrado?.mensajeRegistro || '');
+    setFormRegaloCumpleanos(negocioMostrado?.regaloCumpleanosPuntos ? String(negocioMostrado.regaloCumpleanosPuntos) : '');
     setFormPassword({ actual: '', nueva: '', confirmar: '' });
   }, [negocioMostrado?.id, seccionActiva]);
 
@@ -479,6 +481,29 @@ export default function Home() {
         return;
       }
       alert('✅ Puntos por peso actualizados');
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
+    }
+  };
+
+  const guardarRegaloCumpleanos = async () => {
+    if (formRegaloCumpleanos && parseInt(formRegaloCumpleanos) <= 0) {
+      alert('Los puntos de regalo de cumpleaños tienen que ser mayores a 0 (o vacío para desactivarlo)');
+      return;
+    }
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: negocioMostrado.id, regaloCumpleanosPuntos: formRegaloCumpleanos || null })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
+        return;
+      }
+      alert(formRegaloCumpleanos ? '✅ Regalo de cumpleaños activado' : '✅ Regalo de cumpleaños desactivado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -830,6 +855,13 @@ export default function Home() {
         <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Cuántos pesos gastados equivalen a 1 punto</label>
         <input type="number" min="1" value={formPuntosXPeso} onChange={e => setFormPuntosXPeso(e.target.value)} placeholder="1000" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 12 }} />
         <button className="fid-btn-primary" onClick={guardarPuntosXPeso} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+      </div>
+
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Regalo de cumpleaños</div>
+        <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Puntos que se acreditan solos el día del cumpleaños de cada cliente (necesita que el cliente haya cargado su fecha de nacimiento al registrarse). Dejalo vacío para desactivarlo.</label>
+        <input type="number" min="1" value={formRegaloCumpleanos} onChange={e => setFormRegaloCumpleanos(e.target.value)} placeholder="Desactivado" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 12 }} />
+        <button className="fid-btn-primary" onClick={guardarRegaloCumpleanos} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
       </div>
 
       <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
