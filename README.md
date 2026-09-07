@@ -189,8 +189,9 @@ muestra nada (nunca rompe la página de la tienda).
 
 ## Premios vinculados a Tiendanube
 
-Un premio (`Premio`, editable desde Ajustes → Premios en el panel de
-negocio/admin) puede vincularse opcionalmente a la tienda Tiendanube del
+Un premio (`Premio`, editable desde la sección Premios del panel de
+negocio/admin — es un ítem de menú propio, no está adentro de Ajustes)
+puede vincularse opcionalmente a la tienda Tiendanube del
 negocio de dos formas, mutuamente excluyentes:
 
 - **Producto puntual** (`tiendanubeProductoId` + `tiendanubeProductoUrl`):
