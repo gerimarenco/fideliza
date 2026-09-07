@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Fideliza",
+  title: "Retornar",
   description: "Plataforma de fidelización de clientes",
 };
 

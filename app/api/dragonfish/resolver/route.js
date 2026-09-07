@@ -7,7 +7,7 @@ import { enviarEmailBienvenida, enviarEmailPuntosAcreditados } from '@/lib/email
 // El agente local reporta acá el resultado de consultar una factura pendiente
 // contra la API REST de Dragon Fish: monto de la venta y el dato de
 // identificación del cliente que haya podido sacar de esa respuesta (email
-// y/o teléfono — Dragon Fish no maneja el mismo DNI/email que Fideliza
+// y/o teléfono — Dragon Fish no maneja el mismo DNI/email que Retornar
 // necesariamente, así que puede no encontrar nada; ver docs/ para el estado
 // de esa parte).
 // Los cuatro desenlaces que no acreditan puntos (sin_datos, sin_cliente x2,
@@ -80,7 +80,7 @@ export async function POST(request) {
       return marcarFactura(factura.id, codigo, 'sin_cliente')
     }
 
-    // Cliente no registrado en Fideliza: se crea la cuenta sola a partir de
+    // Cliente no registrado en Retornar: se crea la cuenta sola a partir de
     // los datos de la venta, con una contraseña generada que se manda por
     // mail (ver lib/email.js) — es la única forma de que se entere, porque
     // nadie está mirando la pantalla cuando llega este webhook.

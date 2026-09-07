@@ -15,7 +15,7 @@ export default function Login() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('error') === 'AccessDenied') {
-      setError('Ese email de Google no tiene una cuenta en Fideliza');
+      setError('Ese email de Google no tiene una cuenta en Retornar');
     } else if (params.get('error')) {
       setError('No se pudo iniciar sesión con Google');
     }
@@ -39,7 +39,7 @@ export default function Login() {
     <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui' }}>
       <div style={{ background: '#fff', borderRadius: 16, padding: 40, width: 360, border: '1px solid #eee' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a1a' }}>Fideliza</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a1a' }}>Retornar</div>
           <div style={{ fontSize: 14, color: '#999', marginTop: 4 }}>Ingresá a tu cuenta</div>
         </div>
 
