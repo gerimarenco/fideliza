@@ -130,7 +130,22 @@ Functions el primer día que le toque el cumpleaños a alguien.
   tocar código de la tienda (a diferencia del widget, que sí necesitó
   el editor de código).
 
-## 8. Otros pendientes menores (de sesiones previas, sin resolver)
+## 8. Nomenclatura "Club X" — ✅ resuelto (2026-09-07)
+
+Cada negocio se llama "Club {Nombre}" (ej. "Club Peperina") en todo lo que
+ve el cliente: mails (`lib/email.js`, vía el helper `nombreClub`),
+pantalla de registro y widget embebible (ambos consumen `GET
+/api/registro/[slug]`, que ya devuelve el nombre con el prefijo puesto), y
+el encabezado del panel del cliente. Es automático para cualquier negocio,
+no hace falta cargar "Club" a mano en el nombre — si mañana se suma un
+segundo negocio, ya sale con el prefijo sin tocar código.
+
+A propósito **no** lleva el prefijo: el nombre que ven admin/negocio en su
+propio panel (`session.user.name`, gestión de negocios), ni la
+descripción del ítem de pago de Mercado Pago ("Compra en Peperina" — ahí
+es una transacción con el negocio, no con el club).
+
+## 9. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado
