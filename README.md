@@ -152,6 +152,38 @@ rompe la acreditación de puntos.
 | **Tiendanube** | 🚧 En progreso | El webhook (`/api/webhooks/tiendanube`) escucha `order/paid`, resuelve el negocio por `tiendanubeStoreId`, pide la orden completa a la API de Tiendanube (el webhook solo manda `{store_id, event, id}`, no el pedido completo), busca al cliente por email y le acredita puntos, con la misma protección de idempotencia (`WebhookEvento`) que Mercado Pago y Dragon Fish. **Falta**: cargar `tiendanubeStoreId` y `tiendanubeAccessToken` de cada negocio (vía `PATCH /api/negocios`, obtenidos del flujo OAuth2 de Tiendanube — ese flujo todavía no está armado en este proyecto). |
 | **Dragon Fish** | ✅ Lista, en producción (Peperina) | El webhook (`/api/webhooks/dragonfish`) recibe la notificación liviana de Dragon Fish (`Entidad`, `Codigo`, `BaseDeDatos`, sin datos de la venta) y la deja anotada en `FacturaPendiente`. El agente local (`dragonfish-agente/`, corre en la PC del negocio) hace polling contra `GET /api/dragonfish/pendientes`, consulta la factura completa contra la API REST local de Dragon Fish, y reporta el resultado a `POST /api/dragonfish/resolver` (que ahí sí suma los puntos, con la misma idempotencia que Mercado Pago/Tiendanube). Si la venta es de alguien que todavía no tiene cuenta en Fideliza (pero Dragon Fish trae su email), se le crea la cuenta sola y se le manda un mail de bienvenida con la contraseña (ver `RESEND_API_KEY` arriba) — sin eso, esa venta queda marcada `sin_cliente` y no suma puntos. Configuración local por negocio documentada paso a paso en `dragonfish-agente/README.md`. |
 
+## Widget de fidelización para tiendas online
+
+Para un negocio con tienda online (Tiendanube o cualquier otra), `public/widget.js`
+es un script embebible chico (sin dependencias) que se agrega a la página de
+producto de la tienda y muestra un cartel con los puntos que esa compra le
+sumaría al cliente si se registra en Fideliza — la misma idea que usan
+servicios como Frunds. No depende del flujo de Tiendanube de arriba (que es
+para acreditar puntos automáticamente después del pago): esto es solo
+promocional, así que anda incluso sin tener `tiendanubeStoreId`/
+`tiendanubeAccessToken` cargados.
+
+Se agrega así en el HTML de la página de producto de la tienda:
+
+```html
+<div data-fideliza-widget data-negocio="peperina" data-precio="18320"></div>
+<script src="https://<tu-dominio-de-fideliza>/widget.js" defer></script>
+```
+
+- `data-negocio`: el `slug` del negocio en Fideliza (el mismo que usa la URL
+  pública `/registro/[slug]`).
+- `data-precio`: el precio final del producto, en pesos, sin separadores ni
+  símbolo de moneda — lo pone la propia tienda ahí (el script no scrapea el
+  DOM buscando el precio, así no se rompe cada vez que la tienda cambia de
+  diseño).
+
+El script llama a `GET /api/registro/[slug]` (pública, con CORS abierto para
+poder llamarse desde el dominio de la tienda) para traer el nombre, emoji,
+`puntosXPeso` y colores de marca (`tema.primario`/`primarioTexto`) del
+negocio, calcula los puntos y arma un link a `/registro/[slug]` con esos
+colores. Si el negocio no existe, está inactivo, o falla la llamada, no
+muestra nada (nunca rompe la página de la tienda).
+
 ## Deploy
 
 Pensado para Netlify (`netlify.toml`): build con `prisma generate && npm run

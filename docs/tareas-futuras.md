@@ -33,7 +33,7 @@ sumaron. Quedó implementado así:
   eventualmente si hace falta algo de personalización visual del mail en
   sí (coherente con la marca de cada negocio).
 
-## 2. Dragon Fish — ✅ resuelto (2026-09-03/04)
+## 2. Dragon Fish — ✅ resuelto (2026-09-03/04, arranque automático 2026-09-07)
 
 Cecilia planteó que no quería que el negocio cargue compra por compra a
 mano (no escala con miles de clientes) ni que la clienta tenga que hacer
@@ -41,13 +41,35 @@ nada. Dragon Fish (POS del local físico de Peperina, donde está el
 volumen real) ya está integrado de punta a punta y confirmado en
 producción: venta real de prueba acreditó puntos correctamente. Detalle
 completo en el README (tabla de integraciones) y en `dragonfish-agente/`.
-Pendiente menor: que el agente local arranque solo con Windows en vez de
-tener que iniciarlo a mano en la PC de Peperina.
+El agente local ya puede arrancar solo con Windows (`.env` +
+`iniciar-agente.bat` + Programador de tareas, ver `dragonfish-agente/README.md`)
+en vez de tener que iniciarlo a mano — sin probar todavía en la PC real de
+Peperina.
 
-## 3. Otros pendientes menores (de sesiones previas, sin resolver)
+## 3. Widget embebible para tiendas online — MVP hecho (2026-09-07)
 
-- Tiendanube: pausado a propósito hasta que la tienda esté activa (el
-  flujo OAuth2 no está armado).
+Peperina sí tiene tienda online (no solo el local físico con Dragon
+Fish). A partir de una captura de referencia de Portsaid/Frunds (cartel
+"Registrate y sumá X puntos" en la página de producto), se armó
+`public/widget.js`: un script chico que la tienda agrega a sus páginas de
+producto y muestra cuántos puntos suma esa compra si el cliente se
+registra en Fideliza. Detalle de uso e integración en el README, sección
+"Widget de fidelización para tiendas online". No depende del flujo de
+Tiendanube (que es para acreditar puntos automáticamente después del
+pago, ver abajo) — es solo promocional, con los datos que pone la propia
+tienda en un `data-precio`.
+
+Sin probar todavía embebido en una tienda real (Peperina u otra). Falta
+también decidir si conviene una segunda versión más parecida a Frunds
+(burbuja flotante en vez de un cartel fijo en la página) — quedó afuera
+del MVP a propósito.
+
+## 4. Otros pendientes menores (de sesiones previas, sin resolver)
+
+- Tiendanube: la conexión real (OAuth2, para acreditar puntos
+  automáticamente después de cada pago) todavía no está armada — pausado
+  a propósito hasta que se retome. El widget de fidelización (punto 3
+  arriba) no depende de esto y ya se puede usar.
 - No hay pantalla de autogestión del tema visual para el propio negocio
   (hoy solo lo carga el admin, y para Peperina se cargó a mano vía
   migraciones de datos porque no había otra forma). Evaluar si hace
