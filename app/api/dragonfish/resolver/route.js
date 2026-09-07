@@ -10,6 +10,19 @@ import { enviarEmailBienvenida, enviarEmailPuntosAcreditados } from '@/lib/email
 // y/o teléfono — Dragon Fish no maneja el mismo DNI/email que Fideliza
 // necesariamente, así que puede no encontrar nada; ver docs/ para el estado
 // de esa parte).
+// Los cuatro desenlaces que no acreditan puntos (sin_datos, sin_cliente x2,
+// duplicado) comparten el mismo patrón: marcar la factura como procesada
+// con ese resultado y devolverlo. Un helper evita que una futura corrección
+// de este patrón (ej. loguear algo más) se aplique en tres lugares y se
+// olvide en el cuarto.
+async function marcarFactura(facturaId, codigo, resultado) {
+  await prisma.facturaPendiente.update({
+    where: { id: facturaId },
+    data: { procesado: true, resultado },
+  })
+  return NextResponse.json({ codigo, procesado: true, resultado })
+}
+
 export async function POST(request) {
   const negocio = await autenticarAgente(request)
   if (!negocio) {
@@ -46,11 +59,7 @@ export async function POST(request) {
   // puntos si Dragon Fish llega a mandar una nota de crédito con Total
   // negativo, que /Facturaagrupada agrupa junto con las facturas de venta.
   if (sinDatos || !Number.isFinite(monto) || monto < 0 || (!emailNormalizado && !telefonoNormalizado)) {
-    await prisma.facturaPendiente.update({
-      where: { id: factura.id },
-      data: { procesado: true, resultado: 'sin_datos' },
-    })
-    return NextResponse.json({ codigo, procesado: true, resultado: 'sin_datos' })
+    return marcarFactura(factura.id, codigo, 'sin_datos')
   }
 
   let cliente = await prisma.cliente.findFirst({
@@ -68,11 +77,7 @@ export async function POST(request) {
     // Sin email no hay con qué loguearse — no se puede crear cuenta, solo
     // queda identificar al cliente por teléfono si ya estaba registrado.
     if (!emailNormalizado) {
-      await prisma.facturaPendiente.update({
-        where: { id: factura.id },
-        data: { procesado: true, resultado: 'sin_cliente' },
-      })
-      return NextResponse.json({ codigo, procesado: true, resultado: 'sin_cliente' })
+      return marcarFactura(factura.id, codigo, 'sin_cliente')
     }
 
     // Cliente no registrado en Fideliza: se crea la cuenta sola a partir de
@@ -95,11 +100,7 @@ export async function POST(request) {
       // o una carrera con otro reporte del agente), no se puede crear —
       // se deja como sin_cliente en vez de romper el flujo.
       if (error.code === 'P2002') {
-        await prisma.facturaPendiente.update({
-          where: { id: factura.id },
-          data: { procesado: true, resultado: 'sin_cliente' },
-        })
-        return NextResponse.json({ codigo, procesado: true, resultado: 'sin_cliente' })
+        return marcarFactura(factura.id, codigo, 'sin_cliente')
       }
       throw error
     }
@@ -131,11 +132,7 @@ export async function POST(request) {
     ])
   } catch (error) {
     if (error.code === 'P2002') {
-      await prisma.facturaPendiente.update({
-        where: { id: factura.id },
-        data: { procesado: true, resultado: 'duplicado' },
-      })
-      return NextResponse.json({ codigo, procesado: true, resultado: 'duplicado' })
+      return marcarFactura(factura.id, codigo, 'duplicado')
     }
     throw error
   }

@@ -66,12 +66,20 @@ export async function POST(request) {
       throw error;
     }
 
-    await enviarEmailPuntosAcreditados({
-      email: clienteActualizado.email,
-      puntosAcreditados: puntosASumar,
-      puntosTotales: clienteActualizado.puntos,
-      negocioNombre: negocio?.nombre,
-    });
+    // negocioId no tiene FK a Negocio (es denormalizado, ver schema) — si la
+    // metadata trae un negocio_id que ya no existe, los puntos se acreditan
+    // igual pero no hay nombre real para el mail: mejor no mandarlo con
+    // "undefined" que mandar uno roto.
+    if (negocio) {
+      await enviarEmailPuntosAcreditados({
+        email: clienteActualizado.email,
+        puntosAcreditados: puntosASumar,
+        puntosTotales: clienteActualizado.puntos,
+        negocioNombre: negocio.nombre,
+      });
+    } else {
+      console.error('Webhook MP: negocio_id de la metadata no existe, no se manda el mail de puntos', negocio_id);
+    }
 
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
