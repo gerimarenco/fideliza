@@ -187,6 +187,54 @@ negocio, calcula los puntos y arma un link a `/registro/[slug]` con esos
 colores. Si el negocio no existe, está inactivo, o falla la llamada, no
 muestra nada (nunca rompe la página de la tienda).
 
+## Premios vinculados a Tiendanube
+
+Un premio (`Premio`, editable desde Ajustes → Premios en el panel de
+negocio/admin) puede vincularse opcionalmente a la tienda Tiendanube del
+negocio de dos formas, mutuamente excluyentes:
+
+- **Producto puntual** (`tiendanubeProductoId` + `tiendanubeProductoUrl`):
+  la clienta puede clickear el premio para ir directo al producto
+  (`tiendanubeProductoUrl`, una URL que carga el negocio a mano — no se
+  arma sola), y al canjearlo se le genera un cupón de Tiendanube de un solo
+  uso por el valor de ese producto (precio consultado en el momento a la
+  API de Tiendanube con `tiendanubeProductoId`, así no se desactualiza si
+  el precio cambia).
+- **Descuento porcentual** (`tiendanubeDescuentoPorcentaje`, ej. `10`): al
+  canjearlo se genera un cupón de Tiendanube de un solo uso por ese
+  porcentaje sobre toda la compra.
+
+Ambos casos usan `lib/tiendanube.js` y las mismas credenciales que ya usa el
+webhook de acreditación de puntos (`Negocio.tiendanubeStoreId` /
+`tiendanubeAccessToken`, ver tabla de integraciones abajo) — no hace falta
+cargar nada nuevo si el negocio ya tiene Tiendanube conectado para sumar
+puntos, pero sí revisar que ese access token tenga permiso de **lectura de
+productos** y **escritura de cupones/descuentos**, además del de lectura de
+órdenes que ya usa el webhook (si se generó como app privada con menos
+permisos que esos, hay que regenerarlo).
+
+El cupón se genera en el momento de canjear (`POST /api/canjes`), después de
+descontar los puntos — si la llamada a Tiendanube falla (token sin permisos,
+producto borrado, Tiendanube caído), el canje igual queda confirmado y los
+puntos ya se descontaron: el error queda anotado en
+`Canje.tiendanubeCuponError` (visible en el historial de canjes del negocio)
+para que se resuelva el descuento a mano en vez de perder el canje.
+
+**Limitación conocida**: la API de cupones de Tiendanube no permite atarlos
+a un producto específico (eso existe para "Descuentos" vía un partner app
+con webhook de checkout — una integración mucho más pesada, pensada para
+apps públicas de terceros, que no corresponde para el uso interno de un solo
+negocio). Por eso el cupón de "producto puntual" en realidad es un cupón por
+el valor de ese producto con un piso de compra (`min_price`) igual a ese
+valor — cubre el precio del producto si es lo único que hay en el carrito,
+pero Tiendanube no impide técnicamente usarlo con otra combinación de
+productos que sume ese piso. "No acumulable" tampoco es un campo de la API:
+Tiendanube ya limita a un cupón por pedido en el checkout, así que un cupón
+de un solo uso (`max_uses: 1`) no se puede combinar con *otro* cupón, pero
+si el negocio tiene una promoción automática configurada aparte en su panel
+de Tiendanube, esa sí se puede seguir acumulando (no hay forma de
+desactivarla por API, es una configuración de la tienda).
+
 ## Regalo de cumpleaños
 
 `netlify/functions/regalo-cumpleanos.mjs` es una [Scheduled Function de

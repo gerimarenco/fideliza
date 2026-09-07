@@ -51,9 +51,9 @@ export default function Home() {
   const [premiosPagina, setPremiosPagina] = useState(1);
   const [premiosData, setPremiosData] = useState(null);
   const [mostrarFormPremio, setMostrarFormPremio] = useState(false);
-  const [nuevoPremio, setNuevoPremio] = useState({ nombre: '', puntos: '', emoji: '' });
+  const [nuevoPremio, setNuevoPremio] = useState({ nombre: '', puntos: '', emoji: '', tiendanubeProductoId: '', tiendanubeProductoUrl: '', tiendanubeDescuentoPorcentaje: '' });
   const [premioEditandoId, setPremioEditandoId] = useState(null);
-  const [formEdicionPremio, setFormEdicionPremio] = useState({ nombre: '', puntos: '', emoji: '' });
+  const [formEdicionPremio, setFormEdicionPremio] = useState({ nombre: '', puntos: '', emoji: '', tiendanubeProductoId: '', tiendanubeProductoUrl: '', tiendanubeDescuentoPorcentaje: '' });
   const [formIntegraciones, setFormIntegraciones] = useState({ tiendanubeStoreId: '', tiendanubeAccessToken: '', slug: '', dragonfishBaseDeDatos: '' });
   const [formPassword, setFormPassword] = useState({ actual: '', nueva: '', confirmar: '' });
   const [formPuntosXPeso, setFormPuntosXPeso] = useState('');
@@ -348,7 +348,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo crear el premio'}`);
         return;
       }
-      setNuevoPremio({ nombre: '', puntos: '', emoji: '' });
+      setNuevoPremio({ nombre: '', puntos: '', emoji: '', tiendanubeProductoId: '', tiendanubeProductoUrl: '', tiendanubeDescuentoPorcentaje: '' });
       setMostrarFormPremio(false);
       cargarPremios(negocio.id, premiosPagina);
       cargarNegocios();
@@ -359,7 +359,14 @@ export default function Home() {
 
   const iniciarEdicionPremio = (p) => {
     setPremioEditandoId(p.id);
-    setFormEdicionPremio({ nombre: p.nombre, puntos: p.puntos, emoji: p.emoji });
+    setFormEdicionPremio({
+      nombre: p.nombre,
+      puntos: p.puntos,
+      emoji: p.emoji,
+      tiendanubeProductoId: p.tiendanubeProductoId || '',
+      tiendanubeProductoUrl: p.tiendanubeProductoUrl || '',
+      tiendanubeDescuentoPorcentaje: p.tiendanubeDescuentoPorcentaje || '',
+    });
   };
 
   const guardarEdicionPremio = async () => {
@@ -594,9 +601,16 @@ export default function Home() {
         return;
       }
       // Alert bloqueante a propósito (no toast): funciona como comprobante,
-      // la clienta lo tiene que poder mostrar en el negocio, no que
-      // desaparezca solo.
-      alert(`✅ ¡Canjeaste "${premio.nombre}"! Mostrale esto al negocio para retirarlo.`);
+      // la clienta lo tiene que poder mostrar en el negocio o anotarse el
+      // código del cupón, no que desaparezca solo.
+      if (data.tiendanubeCuponCodigo) {
+        const linkProducto = data.tiendanubeProductoUrl ? `\n\nProducto: ${data.tiendanubeProductoUrl}` : '';
+        alert(`✅ ¡Canjeaste "${premio.nombre}"!\n\nTu cupón de Tiendanube: ${data.tiendanubeCuponCodigo}\n\nUsalo en el checkout de la tienda — es de un solo uso.${linkProducto}`);
+      } else if (data.tiendanubeCuponError) {
+        alert(`✅ ¡Canjeaste "${premio.nombre}"! Hubo un problema generando el cupón automáticamente. Contactá al negocio para que te lo entregue.`);
+      } else {
+        alert(`✅ ¡Canjeaste "${premio.nombre}"! Mostrale esto al negocio para retirarlo.`);
+      }
       cargarNegocios();
     } catch (err) {
       mostrarToast('error', 'Ocurrió un error al canjear el premio.');
@@ -680,6 +694,8 @@ export default function Home() {
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 500 }}>{c.premio.nombre}</div>
               <div style={{ fontSize: 11, color: tema.textoSecundario }}>{c.cliente.nombre || c.cliente.email} · {new Date(c.createdAt).toLocaleDateString('es-AR')}</div>
+              {c.tiendanubeCuponCodigo && <div style={{ fontSize: 11, color: '#16a34a', marginTop: 2 }}>🎟️ Cupón: {c.tiendanubeCuponCodigo}</div>}
+              {c.tiendanubeCuponError && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>⚠️ {c.tiendanubeCuponError} — entregar el descuento a mano</div>}
             </div>
             <div style={{ fontSize: 12, fontWeight: 500, background: tema.resaltado, color: tema.texto, padding: '4px 10px', borderRadius: 20 }}>
               {c.premio.puntos} pts
@@ -737,6 +753,21 @@ export default function Home() {
               <input value={nuevoPremio.emoji} onChange={e => setNuevoPremio({...nuevoPremio, emoji: e.target.value})} placeholder="☕" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
             </div>
           </div>
+          <div style={{ fontSize: 12, color: tema.textoSecundario, marginBottom: 8 }}>Integración con Tiendanube (opcional) — completá ID de producto para un premio que da un producto puntual, o % de descuento para uno de descuento en toda la tienda. No hace falta cargar ninguno de los dos.</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>ID de producto</label>
+              <input value={nuevoPremio.tiendanubeProductoId} onChange={e => setNuevoPremio({...nuevoPremio, tiendanubeProductoId: e.target.value})} placeholder="123456789" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>URL del producto</label>
+              <input value={nuevoPremio.tiendanubeProductoUrl} onChange={e => setNuevoPremio({...nuevoPremio, tiendanubeProductoUrl: e.target.value})} placeholder="https://peperina.com/productos/..." style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>% de descuento</label>
+              <input type="number" value={nuevoPremio.tiendanubeDescuentoPorcentaje} onChange={e => setNuevoPremio({...nuevoPremio, tiendanubeDescuentoPorcentaje: e.target.value})} placeholder="10" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+          </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="fid-btn-primary" onClick={crearPremio} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar premio</button>
             <button className="fid-btn-secondary" onClick={() => setMostrarFormPremio(false)} style={{ padding: '8px 20px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
@@ -768,13 +799,32 @@ export default function Home() {
                   <button className="fid-btn-primary" onClick={guardarEdicionPremio} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: 'none', background: tema.primario, color: tema.primarioTexto, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
                   <button className="fid-btn-secondary" onClick={() => setPremioEditandoId(null)} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.textoSecundario, cursor: 'pointer' }}>Cancelar</button>
                 </div>
+                <div style={{ gridColumn: '1 / -1', fontSize: 11, color: tema.textoSecundario, marginTop: 8 }}>Integración con Tiendanube (opcional)</div>
+                <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>ID de producto</label>
+                    <input value={formEdicionPremio.tiendanubeProductoId} onChange={e => setFormEdicionPremio({...formEdicionPremio, tiendanubeProductoId: e.target.value})} placeholder="123456789" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>URL del producto</label>
+                    <input value={formEdicionPremio.tiendanubeProductoUrl} onChange={e => setFormEdicionPremio({...formEdicionPremio, tiendanubeProductoUrl: e.target.value})} placeholder="https://peperina.com/productos/..." style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>% de descuento</label>
+                    <input type="number" value={formEdicionPremio.tiendanubeDescuentoPorcentaje} onChange={e => setFormEdicionPremio({...formEdicionPremio, tiendanubeDescuentoPorcentaje: e.target.value})} placeholder="10" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+                  </div>
+                </div>
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{p.emoji}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 500 }}>{p.nombre}{!p.activo && <span style={{ marginLeft: 8, fontSize: 11, color: tema.textoSecundario }}>(desactivado)</span>}</div>
-                  <div style={{ fontSize: 11, color: tema.textoSecundario }}>{p.puntos} puntos</div>
+                  <div style={{ fontSize: 11, color: tema.textoSecundario }}>
+                    {p.puntos} puntos
+                    {p.tiendanubeProductoId && ' · 🔗 producto Tiendanube'}
+                    {p.tiendanubeDescuentoPorcentaje ? ` · 🎟️ cupón ${p.tiendanubeDescuentoPorcentaje}%` : ''}
+                  </div>
                 </div>
                 <button className="fid-btn-secondary" onClick={() => iniciarEdicionPremio(p)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.textoSecundario, cursor: 'pointer' }}>Editar</button>
                 <button className="fid-btn-secondary" onClick={() => togglePremioActivo(p)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: p.activo ? '#ef4444' : '#16a34a', cursor: 'pointer' }}>{p.activo ? 'Desactivar' : 'Reactivar'}</button>
@@ -1092,7 +1142,13 @@ export default function Home() {
             <div key={p.id} className="fid-card-hover" style={{ background: tema.superficie, border: '1px solid #22c55e', borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
               <div style={{ width: 36, height: 36, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{p.emoji}</div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
+                {/* "Click en un premio → lleva al producto en Tiendanube" (Grupo 7): solo
+                    clickeable cuando el negocio cargó una URL de producto para este premio. */}
+                {p.tiendanubeProductoUrl ? (
+                  <a href={p.tiendanubeProductoUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: tema.texto, textDecoration: 'none' }}>{p.nombre} 🔗</a>
+                ) : (
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
+                )}
                 <div style={{ fontSize: 11, color: '#16a34a' }}>{p.puntos} puntos</div>
               </div>
               <button
@@ -1111,7 +1167,11 @@ export default function Home() {
             <div key={p.id} style={{ background: tema.superficie, border: `1px solid ${tema.borde}`, borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, opacity: 0.7 }}>
               <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{p.emoji}</div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
+                {p.tiendanubeProductoUrl ? (
+                  <a href={p.tiendanubeProductoUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: tema.texto, textDecoration: 'none' }}>{p.nombre} 🔗</a>
+                ) : (
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
+                )}
                 <div style={{ fontSize: 11, color: tema.textoSecundario }}>Te faltan {p.puntos - clientePropio.puntos} puntos</div>
               </div>
             </div>
