@@ -93,7 +93,7 @@ export async function POST(request, { params }) {
       where: { slug: negocio },
     });
 
-    if (!negocioEncontrado) {
+    if (!negocioEncontrado || !negocioEncontrado.activo) {
       return NextResponse.json(
         { error: 'No encontramos ese negocio.' },
         { status: 404 }

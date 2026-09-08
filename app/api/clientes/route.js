@@ -55,15 +55,27 @@ export async function POST(request) {
 
   const passwordGenerada = Math.random().toString(36).slice(-8)
 
-  const { password, ...cliente } = await prisma.cliente.create({
-    data: {
-      nombre: body.nombre,
-      telefono: body.telefono,
-      email: body.email,
-      password: await hashPassword(passwordGenerada),
-      negocioId: body.negocioId,
+  let clienteCreado
+  try {
+    clienteCreado = await prisma.cliente.create({
+      data: {
+        nombre: body.nombre,
+        telefono: body.telefono,
+        email: body.email,
+        password: await hashPassword(passwordGenerada),
+        negocioId: body.negocioId,
+      }
+    })
+  } catch (error) {
+    // Cliente.email es único en toda la base (no por negocio): P2002 acá
+    // significa que ya existe una cuenta con ese email, de este negocio o
+    // de otro.
+    if (error.code === 'P2002') {
+      return NextResponse.json({ error: 'Ya existe una cuenta con ese email' }, { status: 409 })
     }
-  })
+    throw error
+  }
+  const { password, ...cliente } = clienteCreado
 
   // passwordGenerada va en texto plano en la respuesta: el negocio la
   // necesita para pasársela al cliente. El hash (password) se descarta acá,

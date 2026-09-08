@@ -54,11 +54,19 @@ export async function POST(request) {
   const emailNormalizado = email?.trim().toLowerCase()
   const telefonoNormalizado = telefono?.trim()
 
-  // Number.isFinite (sin coaccionar con Number()) para que null/''/false no
-  // cuelen como monto 0 — y monto < 0 para no acreditar (ni descontar)
-  // puntos si Dragon Fish llega a mandar una nota de crédito con Total
-  // negativo, que /Facturaagrupada agrupa junto con las facturas de venta.
-  if (sinDatos || !Number.isFinite(monto) || monto < 0 || (!emailNormalizado && !telefonoNormalizado)) {
+  // Dragon Fish (vía el agente local) puede mandar el monto como número o
+  // como string (algunos ERPs viejos serializan los decimales como texto) —
+  // hay que aceptar los dos sin caer de nuevo en el bug original de
+  // Number(null/''/false) === 0 colando como "monto válido". Por eso NO se
+  // usa Number(monto) directo: solo se coacciona si es un number real o un
+  // string no vacío, cualquier otra cosa (null, '', false, undefined) queda
+  // en NaN y cae en sin_datos. monto < 0 tampoco se procesa, por si Dragon
+  // Fish manda una nota de crédito con Total negativo, que /Facturaagrupada
+  // agrupa junto con las facturas de venta.
+  const montoNumerico = typeof monto === 'number'
+    ? monto
+    : (typeof monto === 'string' && monto.trim() !== '' ? Number(monto) : NaN)
+  if (sinDatos || !Number.isFinite(montoNumerico) || montoNumerico < 0 || (!emailNormalizado && !telefonoNormalizado)) {
     return marcarFactura(factura.id, codigo, 'sin_datos')
   }
 
@@ -106,7 +114,7 @@ export async function POST(request) {
     }
   }
 
-  const puntos = Math.floor(Number(monto) / negocio.puntosXPeso)
+  const puntos = Math.floor(montoNumerico / negocio.puntosXPeso)
 
   // Mismo patrón de idempotencia que Mercado Pago/Tiendanube: WebhookEvento +
   // Cliente.update + MovimientoPuntos.create en una sola transacción, más el

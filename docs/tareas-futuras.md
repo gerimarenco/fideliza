@@ -293,7 +293,40 @@ agregado en esta sesión (Grupos 3 en adelante), aparecieron 5 bugs reales
   desde `app/page.js` (un client component, que no puede importar
   `lib/email.js` sin arrastrar el paquete `resend` al navegador).
 
-## 16. Otros pendientes menores (de sesiones previas, sin resolver)
+## 16. Segunda pasada de revisión de bugs (código previo a esta sesión) — ✅ resuelto (2026-09-08)
+
+Después de la revisión del ítem 15, se pidió seguir revisando bugs — esta
+vez sobre todo el proyecto, no solo lo agregado en esta sesión. Aparecieron
+4 más:
+
+- **`GET /api/negocios` filtraba los datos de todos los clientes a
+  cualquier cliente logueado** — el más serio de los cuatro. La lista
+  `clientes` de un negocio (con email, puntos y, desde el saludo de
+  cumpleaños del ítem 14, fecha de nacimiento) se devolvía completa sin
+  importar quién la pidiera. Un cliente cualquiera podía llamar al
+  endpoint y ver los datos de todos los demás clientes de su mismo
+  negocio. Ahora el `select` de `clientes` varía según el rol: admin y
+  negocio siguen viendo la lista completa (la necesitan para gestionar el
+  negocio), un cliente logueado solo recibe su propio registro.
+- **`POST /api/clientes` no manejaba el email duplicado** — a diferencia
+  de `POST /api/negocios` (que sí atrapa el error P2002), cargar un
+  cliente con un email ya usado tiraba un 500 genérico en vez de un
+  mensaje claro.
+- **`POST /api/registro/[negocio]` no validaba que el negocio esté
+  activo** — el `GET` de la misma ruta sí lo hacía (por eso la pantalla
+  de registro no cargaba para un negocio desactivado), pero pegándole
+  directo al `POST` igual se podía crear una cuenta nueva contra un
+  negocio dado de baja.
+- **Bug de monto en Dragon Fish, versión texto**: la validación
+  `Number.isFinite(monto)` (agregada en una revisión anterior para que
+  `null`/`''`/`false` no colaran como monto 0) también rechazaba un monto
+  válido si Dragon Fish lo mandaba como string en vez de número — algo
+  que pasa con algunos ERPs viejos. Se corrigió tanto en
+  `app/api/dragonfish/resolver` como en `dragonfish-agente/index.js`
+  (que es quien primero lee el dato de la API local de Dragon Fish) para
+  aceptar número o string sin volver a colar `null`/`''`/`false`.
+
+## 17. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado
