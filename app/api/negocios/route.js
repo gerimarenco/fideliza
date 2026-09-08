@@ -27,7 +27,11 @@ const NEGOCIO_SELECT = {
   dragonfishBaseDeDatos: true,
   dragonfishAgentToken: true,
   clientes: {
-    select: { id: true, nombre: true, email: true, puntos: true }
+    // fechaNacimiento: para que el propio cliente pueda ver en su panel si
+    // hoy es su cumpleaños (ver PanelCliente) — mismo dato que ya usa la
+    // Scheduled Function del regalo de cumpleaños, no es nada nuevo que se
+    // empiece a guardar.
+    select: { id: true, nombre: true, email: true, puntos: true, fechaNacimiento: true }
   },
   premios: {
     where: { activo: true },
