@@ -109,7 +109,17 @@ export async function POST(request) {
     if (!cliente || cliente.negocioId !== session.user.id) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
-  } else if (session.user.role !== 'admin' && session.user.role !== 'cliente') {
+  } else if (session.user.role === 'cliente') {
+    // Sin esto, un cliente logueado podía canjear el premio de CUALQUIER
+    // negocio (no solo el suyo) mandando ese premioId por fuera de la UI —
+    // se le descontaban sus propios puntos, pero el canje y, desde el
+    // Grupo 7, el cupón de Tiendanube se generaban contra un negocio con el
+    // que esa clienta no tiene ninguna relación.
+    const clientePropio = await prisma.cliente.findUnique({ where: { id: clienteId }, select: { negocioId: true } })
+    if (!clientePropio || clientePropio.negocioId !== premio.negocioId) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+  } else if (session.user.role !== 'admin') {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 

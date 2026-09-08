@@ -42,7 +42,7 @@ async function regaloCumpleanos() {
       })
       if (yaAcreditadoHoy) continue
 
-      const [, clienteActualizado] = await prisma.$transaction([
+      const [clienteActualizado] = await prisma.$transaction([
         prisma.cliente.update({
           where: { id: cliente.id },
           data: { puntos: { increment: negocio.regaloCumpleanosPuntos } },

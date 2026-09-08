@@ -253,7 +253,47 @@ cliente, comparada en UTC igual que la Scheduled Function del regalo, así
 el cartel coincide siempre con el día real en que se acreditan los
 puntos, sin depender de la zona horaria del navegador.
 
-## 15. Otros pendientes menores (de sesiones previas, sin resolver)
+## 15. Revisión de bugs de toda la sesión — ✅ resuelto (2026-09-08)
+
+Cecilia pidió revisar bugs. Pasada una revisión de código sobre todo lo
+agregado en esta sesión (Grupos 3 en adelante), aparecieron 5 bugs reales
+(ya corregidos) más una duplicación de código:
+
+- **`regalo-cumpleanos.mjs`**: el mail de regalo de cumpleaños mostraba
+  mal el saldo total del cliente — un error de desestructuración
+  (`const [, clienteActualizado]`) tomaba el resultado de crear el
+  `MovimientoPuntos` en vez del de actualizar `Cliente`, así que el mail
+  decía "ahora tenés 50 puntos" en vez del total real (ej. 350).
+- **`POST /api/canjes`**: un cliente logueado podía canjear el premio de
+  **cualquier negocio**, no solo el suyo, mandando ese `premioId` por
+  fuera de la UI — se le descontaban sus propios puntos igual, pero el
+  canje (y, desde el Grupo 7, el cupón real de Tiendanube) se generaban
+  contra un negocio con el que esa clienta no tiene ninguna relación.
+  Ahora se valida que el premio sea del mismo negocio que el cliente.
+- **`vencimiento-puntos.mjs`**: condición de carrera — leía cuánto le
+  quedaba a cada lote de puntos, y si justo en el medio un canje
+  consumía parte de ese mismo lote, la función igual restaba el monto
+  viejo (ya leído) del saldo del cliente, pudiendo descontar de más.
+  Se resuelve venciendo cada lote con un UPDATE atómico
+  (`... WHERE saldoRestante > 0 RETURNING saldoRestante`) que lee y
+  vacía el lote en un solo paso, inmune a la carrera.
+- **`vencimiento-puntos.mjs`**: el cálculo de la fecha de corte
+  (`ahora menos N meses`) podía desbordarse a otro mes en fechas como el
+  31 de agosto menos 6 meses (JS calcula "31 de febrero", que no existe,
+  y lo corre al 2-3 de marzo) — venciendo puntos unos días antes de lo
+  que correspondía. Se agrega un helper que clampea al último día válido
+  del mes de destino.
+- **`enviarEmailPuntosVencidos`**: el mail decía siempre "dentro de los 6
+  meses", incluso para un negocio con `vencimientoPuntosMeses` distinto
+  de 6 (el campo es configurable por negocio) — ahora usa el valor real.
+- **Duplicación**: la lógica de "Club {nombre}" (`nombreClub`) estaba
+  repetida en tres lugares (`lib/email.js`, la ruta de registro, y
+  `app/page.js`). Se extrajo a `lib/nombreClub.js`, un módulo sin
+  dependencias que puede importarse tanto desde código de servidor como
+  desde `app/page.js` (un client component, que no puede importar
+  `lib/email.js` sin arrastrar el paquete `resend` al navegador).
+
+## 16. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado

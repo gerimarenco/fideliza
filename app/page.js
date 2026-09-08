@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
+import { nombreClub } from '@/lib/nombreClub';
 
 // Paleta por defecto (clara) del panel de negocio y del panel de cliente.
 // Un negocio con marca propia (ej. Peperina) puede sobreescribir cualquiera
@@ -1168,7 +1169,7 @@ export default function Home() {
         <div style={{ padding: '20px 20px 16px', background: tema.superficie, borderBottom: `1px solid ${tema.borde}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
           <div style={{ fontSize: 16, fontWeight: 600, fontFamily: tema.fuenteTitulo }}>Hola, {clientePropio.nombre ? clientePropio.nombre.split(' ')[0] : clientePropio.email.split('@')[0]} 👋</div>
-            <div style={{ fontSize: 12, color: tema.textoSecundario }}>Club {negocioDelCliente.nombre} {negocioDelCliente.emoji}</div>
+            <div style={{ fontSize: 12, color: tema.textoSecundario }}>{nombreClub(negocioDelCliente.nombre)} {negocioDelCliente.emoji}</div>
           </div>
           <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: '#ef4444', cursor: 'pointer' }}>Salir</button>
         </div>
