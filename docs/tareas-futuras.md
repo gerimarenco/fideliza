@@ -241,7 +241,19 @@ PNG-embebido con canal alfa — Turbopack rechaza ICO sin RGBA) generado a
 mano con `sharp` (ya es dependencia del proyecto), no hay ninguna
 herramienta de conversión de ICO instalada en este entorno.
 
-## 14. Otros pendientes menores (de sesiones previas, sin resolver)
+## 14. Saludo de cumpleaños en el panel del cliente — ✅ resuelto (2026-09-08)
+
+Además del mail y los puntos automáticos (ítem 6), el día del cumpleaños
+el panel del cliente ahora muestra un cartel arriba de todo: "🎉 ¡Feliz
+cumpleaños, {nombre}! Que tengas un lindo día. De parte de Retornar te
+regalamos {puntos} puntos 🎂" — se puede cerrar con la (✕), y solo
+aparece si el negocio tiene `regaloCumpleanosPuntos` cargado (si no, no
+hay nada que festejar en puntos). Usa la fecha de nacimiento del propio
+cliente, comparada en UTC igual que la Scheduled Function del regalo, así
+el cartel coincide siempre con el día real en que se acreditan los
+puntos, sin depender de la zona horaria del navegador.
+
+## 15. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado

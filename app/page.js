@@ -40,6 +40,7 @@ export default function Home() {
   const [clientePropio, setClientePropio] = useState(null);
   const [negocioDelCliente, setNegocioDelCliente] = useState(null);
   const [canjeandoId, setCanjeandoId] = useState(null);
+  const [saludoCumpleCerrado, setSaludoCumpleCerrado] = useState(false);
   const [toast, setToast] = useState(null);
   const toastTimeoutRef = useRef(null);
   const [estadisticas, setEstadisticas] = useState(null);
@@ -1150,6 +1151,15 @@ export default function Home() {
     const premiosDisponibles = (negocioDelCliente.premios || []).filter(p => clientePropio.puntos >= p.puntos);
     const premiosBloqueados = (negocioDelCliente.premios || []).filter(p => clientePropio.puntos < p.puntos);
 
+    // Mismo criterio (mes/día en UTC) que netlify/functions/regalo-cumpleanos.mjs,
+    // para que el cartel coincida con el día real en que se acreditan los
+    // puntos — no depende de la zona horaria del navegador de la clienta.
+    const hoy = new Date();
+    const esCumpleanos = clientePropio.fechaNacimiento && (() => {
+      const nacimiento = new Date(clientePropio.fechaNacimiento);
+      return nacimiento.getUTCMonth() === hoy.getUTCMonth() && nacimiento.getUTCDate() === hoy.getUTCDate();
+    })();
+
     return (
       <div style={{ minHeight: '100vh', background: tema.fondo, color: tema.texto, fontFamily: 'system-ui', maxWidth: 480, margin: '0 auto' }}>
         {tema.imagenPortada && (
@@ -1164,6 +1174,17 @@ export default function Home() {
         </div>
 
         <div style={{ padding: 20 }}>
+          {esCumpleanos && negocioDelCliente.regaloCumpleanosPuntos && !saludoCumpleCerrado && (
+            <div style={{ position: 'relative', background: 'linear-gradient(135deg, #f472b6, #fb923c)', borderRadius: 16, padding: '20px 40px 20px 20px', color: '#fff', marginBottom: 16 }}>
+              <button
+                onClick={() => setSaludoCumpleCerrado(true)}
+                aria-label="Cerrar"
+                style={{ position: 'absolute', top: 10, right: 12, border: 'none', background: 'transparent', color: '#fff', fontSize: 16, cursor: 'pointer', opacity: 0.85, lineHeight: 1 }}
+              >✕</button>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>🎉 ¡Feliz cumpleaños, {clientePropio.nombre ? clientePropio.nombre.split(' ')[0] : clientePropio.email.split('@')[0]}!</div>
+              <div style={{ fontSize: 13, opacity: 0.95 }}>Que tengas un lindo día. De parte de Retornar te regalamos {negocioDelCliente.regaloCumpleanosPuntos} puntos 🎂</div>
+            </div>
+          )}
           <div style={{ background: tema.primario, borderRadius: 16, padding: 24, color: tema.primarioTexto, textAlign: 'center', marginBottom: 20 }}>
             <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 4 }}>Tus puntos</div>
             <div style={{ fontSize: 40, fontWeight: 700, fontFamily: tema.fuenteTitulo }}>{clientePropio.puntos}</div>
