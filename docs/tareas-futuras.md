@@ -326,7 +326,32 @@ vez sobre todo el proyecto, no solo lo agregado en esta sesión. Aparecieron
   (que es quien primero lee el dato de la API local de Dragon Fish) para
   aceptar número o string sin volver a colar `null`/`''`/`false`.
 
-## 17. Otros pendientes menores (de sesiones previas, sin resolver)
+## 17. Verificación de las migraciones de Prisma — ✅ confirmado, sin cambios de código (2026-09-08)
+
+Todas las migraciones de esta sesión se escribieron a mano (sin
+`prisma migrate dev`, porque este entorno nunca tuvo `DATABASE_URL` para
+conectarse a la base real) y nunca se habían probado contra una base de
+verdad — quedaba la duda de si coincidían exactamente con
+`schema.prisma`, algo que de estar mal recién se iba a notar en el
+próximo deploy (`prisma migrate deploy` fallando, o peor, aplicando
+"bien" pero dejando la base desalineada del Prisma Client generado).
+
+Se encontró Postgres 16 instalado en este entorno (no se había notado
+antes): se levantó un cluster local, se armó una base descartable, se
+corrieron las 21 migraciones en orden con `prisma migrate deploy` (igual
+comando que usa `netlify.toml` en producción) y se comparó el resultado
+contra `schema.prisma` con `prisma migrate diff` — **cero diferencias**.
+Se probó además un create/update real contra esa base con Prisma Client
+(negocio, cliente, premio, movimiento de puntos, canje, y los campos
+nuevos de esta sesión) sin ningún error. La base y el cluster de prueba
+se borraron después, no queda nada corriendo.
+
+No se tocó código: era una verificación, no encontró nada para arreglar.
+Esto reemplaza la advertencia repetida en varios PRs de esta sesión de
+"no se pudo probar la migración contra una base real" — ya se probó, y
+coincide.
+
+## 18. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado
