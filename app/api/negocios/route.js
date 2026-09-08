@@ -26,13 +26,12 @@ const NEGOCIO_SELECT = {
   tiendanubeAccessToken: true,
   dragonfishBaseDeDatos: true,
   dragonfishAgentToken: true,
-  clientes: {
-    // fechaNacimiento: para que el propio cliente pueda ver en su panel si
-    // hoy es su cumpleaños (ver PanelCliente) — mismo dato que ya usa la
-    // Scheduled Function del regalo de cumpleaños, no es nada nuevo que se
-    // empiece a guardar.
-    select: { id: true, nombre: true, email: true, puntos: true, fechaNacimiento: true }
-  },
+  // `clientes` no va acá adentro: a diferencia de `premios` (mismo `where`
+  // fijo para cualquiera que pregunte), acá el `where` tiene que variar
+  // según el rol de quien pregunta — ver clientesSelectPara() más abajo. Un
+  // cliente logueado nunca tiene que recibir los datos (email, puntos,
+  // fecha de nacimiento) de los demás clientes del mismo negocio, solo el
+  // suyo propio.
   premios: {
     where: { activo: true },
     // De menor a mayor puntaje: así el cliente ve sus premios en el panel
@@ -74,6 +73,21 @@ function validarTema(tema) {
   })
 }
 
+const CLIENTE_SELECT = { id: true, nombre: true, email: true, puntos: true, fechaNacimiento: true }
+
+// Admin y negocio ven a todos los clientes del negocio (ya lo necesitan
+// para gestionar su propio negocio, y ya lo pueden ver igual desde GET
+// /api/clientes). Un cliente logueado, en cambio, solo tiene que recibir
+// SU PROPIO registro — sin este filtro, cualquier cliente podía leer el
+// email, los puntos y la fecha de nacimiento de todos los demás clientes
+// del mismo negocio con solo llamar a este endpoint.
+function clientesSelectPara(session) {
+  if (session.user.role === 'cliente') {
+    return { where: { id: session.user.id }, select: CLIENTE_SELECT }
+  }
+  return { select: CLIENTE_SELECT }
+}
+
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) {
@@ -91,7 +105,8 @@ export async function GET() {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  const negocios = await prisma.negocio.findMany({ where, select: NEGOCIO_SELECT })
+  const select = { ...NEGOCIO_SELECT, clientes: clientesSelectPara(session) }
+  const negocios = await prisma.negocio.findMany({ where, select })
   const negociosSeguros = negocios.map(({ tiendanubeAccessToken, dragonfishAgentToken, ...negocio }) => ({
     ...negocio,
     tiendanubeConectado: !!tiendanubeAccessToken,

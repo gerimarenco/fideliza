@@ -141,12 +141,20 @@ async function reportarResultado(codigo, datos) {
 async function procesarPendiente(pendiente) {
   try {
     const { monto, email, telefono } = await consultarDragonfish(pendiente.codigo)
-    if (!Number.isFinite(monto) || (!email && !telefono)) {
+    // Dragon Fish puede devolver Total como número o como string (algunos
+    // ERPs viejos serializan los decimales como texto) — se acepta
+    // cualquiera de los dos sin que null/''/false cuelen como monto 0 (por
+    // eso no se usa Number(monto) directo, ver la misma lógica del lado del
+    // servidor en app/api/dragonfish/resolver).
+    const montoNumerico = typeof monto === 'number'
+      ? monto
+      : (typeof monto === 'string' && monto.trim() !== '' ? Number(monto) : NaN)
+    if (!Number.isFinite(montoNumerico) || (!email && !telefono)) {
       console.warn(`Factura ${pendiente.codigo}: Dragon Fish no trajo monto o identificación de cliente, se marca sin datos`)
       await reportarResultado(pendiente.codigo, { sinDatos: true })
       return
     }
-    const resultado = await reportarResultado(pendiente.codigo, { monto, email, telefono })
+    const resultado = await reportarResultado(pendiente.codigo, { monto: montoNumerico, email, telefono })
     console.log(`Factura ${pendiente.codigo}: ${resultado.resultado}`, resultado.puntosAcreditados ? `(+${resultado.puntosAcreditados} puntos)` : '')
   } catch (error) {
     console.error(`Error procesando factura ${pendiente.codigo}:`, error.message)
