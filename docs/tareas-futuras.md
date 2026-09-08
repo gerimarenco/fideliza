@@ -226,7 +226,22 @@ ordenados por puntos ascendente — tanto en el panel de negocio/admin
 premios). No hace falta acomodar nada a mano ni ahora ni cuando se
 agreguen premios nuevos, el orden queda bien solo.
 
-## 13. Otros pendientes menores (de sesiones previas, sin resolver)
+## 13. Favicon "R" de Retornar — ✅ resuelto (2026-09-08)
+
+Cecilia mandó un boceto de ícono (cuadrado verde redondeado, "R" blanca
+con el bowl dibujado como flecha hacia la izquierda — la idea de
+"retornar") para usar de favicon. Igual que con la imagen de portada del
+ítem 11: no hay forma de extraer el archivo exacto que compartió por
+chat, así que se recreó el mismo diseño con SVG + Playwright/Chromium. Se
+probaron 4 colores (verde, terracota, burdeos, azul noche) y Cecilia
+eligió el verde original.
+
+`app/favicon.ico` reemplazado por un ícono multi-resolución (16/32/48/256,
+PNG-embebido con canal alfa — Turbopack rechaza ICO sin RGBA) generado a
+mano con `sharp` (ya es dependencia del proyecto), no hay ninguna
+herramienta de conversión de ICO instalada en este entorno.
+
+## 14. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado
