@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { hashPassword } from '@/lib/password';
+import { nombreClub } from '@/lib/nombreClub';
 
 // CORS abierto porque también la consume el widget embebible (public/widget.js)
 // desde el dominio de la tienda online del negocio (ver README) — no un
@@ -33,7 +34,7 @@ export async function GET(request, { params }) {
   // nombre pelado del negocio — esta ruta es exclusivamente para consumo de
   // clientes (pantalla de registro y widget embebible), nunca para el admin
   // o el propio negocio, así que siempre corresponde el prefijo acá.
-  negocioPublico.nombre = `Club ${nombre}`;
+  negocioPublico.nombre = nombreClub(nombre);
   negocioPublico.temaPrimario = tema?.primario;
   negocioPublico.temaPrimarioTexto = tema?.primarioTexto;
   return NextResponse.json(negocioPublico, { headers: CORS_HEADERS });
