@@ -90,10 +90,13 @@ export async function POST(request) {
   }
 
   const premio = await prisma.premio.findUnique({
-    where: { id: premioId }
+    where: { id: premioId },
+    include: { negocio: { select: { activo: true } } },
   })
 
-  if (!premio || !premio.activo) {
+  // Un negocio desactivado (ver app/api/negocios) no debería seguir dejando
+  // canjear puntos, aunque el premio en sí siga marcado activo.
+  if (!premio || !premio.activo || !premio.negocio.activo) {
     return NextResponse.json({ error: 'Este premio ya no está disponible' }, { status: 400 })
   }
 

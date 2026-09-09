@@ -412,7 +412,23 @@ se probó con casos concretos (nacimiento bisiesto, años bisiestos y no
 bisiestos, cumpleaños normal) confirmando el resultado esperado en cada
 uno.
 
-## 20. Otros pendientes menores (de sesiones previas, sin resolver)
+Una segunda auditoría (rounding de puntos, idempotencia de webhooks,
+mails faltantes, chequeos de `Negocio.activo`) no encontró más bugs de
+esas primeras tres categorías (el redondeo de puntos es
+`Math.floor(monto / puntosXPeso)` en los cuatro lugares donde se calcula
+y coincide siempre; los tres webhooks que acreditan puntos ya evitan el
+doble crédito por reenvío gracias a la restricción única de
+`WebhookEvento`; todo camino que suma puntos ya manda algún mail). Sí
+encontró un agujero real: desactivar un negocio (`Negocio.activo`,
+pensado para sacarlo de circulación sin borrar su historial — ver
+`app/api/negocios`) solo se chequeaba en el registro público. Compras
+manuales, el agente de Dragon Fish, los webhooks de Tiendanube/Mercado
+Pago y los canjes seguían funcionando igual con un negocio desactivado.
+Se agregó el chequeo en los cinco lugares (a los webhooks, que no deben
+fallar aunque el negocio esté desactivado, se les hace devolver 200 sin
+acreditar, igual que ya hacían con un negocio no configurado).
+
+## 21. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado

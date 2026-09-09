@@ -37,6 +37,13 @@ export async function POST(request) {
       where: { id: negocio_id },
     });
 
+    // Un negocio desactivado (ver app/api/negocios) no debería seguir
+    // acreditando puntos por esta vía, aunque el pago se haya generado con
+    // una preferencia creada antes de desactivarlo.
+    if (negocio && !negocio.activo) {
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+
     const puntosXPeso = negocio?.puntosXPeso || 1000;
     const puntosASumar = Math.floor(Number(monto) / puntosXPeso);
 
