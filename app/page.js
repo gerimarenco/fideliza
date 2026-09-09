@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { nombreClub } from '@/lib/nombreClub';
 import { esCumpleanosHoy } from '@/lib/cumpleanos';
-import { descripcionNiveles } from '@/lib/clienteStats';
+import { descripcionNiveles, formatearMiles } from '@/lib/clienteStats';
 
 // Paleta por defecto (clara) del panel de negocio y del panel de cliente.
 // Un negocio con marca propia (ej. Peperina) puede sobreescribir cualquiera
@@ -864,7 +864,7 @@ export default function Home() {
                     </div>
                     <div style={{ background: tema.fondo, borderRadius: 8, padding: '8px 10px' }}>
                       <div style={{ fontSize: 10, color: tema.textoSecundario }}>Ticket promedio</div>
-                      <div style={{ fontSize: 14, fontWeight: 600 }}>{s.ticketPromedio ? `$${s.ticketPromedio.toLocaleString('es-AR')}` : '—'}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{s.ticketPromedio ? `$${formatearMiles(s.ticketPromedio)}` : '—'}</div>
                     </div>
                   </div>
 
