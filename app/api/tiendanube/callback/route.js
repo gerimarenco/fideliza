@@ -7,13 +7,45 @@ import { intercambiarCodigoPorToken } from '@/lib/tiendanube'
 // "Redirect URL" en el Partner Portal de Tiendanube (ver docs/ para el
 // valor exacto a usar). Tiendanube redirige acá con `code` en la query
 // string una vez que la clienta acepta los permisos en su propia tienda.
-//
-// El destino final se arma con `request.url` como base (no
-// NEXT_PUBLIC_BASE_URL) para que funcione igual en cualquier host desde el
-// que se haya disparado el flujo, sin depender de que esa variable esté
-// bien configurada.
-function volverAlPanel(request, resultado) {
-  const response = NextResponse.redirect(new URL(`/?tiendanube=${resultado}`, request.url))
+const MENSAJES = {
+  conectado: { titulo: '✅ Tiendanube conectado', texto: 'La conexión se hizo correctamente.' },
+  'ya-conectada': { titulo: '⚠️ Esa tienda ya está conectada', texto: 'Esta cuenta de Tiendanube ya está conectada a otro negocio de Retornar.' },
+  error: { titulo: '❌ No se pudo conectar', texto: 'Algo falló al conectar con Tiendanube. Volvé a Ajustes → Integraciones y probá de nuevo.' },
+}
+
+// Devuelve directamente una página de confirmación en vez de redirigir a
+// `/` y depender de un toast ahí: si por lo que sea la sesión no llega
+// viva a esa siguiente carga (se vio pasar una vez, todavía sin poder
+// reproducirlo de punta a punta en este entorno), la clienta de todos
+// modos ve confirmado el resultado antes de que la mande de vuelta —
+// nunca un simple "no pasó nada" en blanco. El auto-redirect después de
+// unos segundos es solo para volver a Retornar; si ahí la sesión sigue
+// viva aparece además el toast de siempre (ver app/page.js).
+function paginaResultado(request, resultado) {
+  const { titulo, texto } = MENSAJES[resultado] || MENSAJES.error
+  const destino = new URL(`/?tiendanube=${resultado}`, request.url).toString()
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="refresh" content="3;url=${destino}" />
+  <title>Retornar</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #1a1a1a; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    .caja { background: #fff; border-radius: 16px; padding: 32px; max-width: 360px; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+    a { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #6366f1; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 500; }
+  </style>
+</head>
+<body>
+  <div class="caja">
+    <h2>${titulo}</h2>
+    <p>${texto}</p>
+    <a href="${destino}">Volver a Retornar</a>
+  </div>
+</body>
+</html>`
+
+  const response = new NextResponse(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } })
   response.cookies.delete('tiendanube_oauth')
   return response
 }
@@ -24,7 +56,7 @@ export async function GET(request) {
   const negocioId = leerCookieEstado(request.cookies.get('tiendanube_oauth')?.value)
 
   if (!code || !negocioId) {
-    return volverAlPanel(request, 'error')
+    return paginaResultado(request, 'error')
   }
 
   try {
@@ -33,15 +65,15 @@ export async function GET(request) {
       where: { id: negocioId },
       data: { tiendanubeStoreId: String(user_id), tiendanubeAccessToken: access_token },
     })
-    return volverAlPanel(request, 'conectado')
+    return paginaResultado(request, 'conectado')
   } catch (error) {
     // Otro negocio ya conectado a esta misma tienda de Tiendanube
     // (tiendanubeStoreId es único) — pasa si dos negocios comparten cuenta
     // de Tiendanube por error, no es un caso esperado en el uso normal.
     if (error.code === 'P2002') {
-      return volverAlPanel(request, 'ya-conectada')
+      return paginaResultado(request, 'ya-conectada')
     }
     console.error('Error al conectar Tiendanube vía OAuth para el negocio', negocioId, error)
-    return volverAlPanel(request, 'error')
+    return paginaResultado(request, 'error')
   }
 }
