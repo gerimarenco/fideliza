@@ -522,7 +522,58 @@ la lista de rutas públicas en `middleware.js`, igual que `/registro`.
 El ítem de menú en Tiendanube debería apuntar a esta URL nueva
 (`/club/peperina`), no directo al formulario.
 
-## 23. Otros pendientes menores (de sesiones previas, sin resolver)
+## 23. Niveles de cliente, estadísticas y mensaje de WhatsApp (2026-09-09)
+
+Cecilia mandó una captura de otro sistema de fidelización ("Tienda de
+Puntos") con una idea que le gustó para el panel de clientes: nivel a
+simple vista, última actividad, y al abrir el detalle, más estadísticas y
+un botón para mandarle un mensaje al cliente. Se armó una versión propia
+en `VistaClientes` (`app/page.js`):
+
+- **Celular obligatorio en el registro público** (`/registro/[negocio]`):
+  hasta ahora `Cliente.telefono` solo se cargaba a mano (o vía Dragon
+  Fish) — sin eso no hay forma de mandarle nada por WhatsApp a un cliente
+  que se registró solo. Sin validar formato de país/área a propósito
+  (varía mucho cómo la gente lo escribe), solo que tenga una cantidad de
+  dígitos razonable.
+- **Nivel del cliente** (`lib/clienteStats.js`): Bronce / Plata / Oro /
+  Diamante / VIP según puntos **ganados de por vida**, no el saldo actual
+  (que baja con cada canje — así un cliente frecuente no "pierde" nivel
+  por canjear premios, sería premiarlo al revés). **Los umbrales
+  (Bronce 0 / Plata 1000 / Oro 3000 / Diamante 6000 / VIP 10000) son un
+  punto de partida mío, no un número que haya pedido Cecilia** — hay que
+  revisarlos con ella una vez que haya suficientes clientes reales para
+  ver si el reparto entre niveles tiene sentido.
+- **Estadísticas por cliente**, calculadas a partir de `MovimientoPuntos`
+  (una sola consulta por página de la lista, no una por cliente): compras
+  registradas (cuenta solo orígenes de venta real: manual, Mercado Pago,
+  Tiendanube, Dragon Fish — no cumpleaños ni vencimiento), frecuencia
+  promedio entre compras, y un ticket promedio **aproximado**
+  (`MovimientoPuntos` guarda puntos, no el monto real de la venta — se
+  reconstruye multiplicando por `puntosXPeso`, perdiendo el redondeo hacia
+  abajo que ya se pierde en el origen).
+- **Aviso de inactividad**: si hace 30+ días que un cliente no tiene
+  actividad, aparece un cartel de alerta al abrir su detalle (mismo
+  espíritu que el "hace 42 días que no vuelve" de la captura).
+- **Botón de WhatsApp**: arma un link `wa.me` con un mensaje sugerido,
+  calculado con datos reales (cuánto le falta en puntos/pesos para el
+  próximo premio que todavía no puede pagar) — el negocio lo revisa y lo
+  manda desde su propio WhatsApp. **No es una integración real de
+  WhatsApp Business** (no hace falta ninguna cuenta ni costo aparte,
+  `wa.me` es gratis y sin API key), simplemente abre WhatsApp Web/App con
+  el chat y el texto ya escritos. El número se usa tal cual está cargado
+  (solo se le sacan los caracteres que no son dígitos, sin agregarle
+  código de país) — si no abre el chat esperado con algún cliente en
+  particular, hay que revisar cómo quedó cargado ese celular.
+
+**Pendiente/a revisar con Cecilia** (quedó sin poder confirmarlo, ella
+estaba afuera): los umbrales de nivel, y si el mensaje sugerido de
+WhatsApp es el tono/contenido que quiere (ella mencionó también la idea
+de "te regalamos X puntos si comprás más de $Y", que es más una promoción
+puntual que este botón no arma solo — el mensaje sugerido de acá se
+limita a lo que ya se puede calcular con datos reales del cliente).
+
+## 24. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Los webhooks de Tiendanube y Mercado Pago
   (`app/api/webhooks/tiendanube`, `app/api/webhooks/mercadopago`) no

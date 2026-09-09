@@ -12,6 +12,14 @@ const CORS_HEADERS = { 'Access-Control-Allow-Origin': '*' };
 const SEXO_VALIDO = ['femenino', 'masculino', 'otro'];
 // DNI argentino: 7 u 8 dígitos, sin puntos ni espacios.
 const DNI_VALIDO = /^\d{7,8}$/;
+// Sin validar formato de país/área a propósito (varía mucho cómo la gente
+// escribe su celular) — solo que tenga una cantidad de dígitos razonable,
+// una vez sacados espacios/guiones/paréntesis. Se guarda tal cual lo separa
+// esta limpieza, no se le agrega código de país: el link de WhatsApp
+// (ver VistaClientes en app/page.js) hace su propio mejor esfuerzo al
+// armar el número, así que puede necesitar un ajuste manual si alguien lo
+// carga de forma muy distinta a la habitual.
+const TELEFONO_VALIDO = /^\d{8,13}$/;
 
 // Datos públicos del negocio para la pantalla de auto-registro (nombre real
 // y mensaje/promoción propia en vez de mostrar el slug pelado) y para el
@@ -44,7 +52,7 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   try {
     const { negocio } = await params;
-    const { email, password, fechaNacimiento, dni, sexo } = await request.json();
+    const { email, password, fechaNacimiento, dni, sexo, telefono } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -60,9 +68,17 @@ export async function POST(request, { params }) {
       );
     }
 
-    if (!fechaNacimiento || !dni || !sexo) {
+    if (!fechaNacimiento || !dni || !sexo || !telefono) {
       return NextResponse.json(
-        { error: 'Fecha de nacimiento, DNI y sexo son obligatorios.' },
+        { error: 'Fecha de nacimiento, DNI, sexo y celular son obligatorios.' },
+        { status: 400 }
+      );
+    }
+
+    const telefonoLimpio = telefono.replace(/[\s\-()]/g, '');
+    if (!TELEFONO_VALIDO.test(telefonoLimpio)) {
+      return NextResponse.json(
+        { error: 'El celular tiene que tener solo números (con código de área), sin espacios.' },
         { status: 400 }
       );
     }
@@ -123,6 +139,7 @@ export async function POST(request, { params }) {
         fechaNacimiento: fechaNacimientoDate,
         dni,
         sexo,
+        telefono: telefonoLimpio,
       },
     });
 
