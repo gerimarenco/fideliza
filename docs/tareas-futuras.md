@@ -430,6 +430,23 @@ acreditar, igual que ya hacían con un negocio no configurado).
 
 ## 21. Otros pendientes menores (de sesiones previas, sin resolver)
 
+- Los webhooks de Tiendanube y Mercado Pago
+  (`app/api/webhooks/tiendanube`, `app/api/webhooks/mercadopago`) no
+  verifican que el pedido realmente venga de Tiendanube/Mercado Pago
+  (no hay validación de firma/HMAC) — cualquiera que adivine un
+  `store_id` + `orderId` real (Tiendanube) o un `paymentId` real
+  (Mercado Pago) podría dispararlos a mano. El impacto está bastante
+  acotado porque ninguno de los dos confía en el monto/cliente que
+  manda el POST: ambos vuelven a pedir los datos reales a la API del
+  proveedor (Tiendanube) o ya vienen de metadata cargada por Retornar al
+  crear la preferencia (Mercado Pago), así que no se pueden inventar
+  puntos de la nada — como mucho, forzar que se procese antes de tiempo
+  una orden/pago real que de todos modos iba a acreditarse (la
+  protección de `WebhookEvento` ya evita el doble crédito). Agregar
+  verificación de firma requeriría un secreto nuevo de cada proveedor
+  (que hay que sacar de su panel) y no se puede probar de punta a punta
+  sin una entrega real de webhook — por eso queda como pendiente en vez
+  de implementarse a ciegas.
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado
   a propósito hasta que se retome. El widget de fidelización (punto 4
