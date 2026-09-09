@@ -428,7 +428,7 @@ Se agregó el chequeo en los cinco lugares (a los webhooks, que no deben
 fallar aunque el negocio esté desactivado, se les hace devolver 200 sin
 acreditar, igual que ya hacían con un negocio no configurado).
 
-## 21. Conexión real de Tiendanube por OAuth2 (2026-09-09)
+## 20. Conexión real de Tiendanube por OAuth2 (2026-09-09)
 
 Hasta ahora la única forma de conectar Tiendanube era crear una app privada
 a mano en el panel de cada tienda y pegar el `tiendanubeStoreId`/
@@ -464,7 +464,7 @@ por OAuth2") cree la app en el Partner Portal de Tiendanube y cargue
 va a poder confirmar que el intercambio de token funciona tal cual está
 escrito.
 
-## 22. Otros pendientes menores (de sesiones previas, sin resolver)
+## 21. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Los webhooks de Tiendanube y Mercado Pago
   (`app/api/webhooks/tiendanube`, `app/api/webhooks/mercadopago`) no
