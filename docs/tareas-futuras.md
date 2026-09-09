@@ -351,7 +351,45 @@ Esto reemplaza la advertencia repetida en varios PRs de esta sesión de
 "no se pudo probar la migración contra una base real" — ya se probó, y
 coincide.
 
-## 18. Otros pendientes menores (de sesiones previas, sin resolver)
+## 18. Prueba de punta a punta real (por primera vez con base de datos) — encontró y corrigió un bug crítico del vencimiento de puntos (2026-09-09)
+
+Con el Postgres local del ítem 17 ya probado, se aprovechó para levantar
+la app real (`next dev`) contra una base de prueba y probar los flujos
+completos con un navegador (Playwright) en vez de solo leer código:
+login de admin, alta de negocio, Premios en el menú de Admin, alta de
+premios, orden ascendente, registro público, "Club X", saludo de
+cumpleaños, canje con y sin cupón de Tiendanube, y el bloqueo de canje
+cross-negocio. **Todo funcionó exactamente como estaba pensado** — la
+primera confirmación end-to-end real de toda la sesión.
+
+Al probar el vencimiento de puntos en sí (backdateando un lote a mano)
+apareció un bug serio en la corrección de la condición de carrera del
+ítem 15 (PR #61): `UPDATE ... SET "saldoRestante" = 0 ... RETURNING
+"saldoRestante"` en Postgres devuelve la fila **después** del UPDATE, no
+antes — así que esa consulta siempre devolvía 0, y el vencimiento vaciaba
+el lote sin descontar nunca los puntos reales de `Cliente.puntos` ni
+dejar el `MovimientoPuntos` de `origen: "vencimiento"`. En la práctica,
+la función de vencimiento no vencía nada desde que se armó (PR #61), a
+pesar de que la lógica se veía bien leyendo el código y de que el test
+aislado de esa sesión pasaba (probaba la fecha de corte, no el UPDATE en
+sí). Se corrigió leyendo el valor viejo con un `FROM (... FOR UPDATE)` en
+el mismo `UPDATE`, que sí mantiene la fila de antes disponible para el
+`RETURNING` — se volvió a probar contra la base real, incluyendo el caso
+de carrera (un canje consumiendo parte del lote justo antes de que corra
+el vencimiento) y quedó confirmado correcto.
+
+De paso apareció un import sin extensión (`from './nombreClub'` en
+`lib/email.js`) que Next.js tolera pero que rompe bajo Node ESM puro
+(como corren las Netlify Functions `.mjs`) — se agregó la extensión
+`.js`.
+
+**Moraleja para la próxima sesión**: con Postgres disponible en este
+entorno, conviene probar así (`next dev` + base descartable + Playwright)
+en vez de solo revisar código a mano — esta sola prueba encontró un bug
+que ninguna de las dos revisiones de código anteriores (ítems 15 y 16)
+había detectado.
+
+## 19. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado
