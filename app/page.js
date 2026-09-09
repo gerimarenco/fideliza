@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { nombreClub } from '@/lib/nombreClub';
 import { esCumpleanosHoy } from '@/lib/cumpleanos';
+import { descripcionNiveles } from '@/lib/clienteStats';
 
 // Paleta por defecto (clara) del panel de negocio y del panel de cliente.
 // Un negocio con marca propia (ej. Peperina) puede sobreescribir cualquiera
@@ -803,7 +804,15 @@ export default function Home() {
   const VistaClientes = () => (
     <div style={{ padding: 24 }}>
       <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Clientes</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+          <span style={{ fontSize: 14, fontWeight: 600 }}>Clientes</span>
+          <span
+            title={`Niveles según puntos ganados en total:\n${descripcionNiveles()}`}
+            style={{ fontSize: 12, color: tema.textoSecundario, border: `1px solid ${tema.borde}`, borderRadius: '50%', width: 15, height: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'help' }}
+          >
+            i
+          </span>
+        </div>
         {!clientesData && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: tema.textoSecundario }}><Spinner size={14} /> Cargando...</div>}
         {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no hay clientes.</div>}
         {clientesData?.items.map(c => {
