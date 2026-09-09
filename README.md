@@ -82,11 +82,40 @@ npm run lint    # eslint
 | `NEXT_PUBLIC_BASE_URL` | Para Mercado Pago y el mail de bienvenida | URL pública del sitio, usada para armar las `back_urls`/`notification_url` de Mercado Pago y el link de login del mail de bienvenida. |
 | `RESEND_API_KEY` | Para los mails de puntos acreditados y de bienvenida (cuenta creada automáticamente por Dragon Fish) | API key de [Resend](https://resend.com). Si falta, el mail simplemente no se manda (no rompe la acreditación de puntos). |
 | `RESEND_FROM_EMAIL` | No (default: `Retornar <onboarding@resend.dev>`) | Remitente de los mails. El remitente de prueba de Resend (`onboarding@resend.dev`) solo entrega a la casilla con la que se creó la cuenta de Resend — para mandarle mails a clientes reales hace falta verificar el dominio propio (`retornar.com.ar`) en Resend y poner acá una dirección de ese dominio. |
+| `TIENDANUBE_APP_ID` | Para conectar Tiendanube por OAuth2 (botón "Conectar con Tiendanube") | Client ID de la app registrada en el [Partner Portal de Tiendanube](https://partners.tiendanube.com). Ver "Conectar Tiendanube por OAuth2" abajo. Sin esto, el botón no aparece y sigue funcionando la carga manual de `tiendanubeStoreId`/`tiendanubeAccessToken` de siempre. |
+| `TIENDANUBE_CLIENT_SECRET` | Junto con `TIENDANUBE_APP_ID` | Client secret de la misma app. |
 
-Las credenciales de Tiendanube (`tiendanubeStoreId`, `tiendanubeAccessToken`)
-y de Dragon Fish **no van en variables de entorno**: se guardan por negocio en
-la base (`Negocio.tiendanubeStoreId` / `Negocio.tiendanubeAccessToken`), y se
-cargan vía `PATCH /api/negocios`. Ver estado abajo.
+Las credenciales de Tiendanube por negocio (`tiendanubeStoreId`,
+`tiendanubeAccessToken`) y las de Dragon Fish **no van en variables de
+entorno**: se guardan por negocio en la base (`Negocio.tiendanubeStoreId` /
+`Negocio.tiendanubeAccessToken`), y se cargan vía `PATCH /api/negocios` o
+solas, para Tiendanube, con el botón de conectar por OAuth2. Ver estado abajo.
+
+### Conectar Tiendanube por OAuth2
+
+Antes, la única forma de conectar Tiendanube era crear una app privada a
+mano en el panel de cada tienda y pegar el token generado en Ajustes →
+Integraciones. Eso sigue andando (queda como alternativa si algo falla), pero
+ahora también existe un flujo real de OAuth2 (`app/api/tiendanube/conectar` +
+`app/api/tiendanube/callback`): el negocio hace click en "Conectar con
+Tiendanube", autoriza el acceso desde su propia tienda, y Retornar guarda el
+`tiendanubeStoreId`/`tiendanubeAccessToken` solo — sin que nadie tenga que
+copiar ni pegar nada.
+
+Para activarlo hace falta, una sola vez:
+
+1. Crear una cuenta en el [Partner Portal de Tiendanube](https://partners.tiendanube.com) y registrar una app nueva (no hace falta publicarla en la tienda de apps — alcanza con que exista para usarla desde Retornar).
+2. En los datos de la app, configurar la **URL de redirección** exactamente como `<tu dominio>/api/tiendanube/callback` (por ejemplo `https://retornar.com.ar/api/tiendanube/callback`, o la URL real de Netlify mientras el dominio propio no esté apuntado — ver "Deploy" más abajo). Esa URL es fija: Tiendanube siempre redirige ahí, no se puede indicar una distinta por pedido.
+3. Elegir los permisos (`scopes`) que la app va a pedir — como mínimo lectura de productos y escritura de descuentos/cupones, que es lo que usan los premios vinculados a Tiendanube (ver más abajo).
+4. Copiar el **Client ID** y el **Client Secret** que Tiendanube genera para la app, y cargarlos en Netlify como `TIENDANUBE_APP_ID` y `TIENDANUBE_CLIENT_SECRET`.
+
+Con eso cargado, el botón "Conectar con Tiendanube" aparece solo en Ajustes →
+Integraciones para cualquier negocio. **Importante**: este flujo no se pudo
+probar contra una cuenta de partner real dentro de esta sesión (no hay una
+disponible en este entorno) — el código sigue exactamente lo que documentan
+Tiendanube y sus SDKs oficiales, pero conviene probarlo con un negocio de
+prueba la primera vez que se cargue el Client ID/Secret, antes de darlo por
+funcionando en Peperina.
 
 ## Estructura del proyecto
 
@@ -149,7 +178,7 @@ rompe la acreditación de puntos.
 | Integración | Estado | Qué falta |
 |---|---|---|
 | **Mercado Pago** | ✅ Lista, en producción | Genera el link de pago (`/api/mercadopago/crear-preferencia`) y el webhook (`/api/webhooks/mercadopago`) acredita los puntos cuando el pago queda `approved`, buscando al cliente por el `cliente_id`/`negocio_id` que viaja en la metadata de la preferencia. Protegida contra notificaciones duplicadas. |
-| **Tiendanube** | 🚧 En progreso | El webhook (`/api/webhooks/tiendanube`) escucha `order/paid`, resuelve el negocio por `tiendanubeStoreId`, pide la orden completa a la API de Tiendanube (el webhook solo manda `{store_id, event, id}`, no el pedido completo), busca al cliente por email y le acredita puntos, con la misma protección de idempotencia (`WebhookEvento`) que Mercado Pago y Dragon Fish. **Falta**: cargar `tiendanubeStoreId` y `tiendanubeAccessToken` de cada negocio (vía `PATCH /api/negocios`, obtenidos del flujo OAuth2 de Tiendanube — ese flujo todavía no está armado en este proyecto). |
+| **Tiendanube** | ✅ Lista (falta activar OAuth2 con credenciales reales) | El webhook (`/api/webhooks/tiendanube`) escucha `order/paid`, resuelve el negocio por `tiendanubeStoreId`, pide la orden completa a la API de Tiendanube (el webhook solo manda `{store_id, event, id}`, no el pedido completo), busca al cliente por email y le acredita puntos, con la misma protección de idempotencia (`WebhookEvento`) que Mercado Pago y Dragon Fish. `tiendanubeStoreId`/`tiendanubeAccessToken` de cada negocio se cargan a mano (vía `PATCH /api/negocios`) o, ahora, con el flujo real de OAuth2 (ver "Conectar Tiendanube por OAuth2" arriba) — ese flujo está armado pero necesita `TIENDANUBE_APP_ID`/`TIENDANUBE_CLIENT_SECRET` (de una app registrada en el Partner Portal) para activarse, y todavía no se probó contra una cuenta de partner real. |
 | **Dragon Fish** | ✅ Lista, en producción (Peperina) | El webhook (`/api/webhooks/dragonfish`) recibe la notificación liviana de Dragon Fish (`Entidad`, `Codigo`, `BaseDeDatos`, sin datos de la venta) y la deja anotada en `FacturaPendiente`. El agente local (`dragonfish-agente/`, corre en la PC del negocio) hace polling contra `GET /api/dragonfish/pendientes`, consulta la factura completa contra la API REST local de Dragon Fish, y reporta el resultado a `POST /api/dragonfish/resolver` (que ahí sí suma los puntos, con la misma idempotencia que Mercado Pago/Tiendanube). Si la venta es de alguien que todavía no tiene cuenta en Retornar (pero Dragon Fish trae su email), se le crea la cuenta sola y se le manda un mail de bienvenida con la contraseña (ver `RESEND_API_KEY` arriba) — sin eso, esa venta queda marcada `sin_cliente` y no suma puntos. Configuración local por negocio documentada paso a paso en `dragonfish-agente/README.md`. |
 
 ## Widget de fidelización para tiendas online
