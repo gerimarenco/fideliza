@@ -110,6 +110,11 @@ export async function GET() {
   const negociosSeguros = negocios.map(({ tiendanubeAccessToken, dragonfishAgentToken, ...negocio }) => ({
     ...negocio,
     tiendanubeConectado: !!tiendanubeAccessToken,
+    // No depende de datos del negocio: es si el servidor tiene la app de
+    // Tiendanube registrada (ver app/api/tiendanube/conectar) — controla si
+    // el panel muestra el botón de conectar por OAuth2 o solo los campos
+    // manuales de siempre.
+    tiendanubeOAuthDisponible: !!process.env.TIENDANUBE_APP_ID,
     dragonfishConectado: !!dragonfishAgentToken,
   }))
   return NextResponse.json(negociosSeguros)
@@ -298,6 +303,7 @@ export async function PATCH(request) {
   return NextResponse.json({
     ...negocioSeguro,
     tiendanubeConectado: !!tiendanubeAccessToken,
+    tiendanubeOAuthDisponible: !!process.env.TIENDANUBE_APP_ID,
     dragonfishConectado: !!dragonfishAgentToken,
     ...(dragonfishAgentTokenGenerado ? { dragonfishAgentTokenGenerado } : {}),
   })

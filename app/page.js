@@ -689,6 +689,22 @@ export default function Home() {
     toastTimeoutRef.current = setTimeout(() => setToast(null), tipo === 'error' ? 4000 : 2500);
   };
 
+  // Resultado del OAuth2 de Tiendanube (ver app/api/tiendanube/callback,
+  // que redirige de vuelta acá con esto en la URL) — se muestra una vez
+  // como toast y se limpia de la URL para que no reaparezca en un refresh.
+  useEffect(() => {
+    const resultado = new URLSearchParams(window.location.search).get('tiendanube');
+    if (!resultado) return;
+    const mensajes = {
+      conectado: ['exito', 'Tiendanube conectado correctamente'],
+      error: ['error', 'No se pudo conectar con Tiendanube. Probá de nuevo.'],
+      'ya-conectada': ['error', 'Esa tienda de Tiendanube ya está conectada a otro negocio'],
+    };
+    const [tipo, mensaje] = mensajes[resultado] || ['error', 'No se pudo conectar con Tiendanube'];
+    mostrarToast(tipo, mensaje);
+    window.history.replaceState({}, '', window.location.pathname);
+  }, []);
+
   const Toast = () => {
     if (!toast) return null;
     const exito = toast.tipo === 'exito';
@@ -884,9 +900,17 @@ export default function Home() {
           <div style={{ fontSize: 14, fontWeight: 600 }}>Tiendanube</div>
           <BadgeConexion conectada={negocioMostrado?.tiendanubeConectado} />
         </div>
+        {negocioMostrado?.tiendanubeOAuthDisponible && (
+          <div style={{ marginBottom: 12 }}>
+            <a href="/api/tiendanube/conectar" className="fid-btn-secondary" style={{ display: 'inline-block', padding: '8px 12px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, fontWeight: 500, textDecoration: 'none' }}>
+              {negocioMostrado?.tiendanubeConectado ? 'Reconectar con Tiendanube' : 'Conectar con Tiendanube'}
+            </a>
+            <div style={{ fontSize: 11, color: tema.textoSecundario, marginTop: 6 }}>Te lleva a Tiendanube para autorizar el acceso — no hace falta pegar el token a mano.</div>
+          </div>
+        )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
           <div>
-            <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Store ID</label>
+            <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Store ID {negocioMostrado?.tiendanubeOAuthDisponible && '(o conectá arriba)'}</label>
             <input value={formIntegraciones.tiendanubeStoreId} onChange={e => setFormIntegraciones({...formIntegraciones, tiendanubeStoreId: e.target.value})} placeholder="123456" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
           </div>
           <div>

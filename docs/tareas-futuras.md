@@ -428,7 +428,43 @@ Se agregó el chequeo en los cinco lugares (a los webhooks, que no deben
 fallar aunque el negocio esté desactivado, se les hace devolver 200 sin
 acreditar, igual que ya hacían con un negocio no configurado).
 
-## 21. Otros pendientes menores (de sesiones previas, sin resolver)
+## 21. Conexión real de Tiendanube por OAuth2 (2026-09-09)
+
+Hasta ahora la única forma de conectar Tiendanube era crear una app privada
+a mano en el panel de cada tienda y pegar el `tiendanubeStoreId`/
+`tiendanubeAccessToken` en Ajustes → Integraciones — quedaba pendiente
+armar el flujo real de OAuth2 para que el negocio se conecte con un click,
+sin copiar ni pegar nada. Se implementó:
+
+- `app/api/tiendanube/conectar`: redirige al negocio logueado a la pantalla
+  de autorización de Tiendanube (`https://www.tiendanube.com/apps/{client_id}/authorize`).
+- `app/api/tiendanube/callback`: recibe el `code` que Tiendanube manda de
+  vuelta, lo cambia por un `access_token` (`intercambiarCodigoPorToken` en
+  `lib/tiendanube.js`) y lo guarda en el negocio correspondiente.
+- `lib/tiendanubeOAuthState.js`: como Tiendanube no documenta un `state`
+  propio en la URL de autorización (siempre redirige a una única URL fija,
+  registrada de antemano en su Partner Portal), para saber a qué negocio
+  corresponde cada `code` que vuelve se usa una cookie firmada (HMAC con
+  `NEXTAUTH_SECRET`, que ya existe) de 10 minutos en vez de depender de algo
+  que la plataforma no garantiza.
+- En Ajustes → Integraciones aparece un botón "Conectar con Tiendanube"
+  — pero solo si el servidor tiene `TIENDANUBE_APP_ID` configurada; sin
+  eso, sigue andando la carga manual de siempre sin ningún cambio.
+
+**Ojo con esto**: a diferencia del resto de los bugs de esta sesión, este
+flujo no se pudo probar de punta a punta contra una cuenta de partner real
+de Tiendanube (no hay ninguna disponible en este entorno) — ni el
+intercambio de código por token, ni el redirect completo. El código sigue
+al pie de la letra lo que documentan Tiendanube y sus SDKs oficiales (URLs,
+parámetros, forma del POST), verificado por lectura de esas fuentes, pero
+no por una prueba en vivo como sí se pudo hacer con Postgres. Para
+activarlo hace falta que alguien (ver README, sección "Conectar Tiendanube
+por OAuth2") cree la app en el Partner Portal de Tiendanube y cargue
+`TIENDANUBE_APP_ID`/`TIENDANUBE_CLIENT_SECRET` en Netlify — recién ahí se
+va a poder confirmar que el intercambio de token funciona tal cual está
+escrito.
+
+## 22. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Los webhooks de Tiendanube y Mercado Pago
   (`app/api/webhooks/tiendanube`, `app/api/webhooks/mercadopago`) no
@@ -447,10 +483,6 @@ acreditar, igual que ya hacían con un negocio no configurado).
   (que hay que sacar de su panel) y no se puede probar de punta a punta
   sin una entrega real de webhook — por eso queda como pendiente en vez
   de implementarse a ciegas.
-- Tiendanube: la conexión real (OAuth2, para acreditar puntos
-  automáticamente después de cada pago) todavía no está armada — pausado
-  a propósito hasta que se retome. El widget de fidelización (punto 4
-  arriba) no depende de esto y ya se puede usar.
 - No hay pantalla de autogestión del tema visual para el propio negocio
   (hoy solo lo carga el admin, y para Peperina se cargó a mano vía
   migraciones de datos porque no había otra forma). Evaluar si hace
