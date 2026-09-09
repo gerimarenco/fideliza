@@ -6,7 +6,12 @@ export function middleware(request) {
   
   const isLoginPage = request.nextUrl.pathname === '/login'
   const isRegistroPage = request.nextUrl.pathname.startsWith('/registro')
-  const isPublicPage = isLoginPage || isRegistroPage
+  // Mini-landing pública de cada negocio (ver app/club/[negocio]) — pensada
+  // para linkear desde afuera (ej. el menú de la tienda online), un paso
+  // intermedio antes del formulario de /registro en vez de mandar directo
+  // ahí a quien todavía no sabe qué es "Club X".
+  const isClubPage = request.nextUrl.pathname.startsWith('/club')
+  const isPublicPage = isLoginPage || isRegistroPage || isClubPage
   
   if (!token && !isPublicPage) {
     return NextResponse.redirect(new URL('/login', request.url))
