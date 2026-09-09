@@ -35,11 +35,11 @@ export default function ClubLandingPage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       {datosNegocio?.temaImagenPortada && (
-        <img src={datosNegocio.temaImagenPortada} alt="" style={{ width: '100%', maxHeight: 220, objectFit: 'cover' }} />
+        <img src={datosNegocio.temaImagenPortada} alt="" style={{ width: '100%', maxHeight: 140, objectFit: 'cover' }} />
       )}
 
       <div style={{ width: '100%', maxWidth: 420, padding: '32px 24px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: 26, fontWeight: 'bold', color: '#111827', marginBottom: 8 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 8 }}>
           {datosNegocio ? `${datosNegocio.nombre} ${datosNegocio.emoji || ''}`.trim() : (
             <span style={{ textTransform: 'capitalize' }}>{negocio}</span>
           )}
