@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { leerCookieEstado } from '@/lib/tiendanubeOAuthState'
-import { intercambiarCodigoPorToken } from '@/lib/tiendanube'
+import { intercambiarCodigoPorToken, asegurarWebhookOrderPaid } from '@/lib/tiendanube'
 
 // Segundo paso del OAuth2: esta es la URL fija que hay que registrar como
 // "Redirect URL" en el Partner Portal de Tiendanube (ver docs/ para el
 // valor exacto a usar). Tiendanube redirige acá con `code` en la query
 // string una vez que la clienta acepta los permisos en su propia tienda.
 const MENSAJES = {
-  conectado: { titulo: '✅ Tiendanube conectado', texto: 'La conexión se hizo correctamente.' },
+  conectado: { titulo: '✅ Tiendanube conectado', texto: 'La conexión se hizo correctamente. Ya vas a sumar puntos en cada compra online.' },
+  'conectado-sin-webhook': { titulo: '⚠️ Conectado, pero revisar', texto: 'La tienda quedó conectada, pero no se pudo confirmar el aviso automático de "pedido pagado" — puede que las compras online todavía no sumen puntos. Avisale a soporte.' },
   'ya-conectada': { titulo: '⚠️ Esa tienda ya está conectada', texto: 'Esta cuenta de Tiendanube ya está conectada a otro negocio de Retornar.' },
   error: { titulo: '❌ No se pudo conectar', texto: 'Algo falló al conectar con Tiendanube. Volvé a Ajustes → Integraciones y probá de nuevo.' },
 }
@@ -65,6 +66,24 @@ export async function GET(request) {
       where: { id: negocioId },
       data: { tiendanubeStoreId: String(user_id), tiendanubeAccessToken: access_token },
     })
+
+    // Conectar la tienda no le avisa solo a Tiendanube que tiene que
+    // mandar el webhook de "pedido pagado" — es una suscripción aparte,
+    // que se crea acá mismo para que no quede como un paso manual más del
+    // que dependa silenciosamente que las compras online sumen puntos. Si
+    // esto falla, la conexión en sí ya quedó guardada arriba: no tiene
+    // sentido perderla por un problema en este paso secundario, pero sí
+    // hay que decirlo distinto (no "conectado" a secas) para no esconder
+    // que las compras todavía no van a sumar puntos.
+    try {
+      const negocioTemporal = { tiendanubeStoreId: String(user_id), tiendanubeAccessToken: access_token }
+      const urlWebhook = new URL('/api/webhooks/tiendanube', request.url).toString()
+      await asegurarWebhookOrderPaid(negocioTemporal, urlWebhook)
+    } catch (error) {
+      console.error('No se pudo registrar el webhook order/paid para el negocio', negocioId, error)
+      return paginaResultado(request, 'conectado-sin-webhook')
+    }
+
     return paginaResultado(request, 'conectado')
   } catch (error) {
     // Otro negocio ya conectado a esta misma tienda de Tiendanube

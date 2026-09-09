@@ -697,6 +697,7 @@ export default function Home() {
     if (!resultado) return;
     const mensajes = {
       conectado: ['exito', 'Tiendanube conectado correctamente'],
+      'conectado-sin-webhook': ['error', 'Tiendanube conectado, pero no se pudo confirmar el aviso automático de pedidos pagados — avisale a soporte'],
       error: ['error', 'No se pudo conectar con Tiendanube. Probá de nuevo.'],
       'ya-conectada': ['error', 'Esa tienda de Tiendanube ya está conectada a otro negocio'],
     };
