@@ -25,6 +25,30 @@ function resolverTema(negocio) {
   return { ...TEMA_DEFAULT, ...(negocio?.tema || {}) };
 }
 
+// "Hoy" / "Ayer" / "Hace N días" para la última actividad de un cliente en
+// VistaClientes — más legible que una fecha pelada para detectar de un
+// vistazo quién dejó de comprar.
+function formatearFechaRelativa(fechaIso) {
+  if (!fechaIso) return 'Sin actividad';
+  const dias = Math.floor((Date.now() - new Date(fechaIso).getTime()) / (1000 * 60 * 60 * 24));
+  if (dias <= 0) return 'Hoy';
+  if (dias === 1) return 'Ayer';
+  if (dias < 30) return `Hace ${dias} días`;
+  const meses = Math.floor(dias / 30);
+  return meses === 1 ? 'Hace 1 mes' : `Hace ${meses} meses`;
+}
+
+// Solo un color de fondo por dígito de días sin comprar, para que la
+// columna de actividad avise a simple vista sin tener que leer el número
+// (mismo espíritu que el cartel rojo "hace 42 días que no vuelve" del
+// ejemplo que mandó Cecilia).
+function colorInactividad(dias) {
+  if (dias == null) return '#9ca3af';
+  if (dias >= 60) return '#dc2626';
+  if (dias >= 30) return '#f59e0b';
+  return '#16a34a';
+}
+
 export default function Home() {
   const { data: session } = useSession();
   const [negocios, setNegocios] = useState([]);
@@ -49,6 +73,7 @@ export default function Home() {
   const [seccionActiva, setSeccionActiva] = useState('inicio');
   const [clientesPagina, setClientesPagina] = useState(1);
   const [clientesData, setClientesData] = useState(null);
+  const [clienteExpandidoId, setClienteExpandidoId] = useState(null);
   const [canjesPagina, setCanjesPagina] = useState(1);
   const [canjesData, setCanjesData] = useState(null);
   const [premiosPagina, setPremiosPagina] = useState(1);
@@ -753,26 +778,110 @@ export default function Home() {
   );
 
   // Listado completo de clientes del negocio (pantalla nueva)
+  // Link de WhatsApp con un mensaje sugerido a partir de datos reales del
+  // cliente (cuánto le falta para el próximo premio que todavía no puede
+  // pagar) — wa.me no necesita ninguna cuenta ni API key: el negocio lo
+  // revisa y lo manda desde su propio WhatsApp. El número se usa tal cual
+  // está cargado (solo se le sacan los caracteres que no son dígitos): si
+  // no abre el chat esperado, hay que revisar cómo lo cargó esa clienta en
+  // particular al registrarse.
+  const armarLinkWhatsapp = (c) => {
+    if (!c.telefono) return null;
+    const numero = c.telefono.replace(/\D/g, '');
+    const club = nombreClub(negocioMostrado?.nombre || '');
+    const proximoPremio = (premiosData?.items || [])
+      .filter(p => p.activo && p.puntos > c.puntos)
+      .sort((a, b) => a.puntos - b.puntos)[0];
+
+    const mensaje = proximoPremio
+      ? `¡Hola${c.nombre ? ' ' + c.nombre : ''}! Te faltan ${proximoPremio.puntos - c.puntos} puntos en ${club} para canjear "${proximoPremio.nombre}" ${proximoPremio.emoji || '🎁'}. ¡Te esperamos en tu próxima compra!`
+      : `¡Hola${c.nombre ? ' ' + c.nombre : ''}! Tenés ${c.puntos} puntos acumulados en ${club}. ¡Vení a canjearlos! 🎁`;
+
+    return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+  };
+
   const VistaClientes = () => (
     <div style={{ padding: 24 }}>
       <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Clientes</div>
         {!clientesData && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: tema.textoSecundario }}><Spinner size={14} /> Cargando...</div>}
         {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no hay clientes.</div>}
-        {clientesData?.items.map(c => (
-          <div key={c.id} className="fid-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: `1px solid ${tema.borde}` }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: tema.resaltado, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: tema.texto }}>
-              {(c.nombre || c.email).slice(0, 2).toUpperCase()}
+        {clientesData?.items.map(c => {
+          const s = c.stats || {};
+          const dias = s.ultimaActividad ? Math.floor((Date.now() - new Date(s.ultimaActividad).getTime()) / (1000 * 60 * 60 * 24)) : null;
+          const expandido = clienteExpandidoId === c.id;
+          const linkWhatsapp = armarLinkWhatsapp(c);
+          return (
+            <div key={c.id} style={{ borderBottom: `1px solid ${tema.borde}` }}>
+              <div
+                className="fid-row-hover"
+                onClick={() => setClienteExpandidoId(expandido ? null : c.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', cursor: 'pointer' }}
+              >
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: tema.resaltado, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: tema.texto }}>
+                  {(c.nombre || c.email).slice(0, 2).toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500 }}>{c.nombre || c.email}</span>
+                    {s.nivel && (
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#fff', background: s.nivel.color, padding: '2px 7px', borderRadius: 20 }}>
+                        {s.nivel.nombre}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 11, color: tema.textoSecundario }}>{c.email}{c.telefono ? ` · ${c.telefono}` : ''}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, background: tema.resaltado, color: tema.texto, padding: '4px 10px', borderRadius: 20, marginBottom: 4 }}>
+                    {c.puntos} pts
+                  </div>
+                  <div style={{ fontSize: 10, color: colorInactividad(dias), fontWeight: 500 }}>
+                    {formatearFechaRelativa(s.ultimaActividad)}
+                  </div>
+                </div>
+              </div>
+
+              {expandido && (
+                <div style={{ padding: '4px 0 16px 42px', display: 'grid', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                    <div style={{ background: tema.fondo, borderRadius: 8, padding: '8px 10px' }}>
+                      <div style={{ fontSize: 10, color: tema.textoSecundario }}>Compras registradas</div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{s.comprasRegistradas ?? 0}</div>
+                    </div>
+                    <div style={{ background: tema.fondo, borderRadius: 8, padding: '8px 10px' }}>
+                      <div style={{ fontSize: 10, color: tema.textoSecundario }}>Frecuencia habitual</div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{s.frecuenciaPromedioDias ? `Cada ${s.frecuenciaPromedioDias} días` : '—'}</div>
+                    </div>
+                    <div style={{ background: tema.fondo, borderRadius: 8, padding: '8px 10px' }}>
+                      <div style={{ fontSize: 10, color: tema.textoSecundario }}>Ticket promedio</div>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{s.ticketPromedio ? `$${s.ticketPromedio.toLocaleString('es-AR')}` : '—'}</div>
+                    </div>
+                  </div>
+
+                  {dias != null && dias >= 30 && (
+                    <div style={{ fontSize: 12, color: '#b91c1c', background: '#fee2e2', borderRadius: 8, padding: '8px 12px' }}>
+                      ⚠️ {s.frecuenciaPromedioDias ? `Solía comprar cada ${s.frecuenciaPromedioDias} días. ` : ''}Hace {dias} días que no vuelve.
+                    </div>
+                  )}
+
+                  {linkWhatsapp ? (
+                    <a
+                      href={linkWhatsapp}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#fff', background: '#16a34a', padding: '8px 14px', borderRadius: 8, textDecoration: 'none', width: 'fit-content' }}
+                    >
+                      💬 Mandarle un mensaje por WhatsApp
+                    </a>
+                  ) : (
+                    <div style={{ fontSize: 11, color: tema.textoSecundario }}>Sin celular cargado — no se le puede mandar WhatsApp.</div>
+                  )}
+                </div>
+              )}
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 500 }}>{c.nombre || c.email}</div>
-              <div style={{ fontSize: 11, color: tema.textoSecundario }}>{c.email}{c.telefono ? ` · ${c.telefono}` : ''}</div>
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 500, background: tema.resaltado, color: tema.texto, padding: '4px 10px', borderRadius: 20 }}>
-              {c.puntos} pts
-            </div>
-          </div>
-        ))}
+          );
+        })}
         <Paginador pagina={clientesData?.page || 1} totalPages={clientesData?.totalPages} onCambiar={setClientesPagina} />
       </div>
     </div>

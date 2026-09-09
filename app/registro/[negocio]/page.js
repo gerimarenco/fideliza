@@ -13,6 +13,7 @@ export default function RegistroPage() {
   const [fechaNacimiento, setFechaNacimiento] = useState('');
   const [dni, setDni] = useState('');
   const [sexo, setSexo] = useState('');
+  const [telefono, setTelefono] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [datosNegocio, setDatosNegocio] = useState(null);
@@ -33,7 +34,7 @@ export default function RegistroPage() {
       const res = await fetch(`/api/registro/${negocio}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, fechaNacimiento, dni, sexo }),
+        body: JSON.stringify({ email, password, fechaNacimiento, dni, sexo, telefono }),
       });
 
       const data = await res.json();
@@ -198,6 +199,36 @@ export default function RegistroPage() {
               minLength={7}
               maxLength={8}
               placeholder="Sin puntos"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid #d1d5db',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '6px',
+                fontSize: '14px',
+                color: '#374151',
+                fontWeight: '500',
+              }}
+            >
+              Celular (WhatsApp)
+            </label>
+            <input
+              type="tel"
+              inputMode="tel"
+              value={telefono}
+              onChange={(e) => setTelefono(e.target.value)}
+              required
+              placeholder="11 2345 6789"
               style={{
                 width: '100%',
                 padding: '10px 12px',

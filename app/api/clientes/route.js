@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { hashPassword } from '@/lib/password'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { calcularStatsClientes } from '@/lib/clienteStats'
 
 export async function GET(request) {
   const session = await getServerSession(authOptions)
@@ -35,7 +36,10 @@ export async function GET(request) {
     })
   ])
 
-  return NextResponse.json({ items, page, pageSize, total, totalPages: Math.ceil(total / pageSize) || 1 })
+  const stats = await calcularStatsClientes(prisma, items)
+  const itemsConStats = items.map((c) => ({ ...c, stats: stats[c.id] }))
+
+  return NextResponse.json({ items: itemsConStats, page, pageSize, total, totalPages: Math.ceil(total / pageSize) || 1 })
 }
 
 export async function POST(request) {

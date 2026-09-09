@@ -280,6 +280,27 @@ si el negocio tiene una promoción automática configurada aparte en su panel
 de Tiendanube, esa sí se puede seguir acumulando (no hay forma de
 desactivarla por API, es una configuración de la tienda).
 
+## Niveles de cliente, estadísticas y mensaje de WhatsApp
+
+En `VistaClientes` (panel de negocio, sección "Clientes") cada cliente
+muestra un nivel (Bronce / Plata / Oro / Diamante / VIP, ver
+`lib/clienteStats.js`) calculado sobre los puntos **ganados de por vida**
+(no el saldo actual, que baja con cada canje), y la última actividad con
+un color de alerta si hace 30+ días que no compra. Al hacer click en un
+cliente se expande el detalle: compras registradas, frecuencia promedio
+entre compras, un ticket promedio aproximado (reconstruido a partir de los
+puntos de cada `MovimientoPuntos`, ya que no se guarda el monto real de la
+venta), y un botón que arma un link de WhatsApp (`wa.me`, sin ninguna
+cuenta ni costo aparte) con un mensaje sugerido según cuánto le falta al
+cliente para el próximo premio que todavía no puede pagar.
+
+Depende de `Cliente.telefono`, que ahora es obligatorio en el auto-registro
+público (`/registro/[negocio]`) además de al cargar un cliente a mano —
+sin ese dato no aparece el botón de WhatsApp para ese cliente. Los
+umbrales de cada nivel son un punto de partida razonable, no un valor con
+el que haya que quedarse fijo — ajustables directamente en
+`lib/clienteStats.js`.
+
 ## Regalo de cumpleaños
 
 `netlify/functions/regalo-cumpleanos.mjs` es una [Scheduled Function de
