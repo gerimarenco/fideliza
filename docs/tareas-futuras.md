@@ -498,8 +498,14 @@ partner de verdad. Encontró y se corrigieron en el momento tres problemas:
    "Conectada".
 
 Con los tres corregidos, la tienda de Peperina (Store ID `820719`) quedó
-conectada de verdad, con el webhook registrado. Falta confirmar con una
-compra de prueba real que efectivamente suma puntos.
+conectada de verdad, con el webhook registrado.
+
+**Confirmado con una compra de prueba real** (2026-09-09): la primera
+prueba se hizo con una compra ya pagada antes de reconectar (webhooks no
+son retroactivos — esa puntual no sumó nada, esperable), pero una segunda
+compra de prueba después de reconectar sumó los puntos correctamente. El
+Grupo 7 completo (integración de Tiendanube) queda confirmado funcionando
+de punta a punta en producción con Peperina.
 
 ## 22. Mini-landing pública antes de registrarse (`/club/[negocio]`) (2026-09-09)
 
