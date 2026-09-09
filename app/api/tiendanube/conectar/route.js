@@ -10,9 +10,21 @@ import { crearCookieEstado } from '@/lib/tiendanubeOAuthState'
 // en una cookie firmada de corta duración (ver lib/tiendanubeOAuthState),
 // que el callback (app/api/tiendanube/callback) lee cuando Tiendanube
 // redirige de vuelta.
-export async function GET() {
+//
+// Mismo criterio de autorización que PATCH /api/negocios: el admin puede
+// conectar la Tiendanube de cualquier negocio (Ajustes → Integraciones se ve
+// también desde el panel de admin, eligiendo el negocio desde ahí), y un
+// negocio solo la suya propia — por eso el negocioId viaja en la query
+// (?negocioId=...), no se asume igual a session.user.id como si solo
+// pudiera conectarse a sí mismo.
+export async function GET(request) {
   const session = await getServerSession(authOptions)
-  if (session?.user?.role !== 'negocio') {
+  const negocioId = new URL(request.url).searchParams.get('negocioId')
+
+  const esAdmin = session?.user?.role === 'admin'
+  const esElMismoNegocio = session?.user?.role === 'negocio' && session.user.id === negocioId
+
+  if (!negocioId || (!esAdmin && !esElMismoNegocio)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
@@ -21,7 +33,7 @@ export async function GET() {
   }
 
   const response = NextResponse.redirect(`https://www.tiendanube.com/apps/${process.env.TIENDANUBE_APP_ID}/authorize`)
-  response.cookies.set('tiendanube_oauth', crearCookieEstado(session.user.id), {
+  response.cookies.set('tiendanube_oauth', crearCookieEstado(negocioId), {
     httpOnly: true,
     secure: true,
     sameSite: 'lax',
