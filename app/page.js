@@ -75,6 +75,7 @@ export default function Home() {
   const [clientesPagina, setClientesPagina] = useState(1);
   const [clientesData, setClientesData] = useState(null);
   const [clienteExpandidoId, setClienteExpandidoId] = useState(null);
+  const [mostrarInfoNiveles, setMostrarInfoNiveles] = useState(false);
   const [canjesPagina, setCanjesPagina] = useState(1);
   const [canjesData, setCanjesData] = useState(null);
   const [premiosPagina, setPremiosPagina] = useState(1);
@@ -804,14 +805,24 @@ export default function Home() {
   const VistaClientes = () => (
     <div style={{ padding: 24 }}>
       <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, position: 'relative' }}>
           <span style={{ fontSize: 14, fontWeight: 600 }}>Clientes</span>
           <span
-            title={`Niveles según puntos ganados en total:\n${descripcionNiveles()}`}
-            style={{ fontSize: 12, color: tema.textoSecundario, border: `1px solid ${tema.borde}`, borderRadius: '50%', width: 15, height: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'help' }}
+            onClick={() => setMostrarInfoNiveles(v => !v)}
+            style={{ fontSize: 12, color: tema.textoSecundario, border: `1px solid ${tema.borde}`, borderRadius: '50%', width: 15, height: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
           >
             i
           </span>
+          {/* onClick en vez de title: los tooltips nativos no se pueden
+              "tocar" en celular (no hay hover en touch) — con esto anda
+              igual con mouse o con el dedo. */}
+          {mostrarInfoNiveles && (
+            <div style={{ position: 'absolute', top: 22, left: 0, zIndex: 10, background: tema.superficie, border: `1px solid ${tema.borde}`, borderRadius: 8, padding: '10px 14px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontSize: 12, color: tema.texto, minWidth: 230 }}>
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>Niveles según puntos ganados en total:</div>
+              {descripcionNiveles().split('\n').map((linea, i) => <div key={i} style={{ marginBottom: 2 }}>{linea}</div>)}
+              <button onClick={() => setMostrarInfoNiveles(false)} style={{ marginTop: 8, fontSize: 11, color: tema.primario, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Cerrar</button>
+            </div>
+          )}
         </div>
         {!clientesData && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: tema.textoSecundario }}><Spinner size={14} /> Cargando...</div>}
         {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no hay clientes.</div>}
