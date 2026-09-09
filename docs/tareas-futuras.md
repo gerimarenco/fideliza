@@ -573,7 +573,39 @@ de "te regalamos X puntos si comprás más de $Y", que es más una promoción
 puntual que este botón no arma solo — el mensaje sugerido de acá se
 limita a lo que ya se puede calcular con datos reales del cliente).
 
-## 24. Otros pendientes menores (de sesiones previas, sin resolver)
+## 24. Menú (⋮) en el panel del cliente: cambio de contraseña, info de puntos y soporte (2026-09-09)
+
+Cecilia sintió el panel del cliente "básico" y pidió agregar un menú arriba
+a la derecha (tres rayitas/puntitos) con cambio de contraseña, info de cómo
+funcionan los puntos, y un mail de soporte — "y lo que se te ocurra a vos
+que sea importante". Se agregó un botón "⋮" al lado de "Salir" en el
+encabezado del panel del cliente (`app/page.js`), con un menú desplegable de
+tres opciones:
+
+- **Cambiar contraseña**: no existía ningún endpoint para que un cliente
+  cambie su propia contraseña (`POST /api/negocios/password` es solo para
+  negocios) — se agregó `POST /api/clientes/password`, mismo patrón
+  (contraseña actual + nueva, valida la actual antes de cambiarla). El
+  formulario reutiliza el mismo estado/función que ya usaba Ajustes del
+  negocio (`cambiarPassword`), que ahora elige el endpoint según el rol.
+- **Cómo funcionan los puntos**: en vez de texto fijo, se armó a partir de
+  la configuración real de cada negocio (`lib/clienteStats.js` no, esto
+  quedó directo en `app/page.js`, función `reglasDePuntos`): cuántos pesos
+  por punto (`puntosXPeso`), si tiene regalo de cumpleaños cargado, y si
+  tiene vencimiento de puntos activado — así el texto nunca queda
+  desactualizado si Peperina (o cualquier negocio futuro) cambia estos
+  valores desde Ajustes.
+- **Contactar soporte**: abre un `mailto:` con una casilla de soporte.
+  **Pendiente real**: se usó `soporte@retornar.com.ar` como placeholder
+  (`EMAIL_SOPORTE` en `app/page.js`) porque esa casilla todavía no existe —
+  Cecilia mencionó que la va a crear ella. Hay que reemplazar esa constante
+  por la casilla real en cuanto exista.
+
+No se agregó nada más al menú por ahora (ej. términos y condiciones,
+historial de movimientos) para no inventar contenido/legal sin que Cecilia
+lo pida puntualmente — quedan como ideas a futuro si las quiere.
+
+## 25. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Los webhooks de Tiendanube y Mercado Pago
   (`app/api/webhooks/tiendanube`, `app/api/webhooks/mercadopago`) no

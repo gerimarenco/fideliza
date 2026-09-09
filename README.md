@@ -301,6 +301,23 @@ umbrales de cada nivel son un punto de partida razonable, no un valor con
 el que haya que quedarse fijo — ajustables directamente en
 `lib/clienteStats.js`.
 
+## Menú del panel del cliente (⋮)
+
+Arriba a la derecha del panel del cliente hay un botón "⋮" con tres
+opciones:
+
+- **Cambiar contraseña** (`POST /api/clientes/password`, mismo patrón que
+  el de negocio en `/api/negocios/password`): pide la contraseña actual y
+  la nueva, valida la actual antes de cambiarla.
+- **Cómo funcionan los puntos**: texto armado en el momento a partir de la
+  configuración real del negocio (`reglasDePuntos` en `app/page.js`) —
+  cuántos pesos equivalen a 1 punto (`puntosXPeso`), si tiene regalo de
+  cumpleaños y/o vencimiento de puntos activados. Nunca queda
+  desactualizado si esos valores cambian desde Ajustes.
+- **Contactar soporte**: abre un `mailto:` a la casilla de soporte
+  (`EMAIL_SOPORTE` en `app/page.js`) — hoy es un placeholder
+  (`soporte@retornar.com.ar`) hasta que se cree esa casilla de verdad.
+
 ## Regalo de cumpleaños
 
 `netlify/functions/regalo-cumpleanos.mjs` es una [Scheduled Function de
