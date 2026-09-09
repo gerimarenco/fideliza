@@ -8,11 +8,10 @@
 // sin necesitar ninguna librería de timezones.
 import { prisma } from '../../lib/db.js'
 import { enviarEmailPuntosAcreditados } from '../../lib/email.js'
+import { esCumpleanosHoy } from '../../lib/cumpleanos.js'
 
 async function regaloCumpleanos() {
   const ahora = new Date()
-  const mesDeHoy = ahora.getUTCMonth() + 1
-  const diaDeHoy = ahora.getUTCDate()
   const inicioDeHoy = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), ahora.getUTCDate()))
 
   const negocios = await prisma.negocio.findMany({
@@ -28,10 +27,7 @@ async function regaloCumpleanos() {
       select: { id: true, email: true, fechaNacimiento: true },
     })
 
-    const cumpleanieros = clientes.filter((cliente) =>
-      cliente.fechaNacimiento.getUTCMonth() + 1 === mesDeHoy &&
-      cliente.fechaNacimiento.getUTCDate() === diaDeHoy
-    )
+    const cumpleanieros = clientes.filter((cliente) => esCumpleanosHoy(cliente.fechaNacimiento, ahora))
 
     for (const cliente of cumpleanieros) {
       // Idempotencia: si la función ya corrió hoy para este cliente (un

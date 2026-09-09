@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { nombreClub } from '@/lib/nombreClub';
+import { esCumpleanosHoy } from '@/lib/cumpleanos';
 
 // Paleta por defecto (clara) del panel de negocio y del panel de cliente.
 // Un negocio con marca propia (ej. Peperina) puede sobreescribir cualquiera
@@ -1156,10 +1157,7 @@ export default function Home() {
     // para que el cartel coincida con el día real en que se acreditan los
     // puntos — no depende de la zona horaria del navegador de la clienta.
     const hoy = new Date();
-    const esCumpleanos = clientePropio.fechaNacimiento && (() => {
-      const nacimiento = new Date(clientePropio.fechaNacimiento);
-      return nacimiento.getUTCMonth() === hoy.getUTCMonth() && nacimiento.getUTCDate() === hoy.getUTCDate();
-    })();
+    const esCumpleanos = clientePropio.fechaNacimiento && esCumpleanosHoy(clientePropio.fechaNacimiento, hoy);
 
     return (
       <div style={{ minHeight: '100vh', background: tema.fondo, color: tema.texto, fontFamily: 'system-ui', maxWidth: 480, margin: '0 auto' }}>

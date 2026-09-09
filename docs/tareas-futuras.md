@@ -389,7 +389,30 @@ en vez de solo revisar código a mano — esta sola prueba encontró un bug
 que ninguna de las dos revisiones de código anteriores (ítems 15 y 16)
 había detectado.
 
-## 19. Otros pendientes menores (de sesiones previas, sin resolver)
+## 19. Auditoría de patrones similares al bug del ítem 18 (2026-09-09)
+
+Después de encontrar el bug de `RETURNING` del ítem 18, se revisó el
+resto del código buscando la misma familia de errores (lógica que se ve
+bien leyendo el código pero falla en un caso puntual): otros usos de SQL
+crudo, aritmética de fechas manual, llamadas HTTP dentro de una
+transacción de Prisma, y incrementos/decrementos de saldo sin protección
+contra condiciones de carrera.
+
+No apareció ningún bug nuevo de esas primeras tres categorías (el único
+`$queryRaw` es el ya corregido del ítem 18; las transacciones con
+`increment`/`decrement` de puntos ya estaban bien protegidas). Sí apareció
+uno chico, de la misma familia que el de `restarMeses` (desbordamiento de
+fechas): el regalo de cumpleaños (`netlify/functions/regalo-cumpleanos.mjs`)
+y el cartel del panel del cliente (`app/page.js`) comparaban mes/día de
+nacimiento contra hoy de forma directa — una clienta nacida el 29 de
+febrero nunca iba a recibir su regalo, porque esa fecha no existe en 3 de
+cada 4 años. Se corrigió con un helper común (`lib/cumpleanos.js`,
+`esCumpleanosHoy`) que festeja el 28 de febrero en años no bisiestos, y
+se probó con casos concretos (nacimiento bisiesto, años bisiestos y no
+bisiestos, cumpleaños normal) confirmando el resultado esperado en cada
+uno.
+
+## 20. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado
