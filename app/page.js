@@ -902,7 +902,7 @@ export default function Home() {
         </div>
         {negocioMostrado?.tiendanubeOAuthDisponible && (
           <div style={{ marginBottom: 12 }}>
-            <a href="/api/tiendanube/conectar" className="fid-btn-secondary" style={{ display: 'inline-block', padding: '8px 12px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, fontWeight: 500, textDecoration: 'none' }}>
+            <a href={`/api/tiendanube/conectar?negocioId=${negocioMostrado?.id}`} className="fid-btn-secondary" style={{ display: 'inline-block', padding: '8px 12px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, fontWeight: 500, textDecoration: 'none' }}>
               {negocioMostrado?.tiendanubeConectado ? 'Reconectar con Tiendanube' : 'Conectar con Tiendanube'}
             </a>
             <div style={{ fontSize: 11, color: tema.textoSecundario, marginTop: 6 }}>Te lleva a Tiendanube para autorizar el acceso — no hace falta pegar el token a mano.</div>
