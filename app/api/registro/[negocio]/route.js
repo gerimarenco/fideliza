@@ -37,6 +37,7 @@ export async function GET(request, { params }) {
   negocioPublico.nombre = nombreClub(nombre);
   negocioPublico.temaPrimario = tema?.primario;
   negocioPublico.temaPrimarioTexto = tema?.primarioTexto;
+  negocioPublico.temaImagenPortada = tema?.imagenPortada;
   return NextResponse.json(negocioPublico, { headers: CORS_HEADERS });
 }
 

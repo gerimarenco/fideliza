@@ -216,6 +216,21 @@ negocio, calcula los puntos y arma un link a `/registro/[slug]` con esos
 colores. Si el negocio no existe, está inactivo, o falla la llamada, no
 muestra nada (nunca rompe la página de la tienda).
 
+## Mini-landing pública antes de registrarse (`/club/[negocio]`)
+
+Para un link desde afuera de Retornar (por ejemplo un ítem de menú "Sumate
+al club" en la tienda online del negocio) que no tiene el contexto que sí
+tiene el widget de arriba, mandar directo al formulario de
+`/registro/[negocio]` se siente brusco — alguien que nunca escuchó hablar
+del "Club X" cae de una en una pantalla pidiéndole DNI y fecha de
+nacimiento. `/club/[negocio]` es un paso intermedio: muestra la imagen de
+portada del tema (si está cargada), el mismo "Mensaje de bienvenida" que
+ya usa el formulario de registro (Ajustes, self-service), tres bullets
+genéricos de qué es el club, y recién ahí un botón "Registrarme" que lleva
+a `/registro/[negocio]`. Pública (agregada a `middleware.js` junto con
+`/login` y `/registro`), consume el mismo `GET /api/registro/[slug]` que
+el widget.
+
 ## Premios vinculados a Tiendanube
 
 Un premio (`Premio`, editable desde la sección Premios del panel de

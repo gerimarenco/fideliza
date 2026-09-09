@@ -122,13 +122,20 @@ Functions el primer día que le toque el cumpleaños a alguien.
   `puntosXPeso`/`regaloCumpleanosPuntos`) que muestra un link "Visitar
   {negocio} →" al pie del panel del cliente cuando está cargado. Falta
   que alguien lo cargue con `https://peperina.com` en Ajustes.
-- **peperina.com → registro de Retornar**: pendiente por completo, es
-  un cambio del lado de Tiendanube (no de este repo) — agregar un ítem
-  de menú "Sumate al club Peperina" que linkee a
-  `/registro/peperina` de Retornar. En Tiendanube esto suele hacerse
-  desde el editor de menús como un "Enlace externo", sin necesitar
-  tocar código de la tienda (a diferencia del widget, que sí necesitó
-  el editor de código).
+- **peperina.com → registro de Retornar**: el ítem de menú en sí
+  ("Sumate al club Peperina" o similar, como "Enlace externo" en el
+  editor de menús de Tiendanube) es un cambio del lado de Tiendanube,
+  no de este repo. Pero en vez de apuntarlo directo a
+  `/registro/peperina` (un formulario pidiendo datos apenas alguien
+  entra desde el menú de la tienda, sin ningún contexto — se sintió
+  brusco al probarlo), se armó una mini-landing intermedia en
+  `/club/[negocio]` (2026-09-09): muestra la imagen de portada del tema
+  si está cargada, el mensaje de bienvenida (mismo campo que ya usa el
+  formulario de registro), tres bullets genéricos de qué es el club
+  (sumar puntos / canjear premios / sorpresas de cumpleaños), y recién
+  ahí un botón "Registrarme" que lleva a `/registro/[negocio]`. El
+  ítem de menú en Tiendanube debería apuntar a esta URL nueva
+  (`/club/peperina`), no a la del formulario directo.
 
 ## 8. Nomenclatura "Club X" — ✅ resuelto (2026-09-07)
 
@@ -464,7 +471,52 @@ por OAuth2") cree la app en el Partner Portal de Tiendanube y cargue
 va a poder confirmar que el intercambio de token funciona tal cual está
 escrito.
 
-## 21. Otros pendientes menores (de sesiones previas, sin resolver)
+## 21. Tiendanube conectado de verdad con Peperina — 3 bugs encontrados probando en vivo (2026-09-09)
+
+Cecilia creó la app en el Partner Portal, cargó `TIENDANUBE_APP_ID`/
+`TIENDANUBE_CLIENT_SECRET` reales, y probó el botón "Conectar con
+Tiendanube" del ítem 20 — la primera prueba real contra una cuenta de
+partner de verdad. Encontró y se corrigieron en el momento tres problemas:
+
+1. **"No autorizado" al conectar** — `app/api/tiendanube/conectar` solo
+   dejaba pasar `session.user.role === 'negocio'`, pero Ajustes →
+   Integraciones también se edita desde el panel de admin eligiendo un
+   negocio. Se agregó `negocioId` por query string con el mismo criterio
+   de autorización que ya usa `PATCH /api/negocios`.
+2. **Volvía al login en vez de confirmar la conexión** — sin poder
+   reproducirlo de punta a punta acá para confirmar la causa exacta
+   (sospecha: algo puntual con la sesión en esa vuelta desde un dominio
+   externo). En vez de seguir diagnosticando a ciegas, `app/api/tiendanube/callback`
+   ahora devuelve directamente una página de confirmación (no depende de
+   que la sesión llegue viva a la siguiente carga de `/`).
+3. **El webhook de "pedido pagado" nunca se registraba** — conectar la
+   tienda guarda el token, pero no le avisa a Tiendanube que tiene que
+   mandar el webhook de `order/paid` (es una suscripción de API aparte).
+   Se agregó `asegurarWebhookOrderPaid` en `lib/tiendanube.js`, llamada
+   automáticamente al final de un conectar exitoso — sin esto, ninguna
+   compra online iba a sumar puntos pese a que la tienda apareciera
+   "Conectada".
+
+Con los tres corregidos, la tienda de Peperina (Store ID `820719`) quedó
+conectada de verdad, con el webhook registrado. Falta confirmar con una
+compra de prueba real que efectivamente suma puntos.
+
+## 22. Mini-landing pública antes de registrarse (`/club/[negocio]`) (2026-09-09)
+
+Para el ítem de menú "Sumate al club Peperina" que se va a agregar en
+peperina.com (ítem 7 más abajo), mandar directo a `/registro/peperina`
+(un formulario pidiendo datos, sin ningún contexto) se sintió demasiado
+brusco al pensarlo. Se armó una página intermedia en `/club/[negocio]`:
+imagen de portada del tema si está cargada, el mismo "mensaje de
+bienvenida" que ya usa el formulario de registro, tres bullets genéricos
+(sumar puntos / canjear premios / sorpresas de cumpleaños), y un botón
+"Registrarme" que recién ahí lleva a `/registro/[negocio]`. Agregada a
+la lista de rutas públicas en `middleware.js`, igual que `/registro`.
+
+El ítem de menú en Tiendanube debería apuntar a esta URL nueva
+(`/club/peperina`), no directo al formulario.
+
+## 23. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Los webhooks de Tiendanube y Mercado Pago
   (`app/api/webhooks/tiendanube`, `app/api/webhooks/mercadopago`) no
