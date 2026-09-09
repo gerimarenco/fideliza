@@ -326,8 +326,127 @@ vez sobre todo el proyecto, no solo lo agregado en esta sesión. Aparecieron
   (que es quien primero lee el dato de la API local de Dragon Fish) para
   aceptar número o string sin volver a colar `null`/`''`/`false`.
 
-## 17. Otros pendientes menores (de sesiones previas, sin resolver)
+## 17. Verificación de las migraciones de Prisma — ✅ confirmado, sin cambios de código (2026-09-08)
 
+Todas las migraciones de esta sesión se escribieron a mano (sin
+`prisma migrate dev`, porque este entorno nunca tuvo `DATABASE_URL` para
+conectarse a la base real) y nunca se habían probado contra una base de
+verdad — quedaba la duda de si coincidían exactamente con
+`schema.prisma`, algo que de estar mal recién se iba a notar en el
+próximo deploy (`prisma migrate deploy` fallando, o peor, aplicando
+"bien" pero dejando la base desalineada del Prisma Client generado).
+
+Se encontró Postgres 16 instalado en este entorno (no se había notado
+antes): se levantó un cluster local, se armó una base descartable, se
+corrieron las 21 migraciones en orden con `prisma migrate deploy` (igual
+comando que usa `netlify.toml` en producción) y se comparó el resultado
+contra `schema.prisma` con `prisma migrate diff` — **cero diferencias**.
+Se probó además un create/update real contra esa base con Prisma Client
+(negocio, cliente, premio, movimiento de puntos, canje, y los campos
+nuevos de esta sesión) sin ningún error. La base y el cluster de prueba
+se borraron después, no queda nada corriendo.
+
+No se tocó código: era una verificación, no encontró nada para arreglar.
+Esto reemplaza la advertencia repetida en varios PRs de esta sesión de
+"no se pudo probar la migración contra una base real" — ya se probó, y
+coincide.
+
+## 18. Prueba de punta a punta real (por primera vez con base de datos) — encontró y corrigió un bug crítico del vencimiento de puntos (2026-09-09)
+
+Con el Postgres local del ítem 17 ya probado, se aprovechó para levantar
+la app real (`next dev`) contra una base de prueba y probar los flujos
+completos con un navegador (Playwright) en vez de solo leer código:
+login de admin, alta de negocio, Premios en el menú de Admin, alta de
+premios, orden ascendente, registro público, "Club X", saludo de
+cumpleaños, canje con y sin cupón de Tiendanube, y el bloqueo de canje
+cross-negocio. **Todo funcionó exactamente como estaba pensado** — la
+primera confirmación end-to-end real de toda la sesión.
+
+Al probar el vencimiento de puntos en sí (backdateando un lote a mano)
+apareció un bug serio en la corrección de la condición de carrera del
+ítem 15 (PR #61): `UPDATE ... SET "saldoRestante" = 0 ... RETURNING
+"saldoRestante"` en Postgres devuelve la fila **después** del UPDATE, no
+antes — así que esa consulta siempre devolvía 0, y el vencimiento vaciaba
+el lote sin descontar nunca los puntos reales de `Cliente.puntos` ni
+dejar el `MovimientoPuntos` de `origen: "vencimiento"`. En la práctica,
+la función de vencimiento no vencía nada desde que se armó (PR #61), a
+pesar de que la lógica se veía bien leyendo el código y de que el test
+aislado de esa sesión pasaba (probaba la fecha de corte, no el UPDATE en
+sí). Se corrigió leyendo el valor viejo con un `FROM (... FOR UPDATE)` en
+el mismo `UPDATE`, que sí mantiene la fila de antes disponible para el
+`RETURNING` — se volvió a probar contra la base real, incluyendo el caso
+de carrera (un canje consumiendo parte del lote justo antes de que corra
+el vencimiento) y quedó confirmado correcto.
+
+De paso apareció un import sin extensión (`from './nombreClub'` en
+`lib/email.js`) que Next.js tolera pero que rompe bajo Node ESM puro
+(como corren las Netlify Functions `.mjs`) — se agregó la extensión
+`.js`.
+
+**Moraleja para la próxima sesión**: con Postgres disponible en este
+entorno, conviene probar así (`next dev` + base descartable + Playwright)
+en vez de solo revisar código a mano — esta sola prueba encontró un bug
+que ninguna de las dos revisiones de código anteriores (ítems 15 y 16)
+había detectado.
+
+## 19. Auditoría de patrones similares al bug del ítem 18 (2026-09-09)
+
+Después de encontrar el bug de `RETURNING` del ítem 18, se revisó el
+resto del código buscando la misma familia de errores (lógica que se ve
+bien leyendo el código pero falla en un caso puntual): otros usos de SQL
+crudo, aritmética de fechas manual, llamadas HTTP dentro de una
+transacción de Prisma, y incrementos/decrementos de saldo sin protección
+contra condiciones de carrera.
+
+No apareció ningún bug nuevo de esas primeras tres categorías (el único
+`$queryRaw` es el ya corregido del ítem 18; las transacciones con
+`increment`/`decrement` de puntos ya estaban bien protegidas). Sí apareció
+uno chico, de la misma familia que el de `restarMeses` (desbordamiento de
+fechas): el regalo de cumpleaños (`netlify/functions/regalo-cumpleanos.mjs`)
+y el cartel del panel del cliente (`app/page.js`) comparaban mes/día de
+nacimiento contra hoy de forma directa — una clienta nacida el 29 de
+febrero nunca iba a recibir su regalo, porque esa fecha no existe en 3 de
+cada 4 años. Se corrigió con un helper común (`lib/cumpleanos.js`,
+`esCumpleanosHoy`) que festeja el 28 de febrero en años no bisiestos, y
+se probó con casos concretos (nacimiento bisiesto, años bisiestos y no
+bisiestos, cumpleaños normal) confirmando el resultado esperado en cada
+uno.
+
+Una segunda auditoría (rounding de puntos, idempotencia de webhooks,
+mails faltantes, chequeos de `Negocio.activo`) no encontró más bugs de
+esas primeras tres categorías (el redondeo de puntos es
+`Math.floor(monto / puntosXPeso)` en los cuatro lugares donde se calcula
+y coincide siempre; los tres webhooks que acreditan puntos ya evitan el
+doble crédito por reenvío gracias a la restricción única de
+`WebhookEvento`; todo camino que suma puntos ya manda algún mail). Sí
+encontró un agujero real: desactivar un negocio (`Negocio.activo`,
+pensado para sacarlo de circulación sin borrar su historial — ver
+`app/api/negocios`) solo se chequeaba en el registro público. Compras
+manuales, el agente de Dragon Fish, los webhooks de Tiendanube/Mercado
+Pago y los canjes seguían funcionando igual con un negocio desactivado.
+Se agregó el chequeo en los cinco lugares (a los webhooks, que no deben
+fallar aunque el negocio esté desactivado, se les hace devolver 200 sin
+acreditar, igual que ya hacían con un negocio no configurado).
+
+## 21. Otros pendientes menores (de sesiones previas, sin resolver)
+
+- Los webhooks de Tiendanube y Mercado Pago
+  (`app/api/webhooks/tiendanube`, `app/api/webhooks/mercadopago`) no
+  verifican que el pedido realmente venga de Tiendanube/Mercado Pago
+  (no hay validación de firma/HMAC) — cualquiera que adivine un
+  `store_id` + `orderId` real (Tiendanube) o un `paymentId` real
+  (Mercado Pago) podría dispararlos a mano. El impacto está bastante
+  acotado porque ninguno de los dos confía en el monto/cliente que
+  manda el POST: ambos vuelven a pedir los datos reales a la API del
+  proveedor (Tiendanube) o ya vienen de metadata cargada por Retornar al
+  crear la preferencia (Mercado Pago), así que no se pueden inventar
+  puntos de la nada — como mucho, forzar que se procese antes de tiempo
+  una orden/pago real que de todos modos iba a acreditarse (la
+  protección de `WebhookEvento` ya evita el doble crédito). Agregar
+  verificación de firma requeriría un secreto nuevo de cada proveedor
+  (que hay que sacar de su panel) y no se puede probar de punta a punta
+  sin una entrega real de webhook — por eso queda como pendiente en vez
+  de implementarse a ciegas.
 - Tiendanube: la conexión real (OAuth2, para acreditar puntos
   automáticamente después de cada pago) todavía no está armada — pausado
   a propósito hasta que se retome. El widget de fidelización (punto 4

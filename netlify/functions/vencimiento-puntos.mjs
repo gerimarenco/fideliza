@@ -38,12 +38,27 @@ function restarMeses(fecha, meses) {
 // mismo lote justo antes, esta consulta ve el saldoRestante ya
 // actualizado — nunca vence puntos que un canje ya gastó legítimamente
 // entre que se armó la lista de lotes vencidos y que se procesó cada uno.
+//
+// OJO con `RETURNING`: en Postgres siempre devuelve la fila DESPUÉS del
+// UPDATE, nunca la de antes — un primer intento con
+// `SET "saldoRestante" = 0 ... RETURNING "saldoRestante"` devolvía
+// siempre 0 (verificado corriendo esto contra una base real), así que
+// nunca se descontaba nada de Cliente.puntos aunque el lote sí quedaba
+// vaciado. Por eso el valor viejo se lee en un FROM con FOR UPDATE (toma
+// el lock de fila ahí mismo, antes del SET) y se devuelve ESE valor, no
+// una columna de la fila ya actualizada.
 async function vencerLoteAtomico(tx, loteId) {
   const [fila] = await tx.$queryRaw`
-    UPDATE "MovimientoPuntos"
+    UPDATE "MovimientoPuntos" AS mp
     SET "saldoRestante" = 0
-    WHERE id = ${loteId} AND "saldoRestante" > 0
-    RETURNING "saldoRestante" AS monto
+    FROM (
+      SELECT id, "saldoRestante" AS monto_anterior
+      FROM "MovimientoPuntos"
+      WHERE id = ${loteId} AND "saldoRestante" > 0
+      FOR UPDATE
+    ) AS antes
+    WHERE mp.id = antes.id
+    RETURNING antes.monto_anterior AS monto
   `
   return fila?.monto ?? 0
 }

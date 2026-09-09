@@ -43,6 +43,13 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Negocio no configurado' }, { status: 200 })
     }
 
+    // Un negocio desactivado (ver app/api/negocios) no debería seguir
+    // acreditando puntos por esta vía, aunque Tiendanube siga mandando el
+    // webhook de una tienda que ya no está en uso en Retornar.
+    if (!negocio.activo) {
+      return NextResponse.json({ message: 'Negocio desactivado' }, { status: 200 })
+    }
+
     const orden = await obtenerOrden(storeId, orderId, negocio.tiendanubeAccessToken)
     const email = orden.contact_email?.trim().toLowerCase()
     const total = parseFloat(orden.total)

@@ -29,6 +29,14 @@ export async function POST(request) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
+  // Desactivar un negocio (ver app/api/negocios) lo saca de circulación sin
+  // borrar su historial — sin este chequeo, el agente local podía seguir
+  // acreditando puntos con el mismo token aunque el negocio ya no tuviera
+  // que operar.
+  if (!negocio.activo) {
+    return NextResponse.json({ error: 'Negocio desactivado' }, { status: 403 })
+  }
+
   const body = await request.json()
   const { codigo, monto, email, telefono, sinDatos } = body
 

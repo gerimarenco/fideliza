@@ -29,6 +29,13 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
   }
 
+  // Desactivar un negocio (ver app/api/negocios) lo saca de circulación sin
+  // borrar su historial — sin este chequeo, seguía pudiendo sumarle puntos
+  // a sus clientes por esta vía aunque ya no tuviera que operar.
+  if (!negocio.activo) {
+    return NextResponse.json({ error: 'Este negocio está desactivado' }, { status: 403 })
+  }
+
   // Sin esto, cualquier negocio autenticado podía sumarle puntos a un
   // cliente de otro negocio: alcanzaba con mandar su propio negocioId (que
   // sí se valida arriba) junto con el clienteId de cualquier cliente ajeno.
