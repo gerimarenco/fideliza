@@ -605,7 +605,22 @@ No se agregó nada más al menú por ahora (ej. términos y condiciones,
 historial de movimientos) para no inventar contenido/legal sin que Cecilia
 lo pida puntualmente — quedan como ideas a futuro si las quiere.
 
-## 25. Otros pendientes menores (de sesiones previas, sin resolver)
+## 25. "Cliente desde" y "Primera compra" en el detalle del cliente (2026-09-10)
+
+Cecilia pidió que al abrir el detalle de un cliente (`VistaClientes`) se
+vea desde cuándo está en Retornar y/o cuál fue su primera venta. Se
+agregaron los dos, uno al lado del otro arriba del detalle:
+
+- **Cliente desde**: `Cliente.createdAt`, ya venía en la respuesta de
+  `GET /api/clientes`, no hizo falta tocar el backend.
+- **Primera compra**: nuevo campo `fechaPrimeraCompra` en
+  `calcularStatsClientes` (`lib/clienteStats.js`) — mismo criterio que
+  `fechaUltimaCompra` (que ya existía), solo que se queda con la primera
+  fecha en vez de la última, y solo cuenta orígenes de venta real (no
+  cumpleaños ni vencimiento). No se muestra si el cliente todavía no
+  compró nunca (ej. se registró pero no volvió).
+
+## 26. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Los webhooks de Tiendanube y Mercado Pago
   (`app/api/webhooks/tiendanube`, `app/api/webhooks/mercadopago`) no

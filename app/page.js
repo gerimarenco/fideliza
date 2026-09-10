@@ -888,6 +888,10 @@ export default function Home() {
 
               {expandido && (
                 <div style={{ padding: '4px 0 16px 42px', display: 'grid', gap: 10 }}>
+                  <div style={{ fontSize: 11, color: tema.textoSecundario }}>
+                    Cliente desde {new Date(c.createdAt).toLocaleDateString('es-AR')}
+                    {s.fechaPrimeraCompra && ` · Primera compra: ${new Date(s.fechaPrimeraCompra).toLocaleDateString('es-AR')}`}
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                     <div style={{ background: tema.fondo, borderRadius: 8, padding: '8px 10px' }}>
                       <div style={{ fontSize: 10, color: tema.textoSecundario }}>Compras registradas</div>
