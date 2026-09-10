@@ -26,6 +26,9 @@ function resolverTema(negocio) {
   return { ...TEMA_DEFAULT, ...(negocio?.tema || {}) };
 }
 
+// TODO: reemplazar por la casilla real de Retornar cuando Cecilia la cree.
+const EMAIL_SOPORTE = 'soporte@retornar.com.ar';
+
 // "Hoy" / "Ayer" / "Hace N días" para la última actividad de un cliente en
 // VistaClientes — más legible que una fecha pelada para detectar de un
 // vistazo quién dejó de comprar.
@@ -50,6 +53,23 @@ function colorInactividad(dias) {
   return '#16a34a';
 }
 
+// Reglas de puntos del panel del cliente ("Cómo funcionan los puntos" en el
+// menú ⋮) armadas a partir de la configuración real del negocio, en vez de
+// texto fijo -- así nunca queda desactualizado si Peperina (o cualquier
+// otro negocio) cambia puntosXPeso, el regalo de cumpleaños o el
+// vencimiento desde Ajustes.
+function reglasDePuntos(negocio, club) {
+  const reglas = [`🛍️ Ganás 1 punto por cada $${formatearMiles(negocio.puntosXPeso)} que gastás en ${club}.`];
+  if (negocio.regaloCumpleanosPuntos) {
+    reglas.push(`🎂 El día de tu cumpleaños te regalamos ${negocio.regaloCumpleanosPuntos} puntos.`);
+  }
+  if (negocio.vencimientoPuntosMeses) {
+    reglas.push(`⏳ Cada compra suma puntos que valen por ${negocio.vencimientoPuntosMeses} meses desde que los ganaste: si no los usás a tiempo, esos puntos vencen (siempre se gastan primero los más viejos).`);
+  }
+  reglas.push('🎁 Cuando llegás al puntaje de un premio, ya lo podés canjear desde esta misma pantalla.');
+  return reglas;
+}
+
 export default function Home() {
   const { data: session } = useSession();
   const [negocios, setNegocios] = useState([]);
@@ -66,6 +86,9 @@ export default function Home() {
   const [formEdicionNegocio, setFormEdicionNegocio] = useState({ nombre: '', tipo: '', ciudad: '', emoji: '', tema: { ...TEMA_DEFAULT } });
   const [clientePropio, setClientePropio] = useState(null);
   const [negocioDelCliente, setNegocioDelCliente] = useState(null);
+  const [mostrarMenuCliente, setMostrarMenuCliente] = useState(false);
+  // null | 'info' | 'password' — qué modal del menú del cliente está abierto
+  const [modalCliente, setModalCliente] = useState(null);
   const [canjeandoId, setCanjeandoId] = useState(null);
   const [saludoCumpleCerrado, setSaludoCumpleCerrado] = useState(false);
   const [toast, setToast] = useState(null);
@@ -623,7 +646,7 @@ export default function Home() {
       return;
     }
     try {
-      const res = await fetch('/api/negocios/password', {
+      const res = await fetch(isCliente ? '/api/clientes/password' : '/api/negocios/password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ passwordActual: actual, passwordNueva: nueva })
@@ -635,6 +658,7 @@ export default function Home() {
       }
       mostrarToast('exito', 'Contraseña actualizada');
       setFormPassword({ actual: '', nueva: '', confirmar: '' });
+      if (isCliente) setModalCliente(null);
     } catch (err) {
       mostrarToast('error', 'Ocurrió un error al cambiar la contraseña. Probá de nuevo.');
     }
@@ -1318,13 +1342,62 @@ export default function Home() {
         {tema.imagenPortada && (
           <img src={tema.imagenPortada} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }} />
         )}
-        <div style={{ padding: '20px 20px 16px', background: tema.superficie, borderBottom: `1px solid ${tema.borde}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '20px 20px 16px', background: tema.superficie, borderBottom: `1px solid ${tema.borde}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative' }}>
           <div>
           <div style={{ fontSize: 16, fontWeight: 600, fontFamily: tema.fuenteTitulo }}>Hola, {clientePropio.nombre ? clientePropio.nombre.split(' ')[0] : clientePropio.email.split('@')[0]} 👋</div>
             <div style={{ fontSize: 12, color: tema.textoSecundario }}>{nombreClub(negocioDelCliente.nombre)} {negocioDelCliente.emoji}</div>
           </div>
-          <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: '#ef4444', cursor: 'pointer' }}>Salir</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span
+              onClick={() => setMostrarMenuCliente(v => !v)}
+              aria-label="Más opciones"
+              style={{ fontSize: 20, color: tema.textoSecundario, cursor: 'pointer', padding: '4px 10px', lineHeight: 1 }}
+            >
+              ⋮
+            </span>
+            <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: '#ef4444', cursor: 'pointer' }}>Salir</button>
+          </div>
+          {mostrarMenuCliente && (
+            <div style={{ position: 'absolute', top: '100%', right: 20, marginTop: 4, zIndex: 20, background: tema.superficie, border: `1px solid ${tema.borde}`, borderRadius: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: 230, overflow: 'hidden' }}>
+              <div className="fid-row-hover" onClick={() => { setModalCliente('info'); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>ℹ️ Cómo funcionan los puntos</div>
+              <div className="fid-row-hover" onClick={() => { setModalCliente('password'); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>🔑 Cambiar contraseña</div>
+              <a href={`mailto:${EMAIL_SOPORTE}`} onClick={() => setMostrarMenuCliente(false)} className="fid-row-hover" style={{ display: 'block', padding: '12px 16px', fontSize: 13, color: tema.texto, textDecoration: 'none' }}>💬 Contactar soporte</a>
+            </div>
+          )}
         </div>
+
+        {modalCliente === 'info' && (
+          <div onClick={() => setModalCliente(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 20 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: tema.superficie, color: tema.texto, borderRadius: 14, padding: 22, maxWidth: 380, width: '100%' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Cómo funcionan los puntos</div>
+              {reglasDePuntos(negocioDelCliente, nombreClub(negocioDelCliente.nombre)).map((regla, i) => (
+                <div key={i} style={{ fontSize: 13, marginBottom: 10, lineHeight: 1.4 }}>{regla}</div>
+              ))}
+              <button onClick={() => setModalCliente(null)} className="fid-btn-primary" style={{ marginTop: 8, width: '100%', padding: '10px 0', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Entendido</button>
+            </div>
+          </div>
+        )}
+
+        {modalCliente === 'password' && (
+          <div onClick={() => setModalCliente(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 20 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: tema.superficie, color: tema.texto, borderRadius: 14, padding: 22, maxWidth: 340, width: '100%' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Cambiar contraseña</div>
+              <div style={{ marginBottom: 10 }}>
+                <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Contraseña actual</label>
+                <input type="password" value={formPassword.actual} onChange={e => setFormPassword({ ...formPassword, actual: e.target.value })} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.fondo, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Nueva contraseña</label>
+                <input type="password" value={formPassword.nueva} onChange={e => setFormPassword({ ...formPassword, nueva: e.target.value })} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.fondo, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Confirmar nueva contraseña</label>
+                <input type="password" value={formPassword.confirmar} onChange={e => setFormPassword({ ...formPassword, confirmar: e.target.value })} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.fondo, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+              </div>
+              <button onClick={cambiarPassword} className="fid-btn-primary" style={{ width: '100%', padding: '10px 0', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+            </div>
+          </div>
+        )}
 
         <div style={{ padding: 20 }}>
           {esCumpleanos && negocioDelCliente.regaloCumpleanosPuntos && !saludoCumpleCerrado && (
