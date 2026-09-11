@@ -39,28 +39,26 @@ export default function ClubLandingPage() {
       )}
 
       <div style={{ width: '100%', maxWidth: 420, padding: '32px 24px', textAlign: 'center' }}>
-        <h1 style={{ fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 8 }}>
-          {datosNegocio ? `${datosNegocio.nombre} ${datosNegocio.emoji || ''}`.trim() : (
-            <span style={{ textTransform: 'capitalize' }}>{negocio}</span>
-          )}
+        <h1 style={{ fontSize: 19, fontWeight: 700, color: '#111827', marginBottom: 8, lineHeight: 1.3 }}>
+          Tus compras ahora también tienen recompensa
         </h1>
 
-        <p style={{ color: '#4b5563', fontSize: 15, lineHeight: 1.5, marginBottom: 28 }}>
-          {datosNegocio?.mensajeRegistro || 'Sumá puntos con cada compra y canjealos por premios exclusivos.'}
+        <p style={{ color: '#4b5563', fontSize: 14, lineHeight: 1.5, marginBottom: 28 }}>
+          Sumá 1 punto por cada ${datosNegocio?.puntosXPeso ?? 100} de compra en el local y en nuestra tienda online.
         </p>
 
         <div style={{ display: 'grid', gap: 14, textAlign: 'left', marginBottom: 32 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: '#fff', padding: '14px 16px', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
             <span style={{ fontSize: 22 }}>🛍️</span>
-            <span style={{ fontSize: 14, color: '#374151' }}>Sumás puntos automáticamente con cada compra</span>
+            <span style={{ fontSize: 14, color: '#374151' }}>Sumás puntos con cada compra</span>
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: '#fff', padding: '14px 16px', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
             <span style={{ fontSize: 22 }}>🎁</span>
-            <span style={{ fontSize: 14, color: '#374151' }}>Los canjeás por premios exclusivos</span>
+            <span style={{ fontSize: 14, color: '#374151' }}>Canjealos por premios y prendas seleccionadas</span>
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: '#fff', padding: '14px 16px', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
             <span style={{ fontSize: 22 }}>🎂</span>
-            <span style={{ fontSize: 14, color: '#374151' }}>Sorpresas especiales, como en tu cumpleaños</span>
+            <span style={{ fontSize: 14, color: '#374151' }}>Disfrutá beneficios y sorpresas especiales</span>
           </div>
         </div>
 
@@ -73,13 +71,15 @@ export default function ClubLandingPage() {
             borderRadius: 10,
             backgroundColor: primario,
             color: primarioTexto,
-            fontSize: 16,
+            fontSize: 15,
             fontWeight: 600,
+            letterSpacing: 0.5,
+            textTransform: 'uppercase',
             textDecoration: 'none',
             boxSizing: 'border-box',
           }}
         >
-          Registrarme
+          Sumarme al Club
         </a>
 
         <a href="/login" style={{ display: 'block', marginTop: 16, fontSize: 13, color: '#6b7280', textDecoration: 'none' }}>
