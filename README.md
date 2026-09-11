@@ -318,6 +318,15 @@ opciones:
   (`EMAIL_SOPORTE` en `app/page.js`) — hoy es un placeholder
   (`soporte@retornar.com.ar`) hasta que se cree esa casilla de verdad.
 
+## Bases y condiciones (menú del cliente)
+
+El menú ⋮ del panel del cliente también tiene "Bases y condiciones", con
+el texto legal oficial de Club Peperina tal cual lo definió Cecilia
+(`BASES_CONDICIONES_PEPERINA` en `app/page.js`). Está hardcodeado a
+propósito porque hoy Peperina es el único negocio real — si se suma un
+segundo negocio con su propio texto, esto debería pasar a ser un campo de
+`Negocio` en vez de una constante fija.
+
 ## Regalo de cumpleaños
 
 `netlify/functions/regalo-cumpleanos.mjs` es una [Scheduled Function de
