@@ -211,6 +211,11 @@ meses como el valor a usar. Detalle técnico completo en el README, sección
   como se espera (recién se va a deployar) — revisar los logs de Netlify
   Functions cuando pase el primer vencimiento real.
 
+**Actualización (2026-09-11)**: Cecilia confirmó que el valor correcto es
+**12 meses**, no 6 (ver ítem 26) — hay que actualizar
+`Negocio.vencimientoPuntosMeses` de Peperina a `12` desde Ajustes en el
+panel (autogestionable, no requiere código).
+
 ## 11. El admin no podía llegar a Premios — ✅ resuelto (2026-09-07)
 
 El menú de la izquierda del panel de **Admin** no tenía ningún ítem para
@@ -634,14 +639,14 @@ modal con scroll (es bastante largo).
 propio texto legal, esto tiene que pasar a ser un campo editable (mismo
 criterio que `mensajeRegistro`/`sitioWeb`) en vez de esta constante fija.
 
-**Ojo, posible inconsistencia para revisar con Cecilia**: el texto que
-mandó dice que los puntos vencen a los **12 meses**, pero
-`Negocio.vencimientoPuntosMeses` de Peperina está cargado en **6** (ver
-ítem 10) — y el texto también dice "$100 = 1 punto", que habría que
-confirmar que coincide con el `puntosXPeso` real cargado hoy. No se tocó
-ninguno de los dos valores config (no es una decisión que me corresponda
-tomar) — hay que confirmar con ella cuál de los dos números es el correcto
-y ajustar el que esté desactualizado.
+**Inconsistencia con la config — resuelta (2026-09-11)**: Cecilia confirmó
+que los valores correctos son los del texto legal: **12 meses** de
+vigencia y **$100 = 1 punto**. `Negocio.vencimientoPuntosMeses` de
+Peperina seguía en `6` (ver ítem 10) — falta que alguien lo actualice a
+`12` desde Ajustes en el panel (autogestionable, no es un cambio de
+código). El valor de `puntosXPeso` no se pudo verificar desde este entorno
+(sin acceso a la base de producción) — hay que confirmar en Ajustes que
+esté en `100`, y corregirlo ahí mismo si no lo está.
 
 ## 27. Otros pendientes menores (de sesiones previas, sin resolver)
 
