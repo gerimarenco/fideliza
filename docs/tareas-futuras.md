@@ -648,7 +648,30 @@ código). El valor de `puntosXPeso` no se pudo verificar desde este entorno
 (sin acceso a la base de producción) — hay que confirmar en Ajustes que
 esté en `100`, y corregirlo ahí mismo si no lo está.
 
-## 27. Otros pendientes menores (de sesiones previas, sin resolver)
+## 27. Rediseño de textos de `/club/[negocio]` (2026-09-11)
+
+Cecilia mandó una propuesta de copy más "emocional" para la mini-landing
+del club (ítem 22): sacar la repetición del nombre del negocio debajo del
+banner (ya lo dice la imagen de portada) y reemplazarlo por una frase que
+venda el beneficio, explicar la mecánica de puntos enseguida, reformular
+las tres tarjetas, y cambiar el botón de "Registrarme" a "Sumarme al
+Club" (menos a trámite, más a pertenencia). Aplicado en
+`app/club/[negocio]/page.js`:
+
+- Título: "Tus compras ahora también tienen recompensa" (fijo, genérico
+  para cualquier negocio, no específico de Peperina).
+- Debajo: "Sumá 1 punto por cada $X de compra en el local y en nuestra
+  tienda online" — el `$X` sale de `puntosXPeso` real del negocio (no
+  hardcodeado), para que no quede desactualizado si ese valor cambia.
+- Tarjetas: "Sumás puntos con cada compra" / "Canjealos por premios y
+  prendas seleccionadas" / "Disfrutá beneficios y sorpresas especiales".
+- Botón: "Sumarme al Club" en vez de "Registrarme".
+
+`Negocio.mensajeRegistro` (el mensaje/promoción propia que antes se
+mostraba acá) dejó de usarse en esta pantalla — sigue mostrándose en el
+formulario de registro (`/registro/[negocio]`), no se tocó ahí.
+
+## 28. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Los webhooks de Tiendanube y Mercado Pago
   (`app/api/webhooks/tiendanube`, `app/api/webhooks/mercadopago`) no
