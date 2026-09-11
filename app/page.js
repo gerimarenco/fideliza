@@ -29,6 +29,68 @@ function resolverTema(negocio) {
 // TODO: reemplazar por la casilla real de Retornar cuando Cecilia la cree.
 const EMAIL_SOPORTE = 'soporte@retornar.com.ar';
 
+// Bases y condiciones que mandó Cecilia (texto legal tal cual, no
+// reformulado) para el menú ⋮ del panel del cliente. Hardcodeado acá porque
+// hoy Peperina es el único negocio real -- si se suma un segundo negocio
+// con su propio texto, esto tiene que pasar a ser un campo de Negocio
+// (mismo criterio que mensajeRegistro/sitioWeb) en vez de una constante fija.
+const BASES_CONDICIONES_PEPERINA = [
+  {
+    titulo: '1. ¿Qué es Club Peperina?',
+    parrafos: [
+      'Club Peperina es nuestro programa de beneficios para premiar a quienes nos eligen. Al formar parte del Club, acumulás puntos con tus compras y podés canjearlos por premios y beneficios especiales.',
+    ],
+  },
+  {
+    titulo: '2. ¿Cómo sumo puntos?',
+    parrafos: [
+      'Por cada $100 abonados sumás 1 punto.',
+      'Los puntos se calculan sobre el importe final efectivamente pagado, una vez aplicados los descuentos o promociones correspondientes.',
+      'Podés sumar puntos tanto en nuestro local como en la tienda online, siempre que la compra sea facturada con los datos de la clienta registrada en Club Peperina. La acreditación de los puntos se realiza automáticamente a partir de la facturación.',
+    ],
+  },
+  {
+    titulo: '3. ¿Cuánto duran mis puntos?',
+    parrafos: [
+      'Cada punto tiene una vigencia de 12 meses desde la fecha en que fue obtenido. Cumplido ese plazo, los puntos no utilizados vencen automáticamente.',
+    ],
+  },
+  {
+    titulo: '4. ¿Cómo canjeo mis puntos?',
+    parrafos: [
+      'Cuando alcanzás los puntos necesarios para un premio, podés elegir canjearlos o continuar acumulando.',
+      'Al realizar un canje, se descuentan de tu saldo los puntos correspondientes al premio elegido. Si te quedan puntos disponibles, los conservás y seguís acumulando desde ese saldo.',
+    ],
+  },
+  {
+    titulo: '5. Premios disponibles',
+    parrafos: [
+      'Los premios pueden renovarse a lo largo del año y están sujetos a disponibilidad de stock.',
+      'Peperina podrá incorporar nuevos premios, reemplazar los existentes o modificar la cantidad de puntos necesarios para futuros canjes.',
+    ],
+  },
+  {
+    titulo: '6. Beneficios con descuento',
+    parrafos: [
+      'Cuando un premio consista en un descuento, se aplicarán las condiciones particulares informadas para ese beneficio.',
+      'Actualmente, el beneficio de 50% OFF en una prenda a elección requiere 15.000 puntos, tiene un tope máximo de descuento de $75.000 y no es acumulable con otras promociones, descuentos o beneficios vigentes.',
+    ],
+  },
+  {
+    titulo: '7. Cambios',
+    parrafos: [
+      'Los cambios de prendas se rigen por la política habitual de cambios de Peperina. La generación de puntos está vinculada a la facturación realizada con los datos de la clienta.',
+    ],
+  },
+  {
+    titulo: '8. Condiciones generales',
+    parrafos: [
+      'Los puntos son personales, no tienen valor en dinero, no pueden canjearse por efectivo ni transferirse a otra persona.',
+      'Peperina podrá actualizar las condiciones y los premios del programa. Cualquier modificación relevante será comunicada a los miembros de Club Peperina.',
+    ],
+  },
+];
+
 // "Hoy" / "Ayer" / "Hace N días" para la última actividad de un cliente en
 // VistaClientes — más legible que una fecha pelada para detectar de un
 // vistazo quién dejó de comprar.
@@ -1365,6 +1427,7 @@ export default function Home() {
             <div style={{ position: 'absolute', top: '100%', right: 20, marginTop: 4, zIndex: 20, background: tema.superficie, border: `1px solid ${tema.borde}`, borderRadius: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: 230, overflow: 'hidden' }}>
               <div className="fid-row-hover" onClick={() => { setModalCliente('info'); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>ℹ️ Cómo funcionan los puntos</div>
               <div className="fid-row-hover" onClick={() => { setModalCliente('password'); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>🔑 Cambiar contraseña</div>
+              <div className="fid-row-hover" onClick={() => { setModalCliente('bases'); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>📋 Bases y condiciones</div>
               <a href={`mailto:${EMAIL_SOPORTE}`} onClick={() => setMostrarMenuCliente(false)} className="fid-row-hover" style={{ display: 'block', padding: '12px 16px', fontSize: 13, color: tema.texto, textDecoration: 'none' }}>💬 Contactar soporte</a>
             </div>
           )}
@@ -1378,6 +1441,25 @@ export default function Home() {
                 <div key={i} style={{ fontSize: 13, marginBottom: 10, lineHeight: 1.4 }}>{regla}</div>
               ))}
               <button onClick={() => setModalCliente(null)} className="fid-btn-primary" style={{ marginTop: 8, width: '100%', padding: '10px 0', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Entendido</button>
+            </div>
+          </div>
+        )}
+
+        {modalCliente === 'bases' && (
+          <div onClick={() => setModalCliente(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 20 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: tema.superficie, color: tema.texto, borderRadius: 14, padding: 22, maxWidth: 420, width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Bases y condiciones — Club Peperina</div>
+              <div style={{ overflowY: 'auto', flex: 1, paddingRight: 4 }}>
+                {BASES_CONDICIONES_PEPERINA.map((seccion, i) => (
+                  <div key={i} style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{seccion.titulo}</div>
+                    {seccion.parrafos.map((parrafo, j) => (
+                      <div key={j} style={{ fontSize: 12, color: tema.textoSecundario, lineHeight: 1.4, marginBottom: 6 }}>{parrafo}</div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => setModalCliente(null)} className="fid-btn-primary" style={{ marginTop: 8, width: '100%', padding: '10px 0', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500, flexShrink: 0 }}>Cerrar</button>
             </div>
           </div>
         )}

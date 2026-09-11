@@ -620,7 +620,30 @@ agregaron los dos, uno al lado del otro arriba del detalle:
   cumpleaños ni vencimiento). No se muestra si el cliente todavía no
   compró nunca (ej. se registró pero no volvió).
 
-## 26. Otros pendientes menores (de sesiones previas, sin resolver)
+## 26. Bases y condiciones de Club Peperina en el menú del cliente (2026-09-11)
+
+Cecilia mandó el texto oficial de Bases y Condiciones del Club (8 secciones:
+qué es, cómo se suman puntos, vigencia, canje, premios, beneficios con
+descuento, cambios, condiciones generales) para agregarlo al menú ⋮ del
+panel del cliente. Se agregó tal cual como texto fijo
+(`BASES_CONDICIONES_PEPERINA` en `app/page.js`), sin reformularlo, en un
+modal con scroll (es bastante largo).
+
+**Hardcodeado a propósito, no un campo de `Negocio`**: hoy Peperina es el
+único negocio real usando el sistema. Si se suma un segundo negocio con su
+propio texto legal, esto tiene que pasar a ser un campo editable (mismo
+criterio que `mensajeRegistro`/`sitioWeb`) en vez de esta constante fija.
+
+**Ojo, posible inconsistencia para revisar con Cecilia**: el texto que
+mandó dice que los puntos vencen a los **12 meses**, pero
+`Negocio.vencimientoPuntosMeses` de Peperina está cargado en **6** (ver
+ítem 10) — y el texto también dice "$100 = 1 punto", que habría que
+confirmar que coincide con el `puntosXPeso` real cargado hoy. No se tocó
+ninguno de los dos valores config (no es una decisión que me corresponda
+tomar) — hay que confirmar con ella cuál de los dos números es el correcto
+y ajustar el que esté desactualizado.
+
+## 27. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Los webhooks de Tiendanube y Mercado Pago
   (`app/api/webhooks/tiendanube`, `app/api/webhooks/mercadopago`) no
