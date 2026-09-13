@@ -149,8 +149,10 @@ export default function Home() {
   const [clientePropio, setClientePropio] = useState(null);
   const [negocioDelCliente, setNegocioDelCliente] = useState(null);
   const [mostrarMenuCliente, setMostrarMenuCliente] = useState(false);
-  // null | 'info' | 'password' — qué modal del menú del cliente está abierto
+  // null | 'info' | 'password' | 'bases' | 'movimientos' — qué modal del menú del cliente está abierto
   const [modalCliente, setModalCliente] = useState(null);
+  const [movimientosClientePagina, setMovimientosClientePagina] = useState(1);
+  const [movimientosClienteData, setMovimientosClienteData] = useState(null);
   const [canjeandoId, setCanjeandoId] = useState(null);
   const [saludoCumpleCerrado, setSaludoCumpleCerrado] = useState(false);
   const [toast, setToast] = useState(null);
@@ -259,6 +261,13 @@ export default function Home() {
       .catch(() => {});
   };
 
+  const cargarMovimientosCliente = (page = 1) => {
+    fetch(`/api/clientes/movimientos?page=${page}&pageSize=15`)
+      .then(res => res.json())
+      .then(setMovimientosClienteData)
+      .catch(() => {});
+  };
+
   // Al cambiar de negocio, arrancar de nuevo desde la página 1 y desde Inicio
   useEffect(() => {
     setClientesPagina(1);
@@ -280,6 +289,11 @@ export default function Home() {
     if (seccionActiva !== 'premios') return;
     cargarPremios(negocioMostrado?.id, premiosPagina);
   }, [negocioMostrado?.id, premiosPagina, seccionActiva]);
+
+  useEffect(() => {
+    if (modalCliente !== 'movimientos') return;
+    cargarMovimientosCliente(movimientosClientePagina);
+  }, [modalCliente, movimientosClientePagina]);
 
   // Al entrar a Integraciones se precarga lo que ya está cargado
   // (tiendanubeAccessToken nunca viaja del backend, ese campo arranca vacío)
@@ -1425,6 +1439,7 @@ export default function Home() {
           </div>
           {mostrarMenuCliente && (
             <div style={{ position: 'absolute', top: '100%', right: 20, marginTop: 4, zIndex: 20, background: tema.superficie, border: `1px solid ${tema.borde}`, borderRadius: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: 230, overflow: 'hidden' }}>
+              <div className="fid-row-hover" onClick={() => { setModalCliente('movimientos'); setMovimientosClientePagina(1); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>📜 Mis movimientos</div>
               <div className="fid-row-hover" onClick={() => { setModalCliente('info'); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>ℹ️ Cómo funcionan los puntos</div>
               <div className="fid-row-hover" onClick={() => { setModalCliente('password'); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>🔑 Cambiar contraseña</div>
               <div className="fid-row-hover" onClick={() => { setModalCliente('bases'); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>📋 Bases y condiciones</div>
@@ -1432,6 +1447,34 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {modalCliente === 'movimientos' && (
+          <div onClick={() => setModalCliente(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 20 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: tema.superficie, color: tema.texto, borderRadius: 14, padding: 22, maxWidth: 420, width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Mis movimientos</div>
+              <div style={{ overflowY: 'auto', flex: 1, paddingRight: 4 }}>
+                {!movimientosClienteData && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: tema.textoSecundario }}><Spinner size={14} /> Cargando...</div>}
+                {movimientosClienteData && movimientosClienteData.items.length === 0 && (
+                  <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no tenés movimientos.</div>
+                )}
+                {movimientosClienteData?.items.map((m) => (
+                  <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: `1px solid ${tema.borde}` }}>
+                    <span style={{ fontSize: 18 }}>{m.emoji}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13 }}>{m.descripcion}</div>
+                      <div style={{ fontSize: 11, color: tema.textoSecundario }}>{new Date(m.fecha).toLocaleDateString('es-AR')}</div>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: m.puntos >= 0 ? '#16a34a' : '#dc2626' }}>
+                      {m.puntos >= 0 ? '+' : ''}{m.puntos}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Paginador pagina={movimientosClienteData?.page || 1} totalPages={movimientosClienteData?.totalPages} onCambiar={setMovimientosClientePagina} />
+              <button onClick={() => setModalCliente(null)} className="fid-btn-primary" style={{ marginTop: 12, width: '100%', padding: '10px 0', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500, flexShrink: 0 }}>Cerrar</button>
+            </div>
+          </div>
+        )}
 
         {modalCliente === 'info' && (
           <div onClick={() => setModalCliente(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 20 }}>

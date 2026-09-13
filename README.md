@@ -327,6 +327,20 @@ propósito porque hoy Peperina es el único negocio real — si se suma un
 segundo negocio con su propio texto, esto debería pasar a ser un campo de
 `Negocio` en vez de una constante fija.
 
+## Mis movimientos (historial de puntos del cliente)
+
+"📜 Mis movimientos" en el menú ⋮ del panel del cliente muestra el
+historial completo de esa cuenta: compras que sumaron puntos, el regalo
+de cumpleaños, vencimientos, y canjes — cada uno con fecha y el signo
+correspondiente (verde para sumas, rojo para restas).
+
+`GET /api/clientes/movimientos` arma esta lista: los créditos y
+vencimientos salen de `MovimientoPuntos`, pero un canje no genera fila
+propia ahí (queda solo en `Canje`, ver "Premios vinculados a Tiendanube"
+más abajo) — el endpoint junta las dos fuentes y ordena por fecha en el
+propio servidor, sin depender de una tabla unificada. Solo devuelve el
+historial del cliente logueado, nunca el de otro.
+
 ## Regalo de cumpleaños
 
 `netlify/functions/regalo-cumpleanos.mjs` es una [Scheduled Function de
