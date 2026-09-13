@@ -15,21 +15,7 @@
 // reconstruir de cuándo eran.
 import { prisma } from '../../lib/db.js'
 import { enviarEmailPuntosVencidos } from '../../lib/email.js'
-
-// Restar meses a una fecha sin el bug clásico de JS: `setUTCMonth` no
-// "clampea" el día si el mes de destino tiene menos días (ej. 31 de agosto
-// menos 6 meses calcularía "31 de febrero", que Date normaliza de
-// prepo a 2-3 de marzo). Si eso pasa, nos quedamos con el último día
-// válido del mes de destino en vez de dejar que se corra a otro mes.
-function restarMeses(fecha, meses) {
-  const resultado = new Date(fecha)
-  const diaOriginal = resultado.getUTCDate()
-  resultado.setUTCMonth(resultado.getUTCMonth() - meses)
-  if (resultado.getUTCDate() !== diaOriginal) {
-    resultado.setUTCDate(0)
-  }
-  return resultado
-}
+import { restarMeses } from '../../lib/restarMeses.js'
 
 // Vence un lote de forma atómica: pone su saldoRestante en 0 solo si en
 // ESE MISMO INSTANTE todavía es mayor a 0, y devuelve cuánto tenía justo
