@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { autenticarAgente } from '@/lib/dragonfishAgente'
 import { hashPassword } from '@/lib/password'
 import { enviarEmailBienvenida, enviarEmailPuntosAcreditados } from '@/lib/email'
+import { calcularPuntosPorCompra } from '@/lib/puntos'
 
 // El agente local reporta acá el resultado de consultar una factura pendiente
 // contra la API REST de Dragon Fish: monto de la venta y el dato de
@@ -122,7 +123,7 @@ export async function POST(request) {
     }
   }
 
-  const puntos = Math.floor(montoNumerico / negocio.puntosXPeso)
+  const puntos = calcularPuntosPorCompra(montoNumerico, negocio.puntosXPeso)
 
   // Mismo patrón de idempotencia que Mercado Pago/Tiendanube: WebhookEvento +
   // Cliente.update + MovimientoPuntos.create en una sola transacción, más el

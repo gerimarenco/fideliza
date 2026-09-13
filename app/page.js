@@ -5,6 +5,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { nombreClub } from '@/lib/nombreClub';
 import { esCumpleanosHoy } from '@/lib/cumpleanos';
 import { descripcionNiveles, formatearMiles } from '@/lib/clienteStats';
+import { calcularPuntosPorCompra } from '@/lib/puntos';
 
 // Paleta por defecto (clara) del panel de negocio y del panel de cliente.
 // Un negocio con marca propia (ej. Peperina) puede sobreescribir cualquiera
@@ -319,7 +320,7 @@ export default function Home() {
     setFormPassword({ actual: '', nueva: '', confirmar: '' });
   }, [negocioMostrado?.id, seccionActiva]);
 
-  const pts = Math.floor((parseFloat(monto) || 0) / (negocioMostrado?.puntosXPeso || 1000));
+  const pts = calcularPuntosPorCompra(parseFloat(monto) || 0, negocioMostrado?.puntosXPeso || 1000);
 
   const sumarPuntos = async (negId) => {
     if (!monto || !clienteSeleccionado) { mostrarToast('error', 'Seleccioná un cliente y un monto'); return; }

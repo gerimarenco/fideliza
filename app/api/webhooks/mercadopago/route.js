@@ -3,6 +3,7 @@ import { MercadoPagoConfig, Payment } from 'mercadopago';
 import { prisma } from '@/lib/db';
 import { enviarEmailPuntosAcreditados } from '@/lib/email';
 import { verificarFirmaMercadoPago } from '@/lib/webhookSignature';
+import { calcularPuntosPorCompra } from '@/lib/puntos';
 
 const client = new MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
@@ -64,7 +65,7 @@ export async function POST(request) {
     }
 
     const puntosXPeso = negocio?.puntosXPeso || 1000;
-    const puntosASumar = Math.floor(Number(monto) / puntosXPeso);
+    const puntosASumar = calcularPuntosPorCompra(Number(monto), puntosXPeso);
 
     // Marcar el pago como procesado y sumar los puntos en una sola
     // transacción: si MP reenvía la misma notificación, la restricción

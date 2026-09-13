@@ -805,7 +805,26 @@ momento, la confirmación real de punta a punta queda pendiente de una
 prueba en producción — para Mercado Pago, además, de que alguien cargue
 `MERCADOPAGO_WEBHOOK_SECRET`.
 
-## 32. Otros pendientes menores (de sesiones previas, sin resolver)
+## 32. Unificar el cálculo de puntos por compra (2026-09-13)
+
+Tercera mejora de la misma tanda de backend/confiabilidad (Cecilia se
+había ido un rato y pidió seguir avanzando sola): `Math.floor(monto /
+puntosXPeso)` se calculaba por separado en 5 lugares (carga manual,
+Dragon Fish, los webhooks de Tiendanube y Mercado Pago, y la vista previa
+del formulario de carga manual en `app/page.js`) — una auditoría anterior
+(ítem 19) había confirmado que las cuatro del backend coincidían, pero
+seguían siendo copias independientes con el mismo riesgo de divergir si
+alguna se editaba sin tocar las otras.
+
+Se unificó en `calcularPuntosPorCompra(monto, puntosXPeso)`
+(`lib/puntos.js`, con sus propios tests) y se actualizaron los 5 lugares
+para usarla. Sin cambios de comportamiento: misma fórmula exacta, más una
+guarda explícita para monto/puntosXPeso inválidos (antes esos casos ni
+se daban porque cada lugar ya validaba por su cuenta antes de llegar a la
+cuenta, pero ahora la función es segura igual si se la llama desde algún
+lugar nuevo sin esa validación previa).
+
+## 33. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.

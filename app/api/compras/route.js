@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { enviarEmailPuntosAcreditados } from '@/lib/email'
+import { calcularPuntosPorCompra } from '@/lib/puntos'
 
 export async function POST(request) {
   const session = await getServerSession(authOptions)
@@ -44,7 +45,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'El cliente no pertenece a este negocio' }, { status: 403 })
   }
 
-  const puntosASumar = Math.floor(montoNumerico / negocio.puntosXPeso)
+  const puntosASumar = calcularPuntosPorCompra(montoNumerico, negocio.puntosXPeso)
 
   const [clienteActualizado] = await prisma.$transaction([
     prisma.cliente.update({

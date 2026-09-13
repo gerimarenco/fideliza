@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { enviarEmailPuntosAcreditados } from '@/lib/email'
 import { verificarFirmaTiendanube } from '@/lib/webhookSignature'
+import { calcularPuntosPorCompra } from '@/lib/puntos'
 
 // Tiendanube manda un payload liviano (store_id, event, id de la orden), no la
 // orden completa. Hay que pedirla a la API con el access_token del negocio.
@@ -84,7 +85,7 @@ export async function POST(request) {
     }
 
     // Calcular y sumar los puntos
-    const puntos = Math.floor(total / negocio.puntosXPeso)
+    const puntos = calcularPuntosPorCompra(total, negocio.puntosXPeso)
 
     // Misma protección de idempotencia que Mercado Pago: si Tiendanube
     // reenvía el mismo webhook, la restricción única de WebhookEvento hace
