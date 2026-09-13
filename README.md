@@ -106,7 +106,8 @@ importar el `"type"` del `package.json`.
 | `RESEND_API_KEY` | Para los mails de puntos acreditados y de bienvenida (cuenta creada automáticamente por Dragon Fish) | API key de [Resend](https://resend.com). Si falta, el mail simplemente no se manda (no rompe la acreditación de puntos). |
 | `RESEND_FROM_EMAIL` | No (default: `Retornar <onboarding@resend.dev>`) | Remitente de los mails. El remitente de prueba de Resend (`onboarding@resend.dev`) solo entrega a la casilla con la que se creó la cuenta de Resend — para mandarle mails a clientes reales hace falta verificar el dominio propio (`retornar.com.ar`) en Resend y poner acá una dirección de ese dominio. |
 | `TIENDANUBE_APP_ID` | Para conectar Tiendanube por OAuth2 (botón "Conectar con Tiendanube") | Client ID de la app registrada en el [Partner Portal de Tiendanube](https://partners.tiendanube.com). Ver "Conectar Tiendanube por OAuth2" abajo. Sin esto, el botón no aparece y sigue funcionando la carga manual de `tiendanubeStoreId`/`tiendanubeAccessToken` de siempre. |
-| `TIENDANUBE_CLIENT_SECRET` | Junto con `TIENDANUBE_APP_ID` | Client secret de la misma app. |
+| `TIENDANUBE_CLIENT_SECRET` | Junto con `TIENDANUBE_APP_ID` | Client secret de la misma app. También se reutiliza para verificar la firma del webhook de pedidos pagados, ver "Verificación de firma de webhooks" abajo. |
+| `MERCADOPAGO_WEBHOOK_SECRET` | Recomendada (ver "Verificación de firma de webhooks") | Clave secreta que Mercado Pago genera en *Tus integraciones → Webhooks → Configurar notificación*. Si falta, el webhook de Mercado Pago sigue funcionando igual que hasta ahora, solo que sin verificar la firma. |
 
 Las credenciales de Tiendanube por negocio (`tiendanubeStoreId`,
 `tiendanubeAccessToken`) y las de Dragon Fish **no van en variables de
@@ -184,6 +185,26 @@ registra qué notificaciones de cada integración ya se procesaron, para no
 sumar puntos dos veces si un proveedor reenvía la misma notificación. La usan
 los tres orígenes automáticos: Mercado Pago, Tiendanube y Dragon Fish (ver
 estado de cada uno abajo).
+
+### Verificación de firma de webhooks
+
+`lib/webhookSignature.js` verifica que los webhooks de Tiendanube y
+Mercado Pago realmente vengan del proveedor, no de cualquiera que adivine
+un id real:
+
+- **Tiendanube**: HMAC-SHA256 sobre el body crudo (antes de parsear el
+  JSON), con el mismo `TIENDANUBE_CLIENT_SECRET` que ya se usa para el
+  OAuth2 — no hace falta ninguna clave nueva. Header
+  `x-linkedstore-hmac-sha256`.
+- **Mercado Pago**: HMAC-SHA256 sobre un "manifest" armado con el id del
+  recurso (del query string de la URL del webhook), el `x-request-id` y
+  un timestamp, con `MERCADOPAGO_WEBHOOK_SECRET` (variable nueva, sacada
+  de *Tus integraciones → Webhooks → Configurar notificación* en el panel
+  de Mercado Pago). Header `x-signature` (formato `ts=...,v1=...`).
+
+Ninguna de las dos rompe el webhook si la clave correspondiente no está
+configurada (mismo criterio que el resto de las integraciones opcionales
+de este proyecto) — simplemente no verifica nada hasta que se cargue.
 
 ### Notificación por email después de cada compra
 

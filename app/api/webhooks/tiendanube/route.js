@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { enviarEmailPuntosAcreditados } from '@/lib/email'
+import { verificarFirmaTiendanube } from '@/lib/webhookSignature'
+import { calcularPuntosPorCompra } from '@/lib/puntos'
 
 // Tiendanube manda un payload liviano (store_id, event, id de la orden), no la
 // orden completa. Hay que pedirla a la API con el access_token del negocio.
@@ -21,7 +23,21 @@ async function obtenerOrden(storeId, orderId, accessToken) {
 
 export async function POST(request) {
   try {
-    const body = await request.json()
+    // Se lee como texto primero (no request.json() directo): la firma de
+    // Tiendanube se calcula sobre los bytes crudos del body, y ya no se
+    // puede reconstruir esa misma cadena exacta después de parsearlo.
+    const rawBody = await request.text()
+    const { verificable, valido } = verificarFirmaTiendanube(
+      rawBody,
+      request.headers.get('x-linkedstore-hmac-sha256'),
+      process.env.TIENDANUBE_CLIENT_SECRET
+    )
+    if (verificable && !valido) {
+      console.error('Webhook Tiendanube: firma HMAC inválida, se rechaza')
+      return NextResponse.json({ error: 'Firma inválida' }, { status: 401 })
+    }
+
+    const body = JSON.parse(rawBody)
 
     if (body.event !== 'order/paid') {
       return NextResponse.json({ message: 'Evento ignorado' })
@@ -69,7 +85,7 @@ export async function POST(request) {
     }
 
     // Calcular y sumar los puntos
-    const puntos = Math.floor(total / negocio.puntosXPeso)
+    const puntos = calcularPuntosPorCompra(total, negocio.puntosXPeso)
 
     // Misma protección de idempotencia que Mercado Pago: si Tiendanube
     // reenvía el mismo webhook, la restricción única de WebhookEvento hace

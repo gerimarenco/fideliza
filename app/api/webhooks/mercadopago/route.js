@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
 import { prisma } from '@/lib/db';
 import { enviarEmailPuntosAcreditados } from '@/lib/email';
+import { verificarFirmaMercadoPago } from '@/lib/webhookSignature';
+import { calcularPuntosPorCompra } from '@/lib/puntos';
 
 const client = new MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
@@ -17,6 +19,24 @@ export async function POST(request) {
     }
 
     const paymentId = body.data.id;
+
+    // El id para la firma sale del query string de la URL del webhook
+    // (`data.id`), no del body -- son cosas distintas aunque casi siempre
+    // coincidan en valor, y así lo arma Mercado Pago de su lado para
+    // calcular la firma. Si no viniera en el query, se saca del manifest
+    // en vez de reemplazarlo por el del body (mismo criterio que
+    // x-request-id, ver lib/webhookSignature.js).
+    const dataIdDeQuery = new URL(request.url).searchParams.get('data.id');
+    const { verificable, valido } = verificarFirmaMercadoPago({
+      xSignature: request.headers.get('x-signature'),
+      xRequestId: request.headers.get('x-request-id'),
+      dataId: dataIdDeQuery,
+      secret: process.env.MERCADOPAGO_WEBHOOK_SECRET,
+    });
+    if (verificable && !valido) {
+      console.error('Webhook MP: firma x-signature inválida, se rechaza');
+      return NextResponse.json({ error: 'Firma inválida' }, { status: 401 });
+    }
 
     const payment = new Payment(client);
     const paymentInfo = await payment.get({ id: paymentId });
@@ -45,7 +65,7 @@ export async function POST(request) {
     }
 
     const puntosXPeso = negocio?.puntosXPeso || 1000;
-    const puntosASumar = Math.floor(Number(monto) / puntosXPeso);
+    const puntosASumar = calcularPuntosPorCompra(Number(monto), puntosXPeso);
 
     // Marcar el pago como procesado y sumar los puntos en una sola
     // transacción: si MP reenvía la misma notificación, la restricción

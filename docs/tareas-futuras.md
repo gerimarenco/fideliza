@@ -754,25 +754,80 @@ dejaría el CI en rojo para cualquier PR futuro, sin relación con lo que
 ese PR haya cambiado. Corregir esa base de lint es una tarea aparte,
 después se puede sumar `npm run lint` a este mismo workflow.
 
-## 31. Otros pendientes menores (de sesiones previas, sin resolver)
+## 31. Verificación de firma en los webhooks de Tiendanube y Mercado Pago (2026-09-13)
 
-- Los webhooks de Tiendanube y Mercado Pago
-  (`app/api/webhooks/tiendanube`, `app/api/webhooks/mercadopago`) no
-  verifican que el pedido realmente venga de Tiendanube/Mercado Pago
-  (no hay validación de firma/HMAC) — cualquiera que adivine un
-  `store_id` + `orderId` real (Tiendanube) o un `paymentId` real
-  (Mercado Pago) podría dispararlos a mano. El impacto está bastante
-  acotado porque ninguno de los dos confía en el monto/cliente que
-  manda el POST: ambos vuelven a pedir los datos reales a la API del
-  proveedor (Tiendanube) o ya vienen de metadata cargada por Retornar al
-  crear la preferencia (Mercado Pago), así que no se pueden inventar
-  puntos de la nada — como mucho, forzar que se procese antes de tiempo
-  una orden/pago real que de todos modos iba a acreditarse (la
-  protección de `WebhookEvento` ya evita el doble crédito). Agregar
-  verificación de firma requeriría un secreto nuevo de cada proveedor
-  (que hay que sacar de su panel) y no se puede probar de punta a punta
-  sin una entrega real de webhook — por eso queda como pendiente en vez
-  de implementarse a ciegas.
+Cecilia pidió seguir con mejoras de backend/confiabilidad después de los
+tests del ítem 30 — este era el otro pendiente concreto que ya estaba
+identificado (ver ítem 32 de abajo, ahora resuelto): hasta ahora
+cualquiera que adivinara un `store_id`+`orderId` real (Tiendanube) o un
+`paymentId` real (Mercado Pago) podía disparar esos webhooks a mano, sin
+que el servidor verificara que el pedido realmente venía del proveedor.
+El impacto real siempre estuvo acotado (ver el razonamiento completo que
+tenía anotado el pendiente, ninguno de los dos confía ciegamente en el
+monto/cliente del POST), pero seguía siendo un agujero real.
+
+Se agregó `lib/webhookSignature.js` (con sus propios tests, misma lógica
+que el ítem 30: pura, sin base de datos) con una función por proveedor:
+
+- **Tiendanube** (`verificarFirmaTiendanube`): firma el body **crudo**
+  (los bytes tal cual, antes de parsear el JSON — por eso las rutas ahora
+  leen `request.text()` primero y recién después hacen `JSON.parse`) con
+  HMAC-SHA256, usando **el mismo `TIENDANUBE_CLIENT_SECRET`** que ya
+  existe para el OAuth2 (ítem 20) — no hace falta ir a buscar ninguna
+  clave nueva al Partner Portal. Viaja en el header
+  `x-linkedstore-hmac-sha256`.
+- **Mercado Pago** (`verificarFirmaMercadoPago`): arma un "manifest" de
+  texto (`id:...;request-id:...;ts:...;`) con el id del recurso (sale del
+  **query string** de la URL del webhook, `data.id`, no del body), el
+  `x-request-id` y el timestamp, y lo firma con HMAC-SHA256 usando una
+  clave nueva que Mercado Pago genera en *Tus integraciones → Webhooks →
+  Configurar notificación* — variable de entorno nueva,
+  `MERCADOPAGO_WEBHOOK_SECRET`, todavía sin cargar en Netlify. Viaja en
+  el header `x-signature` (formato `ts=...,v1=...`).
+
+**No rompe nada mientras no se cargue la clave**: las dos funciones
+devuelven `{ verificable: false, valido: true }` si no hay secreto
+configurado (mismo criterio que `RESEND_API_KEY`/`TIENDANUBE_APP_ID` en
+el resto del proyecto) — Tiendanube queda automáticamente verificado sin
+hacer nada más (la clave ya existe), Mercado Pago sigue sin verificar
+hasta que alguien cargue `MERCADOPAGO_WEBHOOK_SECRET` con el valor que
+Mercado Pago muestra en su panel.
+
+**Sin poder probarlo contra una entrega real de webhook** (no hay forma
+de generar una firma real de Mercado Pago sin la clave real, ni de
+Tiendanube sin que llegue un webhook real firmado) — la lógica se
+implementó siguiendo al pie de la letra la documentación oficial de cada
+proveedor (headers exactos, formato del manifest, de dónde sale cada
+clave), con tests que arman una firma válida a mano con la misma fórmula
+y confirman que se acepta, y que cualquier alteración (id, request-id,
+firma, o body distinto) la rechaza. Igual que con el ítem 20 en su
+momento, la confirmación real de punta a punta queda pendiente de una
+prueba en producción — para Mercado Pago, además, de que alguien cargue
+`MERCADOPAGO_WEBHOOK_SECRET`.
+
+## 32. Unificar el cálculo de puntos por compra (2026-09-13)
+
+Tercera mejora de la misma tanda de backend/confiabilidad (Cecilia se
+había ido un rato y pidió seguir avanzando sola): `Math.floor(monto /
+puntosXPeso)` se calculaba por separado en 5 lugares (carga manual,
+Dragon Fish, los webhooks de Tiendanube y Mercado Pago, y la vista previa
+del formulario de carga manual en `app/page.js`) — una auditoría anterior
+(ítem 19) había confirmado que las cuatro del backend coincidían, pero
+seguían siendo copias independientes con el mismo riesgo de divergir si
+alguna se editaba sin tocar las otras.
+
+Se unificó en `calcularPuntosPorCompra(monto, puntosXPeso)`
+(`lib/puntos.js`, con sus propios tests) y se actualizaron los 5 lugares
+para usarla. Sin cambios de comportamiento: misma fórmula exacta, más una
+guarda explícita para monto/puntosXPeso inválidos (antes esos casos ni
+se daban porque cada lugar ya validaba por su cuenta antes de llegar a la
+cuenta, pero ahora la función es segura igual si se la llama desde algún
+lugar nuevo sin esa validación previa).
+
+## 33. Otros pendientes menores (de sesiones previas, sin resolver)
+
+- ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
+  resuelto, ver ítem 31.
 - No hay pantalla de autogestión del tema visual para el propio negocio
   (hoy solo lo carga el admin, y para Peperina se cargó a mano vía
   migraciones de datos porque no había otra forma). Evaluar si hace
