@@ -23,12 +23,18 @@ async function obtenerOrden(storeId, orderId, accessToken) {
 
 export async function POST(request) {
   try {
-    // Se lee como texto primero (no request.json() directo): la firma de
-    // Tiendanube se calcula sobre los bytes crudos del body, y ya no se
-    // puede reconstruir esa misma cadena exacta después de parsearlo.
-    const rawBody = await request.text()
+    // Se lee como bytes crudos primero (ni request.json() ni request.text()):
+    // la firma de Tiendanube se calcula sobre los bytes tal cual llegaron, y
+    // request.text() los decodifica como UTF-8 antes de dárnoslos -- para
+    // JSON eso casi siempre da los mismos bytes de vuelta, pero "casi
+    // siempre" no alcanza para algo que compara un hash byte a byte: alcanza
+    // con una sola entrega real con una codificación distinta para que la
+    // firma calculada no coincida nunca más con la que manda Tiendanube, y
+    // se empiecen a rechazar pedidos reales sin que nadie se entere hasta
+    // que una clienta se queje de que no le sumó los puntos.
+    const rawBodyBuffer = Buffer.from(await request.arrayBuffer())
     const { verificable, valido } = verificarFirmaTiendanube(
-      rawBody,
+      rawBodyBuffer,
       request.headers.get('x-linkedstore-hmac-sha256'),
       process.env.TIENDANUBE_CLIENT_SECRET
     )
@@ -37,7 +43,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Firma inválida' }, { status: 401 })
     }
 
-    const body = JSON.parse(rawBody)
+    const body = JSON.parse(rawBodyBuffer.toString('utf8'))
 
     if (body.event !== 'order/paid') {
       return NextResponse.json({ message: 'Evento ignorado' })

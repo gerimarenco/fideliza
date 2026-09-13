@@ -824,7 +824,31 @@ se daban porque cada lugar ya validaba por su cuenta antes de llegar a la
 cuenta, pero ahora la función es segura igual si se la llama desde algún
 lugar nuevo sin esa validación previa).
 
-## 33. Otros pendientes menores (de sesiones previas, sin resolver)
+## 33. Revisión de bugs de la tanda de backend (2026-09-13)
+
+Cecilia pidió revisar bugs después de la tanda de mejoras de backend
+(ítems 30 a 32, ya en producción). Encontrado y corregido uno real:
+
+- **`verificarFirmaTiendanube` recibía el body ya decodificado como
+  string** (`request.text()`), no los bytes crudos. Decodificar como
+  UTF-8 y volver a codificar para hashear casi siempre reproduce los
+  mismos bytes originales para JSON puro, pero "casi siempre" no alcanza
+  para algo que compara un hash byte a byte — un solo caracter que no
+  hiciera ese viaje ida y vuelta sin cambios (poco probable en el payload
+  liviano real de Tiendanube, que es solo `store_id`/`event`/`id`
+  numéricos y simples, pero no imposible si Tiendanube cambia el formato)
+  hubiera hecho que la firma calculada no coincida nunca más con la real,
+  rechazando pedidos legítimos sin que nadie se entere hasta que una
+  clienta se queje de que no le sumaron los puntos. Se corrigió leyendo
+  `request.arrayBuffer()` y hasheando ese `Buffer` directo, sin pasar por
+  texto en el medio — mismo criterio que `crypto.createHmac(...).update()`
+  ya soporta nativamente. Se agregó un test explícito con un caracter no-
+  ASCII para dejarlo cubierto.
+- El resto de la tanda (Mercado Pago, `calcularPuntosPorCompra`, el
+  historial de movimientos, el menú del cliente) no mostró problemas en
+  esta revisión.
+
+## 34. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
