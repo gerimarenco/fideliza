@@ -30,7 +30,7 @@ export async function GET(request, { params }) {
 
   const negocioEncontrado = await prisma.negocio.findUnique({
     where: { slug: negocio },
-    select: { nombre: true, emoji: true, mensajeRegistro: true, activo: true, puntosXPeso: true, tema: true },
+    select: { nombre: true, emoji: true, mensajeRegistro: true, activo: true, puntosXPeso: true, puntosReferido: true, tema: true },
   });
 
   if (!negocioEncontrado || !negocioEncontrado.activo) {
@@ -52,7 +52,7 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   try {
     const { negocio } = await params;
-    const { email, password, fechaNacimiento, dni, sexo, telefono } = await request.json();
+    const { email, password, fechaNacimiento, dni, sexo, telefono, codigoReferido } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -129,6 +129,19 @@ export async function POST(request, { params }) {
       );
     }
 
+    // Código de invitación de otra clienta (ver "Referí a una amiga" en el
+    // panel del cliente, lib/referidos.js) — opcional, y si no matchea a
+    // nadie de este mismo negocio se ignora en silencio: un código viejo,
+    // mal tipeado, o de otro negocio no tiene por qué frenar el registro.
+    let referidoPorId = null;
+    if (codigoReferido) {
+      const invitador = await prisma.cliente.findFirst({
+        where: { codigoReferido: codigoReferido.trim().toUpperCase(), negocioId: negocioEncontrado.id },
+        select: { id: true },
+      });
+      referidoPorId = invitador?.id || null;
+    }
+
     // Crear el cliente, asociado al negocio encontrado
     const nuevoCliente = await prisma.cliente.create({
       data: {
@@ -140,6 +153,7 @@ export async function POST(request, { params }) {
         dni,
         sexo,
         telefono: telefonoLimpio,
+        referidoPorId,
       },
     });
 

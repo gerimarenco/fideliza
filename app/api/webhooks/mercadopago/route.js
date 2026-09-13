@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { enviarEmailPuntosAcreditados } from '@/lib/email';
 import { verificarFirmaMercadoPago } from '@/lib/webhookSignature';
 import { calcularPuntosPorCompra } from '@/lib/puntos';
+import { acreditarSiEsPrimeraCompraReferida } from '@/lib/referidos';
 
 const client = new MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
@@ -67,24 +68,35 @@ export async function POST(request) {
     const puntosXPeso = negocio?.puntosXPeso || 1000;
     const puntosASumar = calcularPuntosPorCompra(Number(monto), puntosXPeso);
 
+    // Se necesita el cliente completo (no solo su id) para saber si fue
+    // referido por alguien -- acreditarSiEsPrimeraCompraReferida lo
+    // necesita antes de entrar a la transacción.
+    const clienteExistente = await prisma.cliente.findUnique({ where: { id: cliente_id } });
+
     // Marcar el pago como procesado y sumar los puntos en una sola
     // transacción: si MP reenvía la misma notificación, la restricción
     // única de WebhookEvento hace fallar la transacción entera (P2002) y
     // no se suman los puntos una segunda vez.
-    let clienteActualizado;
+    let clienteActualizado, referido;
     try {
-      [, clienteActualizado] = await prisma.$transaction([
-        prisma.webhookEvento.create({
+      await prisma.$transaction(async (tx) => {
+        await tx.webhookEvento.create({
           data: { proveedor: 'mercadopago', referenciaExterna: String(paymentId) },
-        }),
-        prisma.cliente.update({
+        });
+        clienteActualizado = await tx.cliente.update({
           where: { id: cliente_id },
           data: { puntos: { increment: puntosASumar } },
-        }),
-        prisma.movimientoPuntos.create({
+        });
+        await tx.movimientoPuntos.create({
           data: { clienteId: cliente_id, negocioId: negocio_id, puntos: puntosASumar, origen: 'mercadopago', saldoRestante: puntosASumar },
-        }),
-      ]);
+        });
+        // El programa de referidos vive en Negocio.puntosReferido -- sin
+        // negocio real (metadata con un negocio_id que ya no existe) no
+        // hay nada que consultar.
+        if (negocio && clienteExistente) {
+          referido = await acreditarSiEsPrimeraCompraReferida(tx, clienteExistente, negocio);
+        }
+      });
     } catch (error) {
       if (error.code === 'P2002') {
         console.log('Webhook MP: pago ya procesado, se ignora el reenvío', paymentId);
@@ -98,12 +110,28 @@ export async function POST(request) {
     // igual pero no hay nombre real para el mail: mejor no mandarlo con
     // "undefined" que mandar uno roto.
     if (negocio) {
+      // Si esta fue la primera compra de una clienta referida, su saldo
+      // final quedó desactualizado -- se le pagó el bono después de
+      // leerlo, dentro de la misma transacción.
+      const puntosTotalesFinales = referido
+        ? (await prisma.cliente.findUnique({ where: { id: cliente_id }, select: { puntos: true } })).puntos
+        : clienteActualizado.puntos;
+
       await enviarEmailPuntosAcreditados({
         email: clienteActualizado.email,
         puntosAcreditados: puntosASumar,
-        puntosTotales: clienteActualizado.puntos,
+        puntosTotales: puntosTotalesFinales,
         negocioNombre: negocio.nombre,
       });
+
+      if (referido) {
+        await enviarEmailPuntosAcreditados({
+          email: referido.invitadorEmail,
+          puntosAcreditados: referido.puntos,
+          puntosTotales: referido.invitadorPuntosTotales,
+          negocioNombre: negocio.nombre,
+        });
+      }
     } else {
       console.error('Webhook MP: negocio_id de la metadata no existe, no se manda el mail de puntos', negocio_id);
     }

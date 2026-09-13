@@ -452,6 +452,34 @@ propia fecha, no el saldo total de una sola vez.
   cliente en un solo mail) y el saldo que le queda — sin esto, el cliente
   vería bajar sus puntos sin ninguna explicación.
 
+## Programa de referidos
+
+Cada cliente tiene su propio link de invitación. Si alguien se registra con
+ese link y hace su **primera compra**, las dos (quien invitó y quien fue
+invitada) ganan la misma cantidad de puntos.
+
+- Se activa por negocio cargando `Negocio.puntosReferido` (desde Ajustes en
+  el panel, o `PATCH /api/negocios`) — vacío/`0`/`null` lo deja desactivado.
+- `Cliente.codigoReferido` es un código de 6 caracteres (alfabeto sin
+  `0/O/1/I/L`, para que no se confunda al escribirlo o dictarlo por
+  WhatsApp), generado la primera vez que el cliente abre "Referí a una
+  amiga" en su panel (`GET /api/clientes/referidos`) — no al crear la
+  cuenta, para no necesitar un backfill de los clientes que ya existían.
+- El link (`/club/[negocio]?ref=CODIGO`) se puede copiar o compartir por
+  WhatsApp (`wa.me` sin número fijo, abre el selector de contactos). El
+  código viaja como query param por `/club/[negocio]` y por
+  `/registro/[negocio]` hasta `POST /api/registro/[negocio]`, que busca a
+  quién corresponde y guarda `Cliente.referidoPorId`.
+- `Cliente.referidoRecompensado` asegura que la recompensa se pague una
+  sola vez. `lib/referidos.js` (`acreditarSiEsPrimeraCompraReferida`) la
+  paga dentro de la misma transacción que ya acredita los puntos de la
+  compra, en los 4 lugares donde eso pasa (alta manual, webhook de
+  Tiendanube, webhook de Mercado Pago, resolución de Dragon Fish) — usa un
+  `updateMany` con la condición de "todavía no recompensado" en el `where`
+  para que el pago sea atómico y no se duplique con compras concurrentes.
+- El mail de "sumaste puntos" a quien invitó se manda después de que la
+  transacción se confirma, nunca adentro de ella.
+
 ## Deploy
 
 Pensado para Netlify (`netlify.toml`): build con `prisma generate && npm run

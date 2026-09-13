@@ -1,12 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 
 export default function RegistroPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const negocio = params.negocio;
+  // Link de invitación de otra clienta (ver "Referí a una amiga" en el
+  // panel del cliente) — si no está o no matchea a nadie, el backend lo
+  // ignora en silencio, no hace falta validarlo acá.
+  const codigoReferido = searchParams.get('ref');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,7 +39,7 @@ export default function RegistroPage() {
       const res = await fetch(`/api/registro/${negocio}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, fechaNacimiento, dni, sexo, telefono }),
+        body: JSON.stringify({ email, password, fechaNacimiento, dni, sexo, telefono, codigoReferido }),
       });
 
       const data = await res.json();

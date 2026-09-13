@@ -4,6 +4,7 @@ import { autenticarAgente } from '@/lib/dragonfishAgente'
 import { hashPassword } from '@/lib/password'
 import { enviarEmailBienvenida, enviarEmailPuntosAcreditados } from '@/lib/email'
 import { calcularPuntosPorCompra } from '@/lib/puntos'
+import { acreditarSiEsPrimeraCompraReferida } from '@/lib/referidos'
 
 // El agente local reporta acá el resultado de consultar una factura pendiente
 // contra la API REST de Dragon Fish: monto de la venta y el dato de
@@ -129,30 +130,38 @@ export async function POST(request) {
   // Cliente.update + MovimientoPuntos.create en una sola transacción, más el
   // FacturaPendiente.procesado de arriba como segunda barrera si el agente
   // reintenta muy rápido (antes de ver la respuesta anterior).
-  let clienteActualizado
+  let clienteActualizado, referido
   try {
-    [, clienteActualizado] = await prisma.$transaction([
-      prisma.webhookEvento.create({
+    await prisma.$transaction(async (tx) => {
+      await tx.webhookEvento.create({
         data: { proveedor: 'dragonfish', referenciaExterna: `${negocio.id}:${codigo}` },
-      }),
-      prisma.cliente.update({
+      })
+      clienteActualizado = await tx.cliente.update({
         where: { id: cliente.id },
         data: { puntos: { increment: puntos } },
-      }),
-      prisma.movimientoPuntos.create({
+      })
+      await tx.movimientoPuntos.create({
         data: { clienteId: cliente.id, negocioId: negocio.id, puntos, origen: 'dragonfish', saldoRestante: puntos },
-      }),
-      prisma.facturaPendiente.update({
+      })
+      await tx.facturaPendiente.update({
         where: { id: factura.id },
         data: { procesado: true, resultado: 'acreditado' },
-      }),
-    ])
+      })
+      referido = await acreditarSiEsPrimeraCompraReferida(tx, cliente, negocio)
+    })
   } catch (error) {
     if (error.code === 'P2002') {
       return marcarFactura(factura.id, codigo, 'duplicado')
     }
     throw error
   }
+
+  // Si esta fue la primera compra de una clienta referida, su saldo final
+  // quedó desactualizado -- se le pagó el bono después de leerlo, dentro
+  // de la misma transacción.
+  const puntosTotalesFinales = referido
+    ? (await prisma.cliente.findUnique({ where: { id: cliente.id }, select: { puntos: true } })).puntos
+    : clienteActualizado.puntos
 
   // Con cuenta nueva se manda un solo mail combinado (bienvenida + puntos
   // de esta compra); con cliente ya existente, el aviso de puntos solo.
@@ -161,14 +170,23 @@ export async function POST(request) {
       email: cliente.email,
       passwordGenerada,
       puntosAcreditados: puntos,
-      puntosTotales: clienteActualizado.puntos,
+      puntosTotales: puntosTotalesFinales,
       negocioNombre: negocio.nombre,
     })
   } else {
     await enviarEmailPuntosAcreditados({
       email: cliente.email,
       puntosAcreditados: puntos,
-      puntosTotales: clienteActualizado.puntos,
+      puntosTotales: puntosTotalesFinales,
+      negocioNombre: negocio.nombre,
+    })
+  }
+
+  if (referido) {
+    await enviarEmailPuntosAcreditados({
+      email: referido.invitadorEmail,
+      puntosAcreditados: referido.puntos,
+      puntosTotales: referido.invitadorPuntosTotales,
       negocioNombre: negocio.nombre,
     })
   }

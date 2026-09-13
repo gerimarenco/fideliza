@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { enviarEmailPuntosAcreditados } from '@/lib/email'
 import { verificarFirmaTiendanube } from '@/lib/webhookSignature'
 import { calcularPuntosPorCompra } from '@/lib/puntos'
+import { acreditarSiEsPrimeraCompraReferida } from '@/lib/referidos'
 
 // Tiendanube manda un payload liviano (store_id, event, id de la orden), no la
 // orden completa. Hay que pedirla a la API con el access_token del negocio.
@@ -98,20 +99,21 @@ export async function POST(request) {
     // fallar la transacción entera (P2002) y no se suman los puntos de nuevo.
     // referenciaExterna incluye el storeId porque el orderId de Tiendanube
     // solo es único dentro de una tienda, no entre negocios distintos.
-    let clienteActualizado
+    let clienteActualizado, referido
     try {
-      [, clienteActualizado] = await prisma.$transaction([
-        prisma.webhookEvento.create({
+      await prisma.$transaction(async (tx) => {
+        await tx.webhookEvento.create({
           data: { proveedor: 'tiendanube', referenciaExterna: `${storeId}:${orderId}` },
-        }),
-        prisma.cliente.update({
+        })
+        clienteActualizado = await tx.cliente.update({
           where: { id: cliente.id },
           data: { puntos: { increment: puntos } },
-        }),
-        prisma.movimientoPuntos.create({
+        })
+        await tx.movimientoPuntos.create({
           data: { clienteId: cliente.id, negocioId: negocio.id, puntos, origen: 'tiendanube', saldoRestante: puntos },
-        }),
-      ])
+        })
+        referido = await acreditarSiEsPrimeraCompraReferida(tx, cliente, negocio)
+      })
     } catch (error) {
       if (error.code === 'P2002') {
         console.log('Webhook Tiendanube: orden ya procesada, se ignora el reenvío', orderId)
@@ -120,12 +122,28 @@ export async function POST(request) {
       throw error
     }
 
+    // Si esta fue la primera compra de una clienta referida, su saldo final
+    // quedó desactualizado -- se le pagó el bono después de leerlo, dentro
+    // de la misma transacción.
+    const puntosTotalesFinales = referido
+      ? (await prisma.cliente.findUnique({ where: { id: cliente.id }, select: { puntos: true } })).puntos
+      : clienteActualizado.puntos
+
     await enviarEmailPuntosAcreditados({
       email: clienteActualizado.email,
       puntosAcreditados: puntos,
-      puntosTotales: clienteActualizado.puntos,
+      puntosTotales: puntosTotalesFinales,
       negocioNombre: negocio.nombre,
     })
+
+    if (referido) {
+      await enviarEmailPuntosAcreditados({
+        email: referido.invitadorEmail,
+        puntosAcreditados: referido.puntos,
+        puntosTotales: referido.invitadorPuntosTotales,
+        negocioNombre: negocio.nombre,
+      })
+    }
 
     return NextResponse.json({ success: true, puntosAcreditados: puntos })
   } catch (error) {

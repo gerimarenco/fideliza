@@ -891,7 +891,67 @@ ya tenía varios casos preexistentes en este archivo (ej. el efecto que
 resetea la página al cambiar de negocio, unas líneas más arriba), no un
 tipo de problema nuevo.
 
-## 36. Otros pendientes menores (de sesiones previas, sin resolver)
+## 36. Programa de referidos (2026-09-13)
+
+Segunda de las dos mejoras que pidió Cecilia (la primera fue el buscador
+de clientes, ítem 35). Cada cliente tiene su propio link de invitación;
+cuando alguien se registra con ese link y hace su **primera compra**, las
+dos (quien invitó y quien fue invitada) ganan la misma cantidad de
+puntos. Es opcional por negocio: si no se configura, no pasa nada — para
+Peperina queda sin activar hasta que Cecilia decida un monto.
+
+Decisiones de diseño (confirmadas con Cecilia antes de implementar):
+- **Quién gana puntos**: las dos personas, no solo quien invita.
+- **Cuándo se acredita**: en la primera compra de la persona invitada, no
+  al registrarse — así no se puede fabricar cuentas falsas sin comprar
+  para juntar puntos.
+- **Cuánto**: el mismo monto para las dos, un solo número configurable.
+- **Dónde se configura**: nuevo campo "Programa de referidos" en Ajustes,
+  mismo criterio que el regalo de cumpleaños (vacío = desactivado).
+
+Cómo funciona:
+- `Negocio.puntosReferido` (null/0 = desactivado). Nuevo campo en Ajustes,
+  PATCH en `/api/negocios` con la misma validación que
+  `regaloCumpleanosPuntos`.
+- Cada cliente tiene un `Cliente.codigoReferido` de 6 caracteres (sin
+  `0/O/1/I/L`, para que no se confundan al escribirlo o dictarlo por
+  WhatsApp) — se genera solo, la primera vez que la persona abre "Referí
+  a una amiga" en su panel (no al crear la cuenta, así no hace falta
+  migrar a los clientes que ya existían).
+- El link de invitación (`/club/[negocio]?ref=CODIGO`) se puede copiar o
+  mandar por WhatsApp (abre el selector de contactos de WhatsApp, sin un
+  número fijo, para que cada una lo mande a quien quiera). Si alguien se
+  registra a través de ese link, `Cliente.referidoPorId` queda guardado.
+- `Cliente.referidoRecompensado` marca si ya se pagó la recompensa, para
+  que solo se pague **una vez** — en la primera compra que hace la
+  persona invitada (sea por webhook de Tiendanube, Mercado Pago, Dragon
+  Fish o un alta manual de puntos desde el panel), nunca de nuevo en
+  compras siguientes.
+- `lib/referidos.js` (`acreditarSiEsPrimeraCompraReferida`) hace el pago
+  de las dos partes dentro de la misma transacción que ya acredita los
+  puntos de la compra en sí (los 4 lugares que suman puntos por compra se
+  convirtieron de la forma "lista de operaciones" de Prisma a la forma
+  "función" para poder meter esta lógica condicional adentro de la
+  transacción). El chequeo de "no pagar dos veces" usa el mismo patrón
+  atómico que ya se usaba para no dejar canjear con puntos insuficientes:
+  un `updateMany` con la condición en el `where`, y solo se paga si
+  `count > 0`.
+- Quien invitó recibe el mismo mail de "sumaste puntos" que ya existía,
+  después de que la transacción se confirma (nunca adentro de la
+  transacción, mismo criterio que ya se usaba para no hacer llamadas
+  externas ahí adentro).
+
+**Qué no cubre esto**: no hay ningún tope de cuántas personas puede
+invitar alguien, ni límite de tiempo entre el registro y la primera
+compra para que cuente. No se probó en producción con una invitación
+real (solo con un test transaccional completo contra una base Postgres
+real, en este entorno). No hace falta ninguna variable de entorno nueva.
+
+**Nota sobre lint**: esto sumó 1 nuevo "Calling setState synchronously
+within an effect" (misma categoría que ya venía de antes, ver ítem 35) —
+nada nuevo en tipo de problema.
+
+## 37. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
