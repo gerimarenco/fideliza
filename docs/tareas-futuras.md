@@ -690,11 +690,16 @@ veía el saldo actual, sin poder ver de dónde salió). Se agregó
   con emoji, descripción, fecha y el puntaje con signo (verde si suma,
   rojo si resta).
 
-Quedó pendiente (ella lo mencionó, no se implementó todavía): una barra
-de progreso visual hacia el próximo premio, en vez del texto plano actual
-("te faltan X puntos").
+## 29. Barra de progreso hacia el próximo premio (2026-09-13)
 
-## 29. Otros pendientes menores (de sesiones previas, sin resolver)
+Segunda mejora "de profesionalización" de la misma tanda del ítem 28: en
+"Próximos premios" del panel del cliente, cada premio bloqueado ahora
+muestra una barra de progreso (puntos actuales / puntos del premio, con
+un mínimo visual de 4% para que nunca se vea vacía del todo) además del
+texto "Te faltan X puntos" que ya estaba. Cambio chico, solo visual, en
+`app/page.js` (`PanelCliente`).
+
+## 30. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Los webhooks de Tiendanube y Mercado Pago
   (`app/api/webhooks/tiendanube`, `app/api/webhooks/mercadopago`) no
