@@ -206,7 +206,7 @@ Ninguna de las dos rompe el webhook si la clave correspondiente no está
 configurada (mismo criterio que el resto de las integraciones opcionales
 de este proyecto) — simplemente no verifica nada hasta que se cargue.
 
-### Notificación por email después de cada compra
+### Notificación por email después de cada compra o canje
 
 Cada vez que se acreditan puntos — manual, Mercado Pago, Tiendanube o Dragon
 Fish — se le manda un mail al cliente avisándole cuántos puntos sumó y cuántos
@@ -214,8 +214,11 @@ tiene en total (`enviarEmailPuntosAcreditados` en `lib/email.js`). La única
 excepción es la primera compra de una cuenta creada automáticamente por Dragon
 Fish, donde se manda un solo mail combinado con la contraseña generada más los
 puntos de esa compra (`enviarEmailBienvenida`), en vez de dos mails seguidos.
-Sin `RESEND_API_KEY` configurada no se manda ningún mail, pero tampoco se
-rompe la acreditación de puntos.
+Al canjear un premio (`POST /api/canjes`) se manda otro mail aparte
+(`enviarEmailCanje`) confirmando qué canjeó, cuántos puntos usó, cuántos le
+quedan, y el código del cupón de Tiendanube si el premio generó uno. Sin
+`RESEND_API_KEY` configurada no se manda ningún mail, pero tampoco se rompe
+la acreditación de puntos ni el canje.
 
 ## Integraciones
 

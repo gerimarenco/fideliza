@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { obtenerPrecioProducto, crearCuponProductoGratis, crearCuponPorcentaje } from '@/lib/tiendanube'
+import { enviarEmailCanje } from '@/lib/email'
 
 // Descuenta `cantidad` puntos de los lotes de MovimientoPuntos más viejos
 // del cliente que todavía tengan saldo vivo (FIFO), para que el vencimiento
@@ -91,7 +92,7 @@ export async function POST(request) {
 
   const premio = await prisma.premio.findUnique({
     where: { id: premioId },
-    include: { negocio: { select: { activo: true } } },
+    include: { negocio: { select: { activo: true, nombre: true } } },
   })
 
   // Un negocio desactivado (ver app/api/negocios) no debería seguir dejando
@@ -190,6 +191,20 @@ export async function POST(request) {
         console.error('No se pudo guardar el resultado del cupón en el canje', canje.id, error)
       }
     }
+
+    // Se relee el saldo final después de la transacción (en vez de calcularlo
+    // a mano acá) para que el mail siempre muestre el número real, incluso
+    // si algún otro canje o compra concurrente ya lo modificó entre medio.
+    const clienteFinal = await prisma.cliente.findUnique({ where: { id: clienteId }, select: { email: true, puntos: true } })
+    await enviarEmailCanje({
+      email: clienteFinal.email,
+      premioNombre: premio.nombre,
+      puntosUsados: premio.puntos,
+      puntosRestantes: clienteFinal.puntos,
+      negocioNombre: premio.negocio.nombre,
+      cuponCodigo,
+      tiendanubeProductoUrl: premio.tiendanubeProductoUrl,
+    })
 
     return NextResponse.json({ ...canje, tiendanubeCuponCodigo: cuponCodigo, tiendanubeCuponError: cuponError, tiendanubeProductoUrl: premio.tiendanubeProductoUrl })
   } catch (error) {
