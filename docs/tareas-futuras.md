@@ -848,7 +848,25 @@ Cecilia pidió revisar bugs después de la tanda de mejoras de backend
   historial de movimientos, el menú del cliente) no mostró problemas en
   esta revisión.
 
-## 34. Otros pendientes menores (de sesiones previas, sin resolver)
+## 34. Contador de anticipación para el cumpleaños (2026-09-13)
+
+Cecilia pidió otra mejora chica de "profesionalización" para el panel del
+cliente. Se agregó un cartel discreto ("Faltan X días es tu cumpleaños —
+vas a sumar N puntos de regalo") que aparece en el último mes antes de la
+fecha (no todo el año, para no ser ruido de fondo) — el día del
+cumpleaños en sí sigue mostrando el cartel grande de siempre (ítem 14),
+este contador no se solapa con ese. Solo aparece si el negocio tiene
+`regaloCumpleanosPuntos` cargado (si no, no hay nada que anticipar).
+
+- `diasHastaProximoCumpleanos(fechaNacimiento, hoy)` (`lib/cumpleanos.js`,
+  con sus propios tests): mismo criterio de fecha en UTC y mismo ajuste
+  del 29 de febrero que `esCumpleanosHoy` (ítem 19), pero evaluado contra
+  el año en que la próxima fecha realmente cae (este año si no pasó, el
+  que viene si ya pasó) — no contra el año actual a secas, que hubiera
+  hecho que alguien nacido el 29/2 festeje según si el año *que viene* es
+  bisiesto en vez del año en que el cumpleaños en sí cae.
+
+## 35. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.

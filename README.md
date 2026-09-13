@@ -410,6 +410,11 @@ cada cliente el día de su cumpleaños — mismo mail de aviso
   nativo de Prisma (un binario) se empaquete tal cual en vez de que el
   bundler lo intente procesar como código.
 
+Además, el panel del cliente muestra un cartel de anticipación en el
+último mes antes de la fecha ("Faltan X días... vas a sumar N puntos de
+regalo"), usando `diasHastaProximoCumpleanos` (`lib/cumpleanos.js`) — solo
+si el negocio tiene `regaloCumpleanosPuntos` cargado.
+
 ## Vencimiento de puntos
 
 `netlify/functions/vencimiento-puntos.mjs` es otra Scheduled Function de
