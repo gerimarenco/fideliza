@@ -866,7 +866,32 @@ este contador no se solapa con ese. Solo aparece si el negocio tiene
   hecho que alguien nacido el 29/2 festeje según si el año *que viene* es
   bisiesto en vez del año en que el cumpleaños en sí cae.
 
-## 35. Otros pendientes menores (de sesiones previas, sin resolver)
+## 35. Buscador en la lista de Clientes (2026-09-13)
+
+Primera de dos mejoras que pidió Cecilia (la segunda es un programa de
+referidos). Se agregó un buscador arriba de la lista de "Clientes" (panel
+de negocio/admin) que filtra por nombre, email o celular:
+
+- `GET /api/clientes` acepta un parámetro `q` opcional — filtra con `OR`
+  (`contains`, insensible a mayúsculas) sobre esos tres campos, siempre
+  además del filtro de `negocioId` que ya existía. Búsqueda del lado del
+  servidor (no solo de la página cargada): necesario para que encuentre a
+  alguien sin importar en qué página del paginado esté.
+- El input se debounce 300ms (no busca en cada tecla) y cada búsqueda
+  nueva vuelve a la página 1, porque el resultado filtrado no tiene por
+  qué tener la misma cantidad de páginas que la lista completa.
+- `clientesData` es el mismo estado que alimenta también la vista previa
+  de "Clientes" en Inicio — se agregó un efecto que vacía la búsqueda al
+  salir de la sección Clientes, para que esa vista previa no se quede
+  mostrando un resultado filtrado sin ningún indicio de por qué.
+
+**Nota sobre lint**: esto sumó 2 nuevos "Calling setState synchronously
+within an effect" (la base pasa de 19 a 21) — misma categoría exacta que
+ya tenía varios casos preexistentes en este archivo (ej. el efecto que
+resetea la página al cambiar de negocio, unas líneas más arriba), no un
+tipo de problema nuevo.
+
+## 36. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.

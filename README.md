@@ -345,6 +345,11 @@ umbrales de cada nivel son un punto de partida razonable, no un valor con
 el que haya que quedarse fijo — ajustables directamente en
 `lib/clienteStats.js`.
 
+Arriba de la lista hay un buscador (nombre, email o celular) que filtra
+del lado del servidor vía `GET /api/clientes?q=...` — no solo la página
+cargada, así que encuentra a un cliente sin importar en qué página del
+paginado esté.
+
 ## Menú del panel del cliente (⋮)
 
 Arriba a la derecha del panel del cliente hay un botón "⋮" con tres

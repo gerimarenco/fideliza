@@ -162,6 +162,8 @@ export default function Home() {
   const [seccionActiva, setSeccionActiva] = useState('inicio');
   const [clientesPagina, setClientesPagina] = useState(1);
   const [clientesData, setClientesData] = useState(null);
+  const [clientesBusqueda, setClientesBusqueda] = useState('');
+  const [clientesBusquedaDebounced, setClientesBusquedaDebounced] = useState('');
   const [clienteExpandidoId, setClienteExpandidoId] = useState(null);
   const [mostrarInfoNiveles, setMostrarInfoNiveles] = useState(false);
   const [canjesPagina, setCanjesPagina] = useState(1);
@@ -238,9 +240,10 @@ export default function Home() {
     cargarEstadisticas(negocioMostrado?.id);
   }, [negocioMostrado?.id]);
 
-  const cargarClientes = (negocioId, page = 1) => {
+  const cargarClientes = (negocioId, page = 1, busqueda = '') => {
     if (!negocioId) { setClientesData(null); return; }
-    fetch(`/api/clientes?negocioId=${negocioId}&page=${page}&pageSize=10`)
+    const q = busqueda.trim() ? `&q=${encodeURIComponent(busqueda.trim())}` : '';
+    fetch(`/api/clientes?negocioId=${negocioId}&page=${page}&pageSize=10${q}`)
       .then(res => res.json())
       .then(setClientesData)
       .catch(() => {});
@@ -272,14 +275,36 @@ export default function Home() {
   // Al cambiar de negocio, arrancar de nuevo desde la página 1 y desde Inicio
   useEffect(() => {
     setClientesPagina(1);
+    setClientesBusqueda('');
     setCanjesPagina(1);
     setPremiosPagina(1);
     setSeccionActiva('inicio');
   }, [negocioMostrado?.id]);
 
+  // El buscador se debounce (300ms) para no pegarle a la base en cada
+  // tecla -- y cada búsqueda nueva vuelve a la página 1, porque el
+  // resultado filtrado ya no tiene por qué tener la misma cantidad de
+  // páginas que la lista completa.
   useEffect(() => {
-    cargarClientes(negocioMostrado?.id, clientesPagina);
-  }, [negocioMostrado?.id, clientesPagina]);
+    const id = setTimeout(() => setClientesBusquedaDebounced(clientesBusqueda), 300);
+    return () => clearTimeout(id);
+  }, [clientesBusqueda]);
+
+  useEffect(() => {
+    setClientesPagina(1);
+  }, [clientesBusquedaDebounced]);
+
+  useEffect(() => {
+    cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced);
+  }, [negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced]);
+
+  // clientesData también alimenta la vista previa de Inicio (mismo estado,
+  // ver VistaClientes e Inicio más abajo) -- sin esto, una búsqueda que
+  // quedó cargada al salir de la sección Clientes seguiría filtrando esa
+  // vista previa sin ningún indicio visible de por qué.
+  useEffect(() => {
+    if (seccionActiva !== 'clientes') setClientesBusqueda('');
+  }, [seccionActiva]);
 
   useEffect(() => {
     if (seccionActiva !== 'canjes') return;
@@ -925,8 +950,19 @@ export default function Home() {
             </div>
           )}
         </div>
+        <input
+          type="text"
+          value={clientesBusqueda}
+          onChange={e => setClientesBusqueda(e.target.value)}
+          placeholder="Buscar por nombre, email o celular..."
+          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.fondo, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 14 }}
+        />
         {!clientesData && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: tema.textoSecundario }}><Spinner size={14} /> Cargando...</div>}
-        {clientesData && clientesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no hay clientes.</div>}
+        {clientesData && clientesData.items.length === 0 && (
+          <div style={{ fontSize: 13, color: tema.textoSecundario }}>
+            {clientesBusqueda.trim() ? 'No encontramos clientes que coincidan con esa búsqueda.' : 'Todavía no hay clientes.'}
+          </div>
+        )}
         {clientesData?.items.map(c => {
           const s = c.stats || {};
           const dias = s.ultimaActividad ? Math.floor((Date.now() - new Date(s.ultimaActividad).getTime()) / (1000 * 60 * 60 * 24)) : null;
