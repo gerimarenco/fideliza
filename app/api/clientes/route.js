@@ -20,7 +20,19 @@ export async function GET(request) {
 
   const page = Math.max(1, parseInt(searchParams.get('page')) || 1)
   const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize')) || 20))
+  const busqueda = searchParams.get('q')?.trim()
+
   const where = negocioId ? { negocioId } : {}
+  // Buscador de la lista de Clientes (nombre, email o teléfono) -- un
+  // negocio con muchos clientes ya no puede confiar solo en el paginado
+  // para encontrar a alguien puntual.
+  if (busqueda) {
+    where.OR = [
+      { nombre: { contains: busqueda, mode: 'insensitive' } },
+      { email: { contains: busqueda, mode: 'insensitive' } },
+      { telefono: { contains: busqueda, mode: 'insensitive' } },
+    ]
+  }
 
   const [total, items] = await Promise.all([
     prisma.cliente.count({ where }),
