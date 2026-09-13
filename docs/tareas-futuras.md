@@ -699,7 +699,62 @@ un mínimo visual de 4% para que nunca se vea vacía del todo) además del
 texto "Te faltan X puntos" que ya estaba. Cambio chico, solo visual, en
 `app/page.js` (`PanelCliente`).
 
-## 30. Otros pendientes menores (de sesiones previas, sin resolver)
+## 30. Primeros tests automáticos del proyecto (2026-09-13)
+
+Cecilia pidió mejoras de backend/confiabilidad (no visuales) — el proyecto
+no tenía ningún test hasta ahora, y ya hubo dos bugs reales que pasaron
+desapercibidos justo en la lógica más delicada (la condición de carrera
+del vencimiento de puntos del ítem 18, y el desborde de fecha del 29 de
+febrero del ítem 19). Se agregó una primera batería de tests con el test
+runner nativo de Node (`node --test`, sin sumar Jest/Vitest ni ninguna
+dependencia nueva) sobre la lógica pura de `lib/` — ver la sección "Tests"
+del README para el detalle completo. Cubre:
+
+- `lib/clienteStats.js`: `calcularNivel` (bordes exactos de cada nivel),
+  `formatearMiles`, `descripcionNiveles`.
+- `lib/cumpleanos.js`: `esCumpleanosHoy`, incluyendo el caso del 29 de
+  febrero en años bisiestos y no bisiestos (el bug del ítem 19).
+- `lib/nombreClub.js`: caso trivial.
+- `lib/restarMeses.js` (**nuevo**, extraído de
+  `netlify/functions/vencimiento-puntos.mjs` para poder testearlo aparte,
+  sin cambiar su comportamiento): desbordes de fin de mes (31 de agosto
+  menos 6 meses, etc.) — el bug de fecha que causó el ítem 18 era
+  distinto (el `RETURNING` de Postgres), pero esta función ya tenía un
+  comentario explícito sobre el mismo tipo de bug de fechas, así que
+  quedó como candidata obvia para el primer test.
+
+**Cambio de infraestructura necesario para que esto funcione**: el
+proyecto pasó a `"type": "module"` en `package.json`, porque los módulos
+de `lib/` ya estaban escritos con `import`/`export` (Next.js y el bundler
+de Netlify Functions los toleraban igual sin este campo, transformándolos
+por su cuenta) pero Node en crudo (`node --test`, sin pasar por ningún
+bundler) los necesita así para poder cargarlos tal cual. El único archivo
+que seguía usando `require`/`module.exports` de verdad,
+`prisma/seed.js`, se renombró a **`prisma/seed.cjs`** (mismo contenido,
+solo la extensión) para que siga siendo CommonJS sin importar el
+`"type"` global — `dragonfish-agente/` tiene su propio `package.json`
+aparte, así que no le afecta este cambio.
+
+**Deliberadamente afuera de esta primera tanda** (no por falta de
+importancia, sino para no demorar esto): tests de las rutas de API (que
+necesitarían una base de datos real corriendo) y tests de componentes de
+React (`app/page.js`, muy grande y sin una convención de testing de UI
+elegida todavía). Quedan como una posible segunda tanda si hace falta más
+cobertura.
+
+**De nada sirven los tests si nadie se acuerda de correrlos**: hasta este
+cambio, el único chequeo automático en cada PR era el deploy preview de
+Netlify (que solo confirma que compila, ver `.github/workflows/ci.yml`
+nuevo con el comentario completo). Se agregó un workflow de GitHub
+Actions bien chico que corre `npm test` en cada PR y en cada push a
+`main` — a propósito **no** corre `npm run lint` todavía, porque el
+proyecto ya tiene errores de lint preexistentes sin resolver (los "19
+problemas de base" mencionados en varios PRs de esta sesión) y sumarlo
+dejaría el CI en rojo para cualquier PR futuro, sin relación con lo que
+ese PR haya cambiado. Corregir esa base de lint es una tarea aparte,
+después se puede sumar `npm run lint` a este mismo workflow.
+
+## 31. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Los webhooks de Tiendanube y Mercado Pago
   (`app/api/webhooks/tiendanube`, `app/api/webhooks/mercadopago`) no

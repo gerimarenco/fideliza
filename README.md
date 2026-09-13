@@ -59,6 +59,7 @@ Abrí [http://localhost:3000](http://localhost:3000).
 npm run build   # build de producción
 npm run start   # levantar el build de producción
 npm run lint    # eslint
+npm test        # tests de lib/ (ver sección "Tests" más abajo)
 ```
 
 > ⚠️ Cuidado con los `$` en archivos `.env`: Next.js expande `$VAR` dentro de
@@ -66,6 +67,28 @@ npm run lint    # eslint
 > un hash de bcrypt, que arranca con `$2b$10$...`) hay que escaparlo como
 > `\$2b\$10\$...` en el `.env` local. Esto **no aplica** a variables cargadas
 > directo en el dashboard de Netlify — ahí van tal cual, sin escapar.
+
+## Tests
+
+`npm test` corre con el test runner nativo de Node (`node --test`, sin
+Jest ni ninguna otra dependencia nueva) sobre `lib/*.test.js`. A propósito
+solo cubre **lógica pura, sin base de datos** (cálculo de niveles de
+cliente, formateo de miles, si hoy es el cumpleaños de alguien, la resta
+de meses del vencimiento de puntos) — es la lógica más propensa a bugs
+sutiles de esta sesión (dos bugs reales de esta clase aparecieron y se
+corrigieron: la condición de carrera del vencimiento de puntos, y el
+desborde de fecha del 29 de febrero) y la más fácil de testear sin
+levantar Postgres. No hay tests de las rutas de API (esas si necesitan
+una base real) ni de componentes de React.
+
+El proyecto es `"type": "module"` (`package.json`) para que estos tests
+puedan importar los módulos de `lib/` con `import`/`export` tal cual
+están escritos (ya los usaban así `app/page.js` y las Netlify Functions,
+pero corriendo por afuera del bundler de Next/Netlify hacía falta este
+cambio para que Node los entienda sin transformarlos). Lo único que
+seguía necesitando CommonJS (`require`) es `prisma/seed.cjs` — por eso
+tiene la extensión `.cjs` en vez de `.js`, que fuerza CommonJS sin
+importar el `"type"` del `package.json`.
 
 ## Variables de entorno
 
@@ -139,7 +162,7 @@ app/
 prisma/
   schema.prisma             # modelos: Negocio, Cliente, Premio, Canje, WebhookEvento
   migrations/
-  seed.js                   # datos de ejemplo (negocio "Peperina")
+  seed.cjs                  # datos de ejemplo (negocio "Peperina")
 lib/
   db.js                     # cliente de Prisma (singleton)
   password.js                # hashPassword / verifyPassword (bcrypt)

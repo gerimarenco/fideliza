@@ -1,0 +1,28 @@
+name: CI
+
+# Hasta ahora el único chequeo automático en los PRs era el deploy preview
+# de Netlify (que solo confirma que "next build" compila) -- los tests de
+# lib/ (ver docs/tareas-futuras.md, ítem 30) no corrían en ningún lado,
+# quedaba a criterio de quien pusheara acordarse de correrlos a mano.
+#
+# A propósito NO corre "npm run lint" acá: el proyecto ya tiene errores de
+# lint preexistentes sin resolver (ver el mismo ítem 30 y varios PRs
+# anteriores que los mencionan como "base" aceptada) -- sumarlo dejaría el
+# CI en rojo para cualquier PR futuro, incluso uno que no toque para nada
+# los archivos con esos errores. Corregir esa base es una tarea aparte.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
