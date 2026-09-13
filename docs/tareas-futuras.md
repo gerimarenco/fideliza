@@ -951,7 +951,36 @@ real, en este entorno). No hace falta ninguna variable de entorno nueva.
 within an effect" (misma categoría que ya venía de antes, ver ítem 35) —
 nada nuevo en tipo de problema.
 
-## 37. Otros pendientes menores (de sesiones previas, sin resolver)
+## 37. Mail de confirmación al canjear un premio (2026-09-13)
+
+Cecilia pidió que a los clientes les lleguen mails "después de cada compra
+y/o canje" — las compras ya mandaban mail (`enviarEmailPuntosAcreditados`,
+ver README), pero un canje no mandaba nada. Se agregó
+`enviarEmailCanje` (`lib/email.js`), llamado desde `POST /api/canjes`
+después de confirmado el canje (nunca adentro de la transacción que
+descuenta los puntos, mismo criterio que el resto de los mails: si el
+mail falla, no hay que revertir un canje ya confirmado).
+
+- Incluye qué premio canjeó, cuántos puntos usó, cuántos le quedan y —si
+  el premio generó uno— el código del cupón de Tiendanube, para que la
+  clienta sepa cómo usarlo sin tener que volver a entrar a la app.
+- El saldo que muestra el mail se relee de la base después de la
+  transacción (no se calcula a mano), para que sea el número real aunque
+  algún otro movimiento haya pasado justo entre medio.
+
+**Esto no alcanza por sí solo para que los mails le lleguen a clientes
+reales**: mientras `RESEND_FROM_EMAIL` siga sin configurar, el remitente
+por defecto (`onboarding@resend.dev`, el dominio de prueba de Resend)
+solo entrega a la casilla con la que se creó la cuenta de Resend. Para
+que llegue a cualquier clienta hace falta verificar `retornar.com.ar`
+como dominio propio en Resend (agregando ahí los registros DNS que pida,
+en el DNS de Netlify ya que el dominio delega a sus nameservers — ver
+ítem sobre la delegación de NIC.ar) y cargar `RESEND_FROM_EMAIL` con una
+dirección de ese dominio. Ese paso queda pendiente de que Cecilia lo
+haga (o lo hagamos juntos) desde las cuentas de Resend/Netlify, no es
+algo que se resuelva por código.
+
+## 38. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
