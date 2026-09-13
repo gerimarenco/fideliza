@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 
 // Paso intermedio antes de /registro/[negocio]: pensada para linkear desde
 // afuera de Retornar (ej. un ítem de menú en la tienda online del negocio)
@@ -10,7 +10,11 @@ import { useParams } from 'next/navigation';
 // docs/tareas-futuras.md, ítem 7).
 export default function ClubLandingPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const negocio = params.negocio;
+  // Link de invitación de otra clienta -- se reenvía tal cual al botón de
+  // registro, para que llegue hasta donde el backend realmente lo procesa.
+  const codigoReferido = searchParams.get('ref');
   const [datosNegocio, setDatosNegocio] = useState(null);
   const [noEncontrado, setNoEncontrado] = useState(false);
 
@@ -63,7 +67,7 @@ export default function ClubLandingPage() {
         </div>
 
         <a
-          href={`/registro/${negocio}`}
+          href={codigoReferido ? `/registro/${negocio}?ref=${encodeURIComponent(codigoReferido)}` : `/registro/${negocio}`}
           style={{
             display: 'block',
             width: '100%',

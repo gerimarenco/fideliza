@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { enviarEmailPuntosAcreditados } from '@/lib/email'
 import { calcularPuntosPorCompra } from '@/lib/puntos'
+import { acreditarSiEsPrimeraCompraReferida } from '@/lib/referidos'
 
 export async function POST(request) {
   const session = await getServerSession(authOptions)
@@ -47,24 +48,43 @@ export async function POST(request) {
 
   const puntosASumar = calcularPuntosPorCompra(montoNumerico, negocio.puntosXPeso)
 
-  const [clienteActualizado] = await prisma.$transaction([
-    prisma.cliente.update({
+  const [clienteActualizado, referido] = await prisma.$transaction(async (tx) => {
+    const actualizado = await tx.cliente.update({
       where: { id: clienteId },
       data: { puntos: { increment: puntosASumar } }
-    }),
-    prisma.movimientoPuntos.create({
+    })
+    await tx.movimientoPuntos.create({
       data: { clienteId, negocioId, puntos: puntosASumar, origen: 'manual', saldoRestante: puntosASumar }
-    }),
-  ])
+    })
+    const resultadoReferido = await acreditarSiEsPrimeraCompraReferida(tx, clienteExistente, negocio)
+    return [actualizado, resultadoReferido]
+  })
 
   const { password, ...cliente } = clienteActualizado
+
+  // Si esta fue la primera compra de una clienta referida, su saldo final
+  // (`clienteActualizado.puntos`) quedó desactualizado -- se le pagó el
+  // bono después de leerlo, dentro de la misma transacción. Se relee una
+  // sola vez, en vez de intentar cargar ese cálculo a mano acá.
+  const puntosTotalesFinales = referido
+    ? (await prisma.cliente.findUnique({ where: { id: clienteId }, select: { puntos: true } })).puntos
+    : clienteActualizado.puntos
 
   await enviarEmailPuntosAcreditados({
     email: clienteActualizado.email,
     puntosAcreditados: puntosASumar,
-    puntosTotales: clienteActualizado.puntos,
+    puntosTotales: puntosTotalesFinales,
     negocioNombre: negocio.nombre,
   })
+
+  if (referido) {
+    await enviarEmailPuntosAcreditados({
+      email: referido.invitadorEmail,
+      puntosAcreditados: referido.puntos,
+      puntosTotales: referido.invitadorPuntosTotales,
+      negocioNombre: negocio.nombre,
+    })
+  }
 
   return NextResponse.json({ cliente, puntosASumados: puntosASumar })
 }

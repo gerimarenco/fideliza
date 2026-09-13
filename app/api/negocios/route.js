@@ -20,6 +20,7 @@ const NEGOCIO_SELECT = {
   slug: true,
   mensajeRegistro: true,
   regaloCumpleanosPuntos: true,
+  puntosReferido: true,
   sitioWeb: true,
   vencimientoPuntosMeses: true,
   tiendanubeStoreId: true,
@@ -230,6 +231,21 @@ export async function PATCH(request) {
         return NextResponse.json({ error: 'Los puntos de regalo de cumpleaños tienen que ser un número entero mayor a 0 (o vacío para desactivarlo)' }, { status: 400 })
       }
       data.regaloCumpleanosPuntos = regaloCumpleanosPuntos
+    }
+  }
+
+  // Puntos que ganan tanto quien invita como la persona invitada cuando
+  // esta hace su primera compra (ver lib/referidos.js) — mismo criterio
+  // que regaloCumpleanosPuntos: vacío/0/null desactiva el programa.
+  if (body.puntosReferido !== undefined) {
+    if (body.puntosReferido === null || body.puntosReferido === '' || body.puntosReferido === 0) {
+      data.puntosReferido = null
+    } else {
+      const puntosReferido = parseInt(body.puntosReferido)
+      if (!Number.isInteger(puntosReferido) || puntosReferido <= 0) {
+        return NextResponse.json({ error: 'Los puntos por referido tienen que ser un número entero mayor a 0 (o vacío para desactivarlo)' }, { status: 400 })
+      }
+      data.puntosReferido = puntosReferido
     }
   }
 

@@ -150,10 +150,12 @@ export default function Home() {
   const [clientePropio, setClientePropio] = useState(null);
   const [negocioDelCliente, setNegocioDelCliente] = useState(null);
   const [mostrarMenuCliente, setMostrarMenuCliente] = useState(false);
-  // null | 'info' | 'password' | 'bases' | 'movimientos' — qué modal del menú del cliente está abierto
+  // null | 'info' | 'password' | 'bases' | 'movimientos' | 'referidos' — qué modal del menú del cliente está abierto
   const [modalCliente, setModalCliente] = useState(null);
   const [movimientosClientePagina, setMovimientosClientePagina] = useState(1);
   const [movimientosClienteData, setMovimientosClienteData] = useState(null);
+  const [referidosData, setReferidosData] = useState(null);
+  const [referidoCopiado, setReferidoCopiado] = useState(false);
   const [canjeandoId, setCanjeandoId] = useState(null);
   const [saludoCumpleCerrado, setSaludoCumpleCerrado] = useState(false);
   const [toast, setToast] = useState(null);
@@ -179,6 +181,7 @@ export default function Home() {
   const [formPuntosXPeso, setFormPuntosXPeso] = useState('');
   const [formMensajeRegistro, setFormMensajeRegistro] = useState('');
   const [formRegaloCumpleanos, setFormRegaloCumpleanos] = useState('');
+  const [formPuntosReferido, setFormPuntosReferido] = useState('');
   const [formVencimientoPuntos, setFormVencimientoPuntos] = useState('');
   const [formSitioWeb, setFormSitioWeb] = useState('');
 
@@ -272,6 +275,13 @@ export default function Home() {
       .catch(() => {});
   };
 
+  const cargarReferidos = () => {
+    fetch('/api/clientes/referidos')
+      .then(res => res.json())
+      .then(setReferidosData)
+      .catch(() => {});
+  };
+
   // Al cambiar de negocio, arrancar de nuevo desde la página 1 y desde Inicio
   useEffect(() => {
     setClientesPagina(1);
@@ -321,6 +331,12 @@ export default function Home() {
     cargarMovimientosCliente(movimientosClientePagina);
   }, [modalCliente, movimientosClientePagina]);
 
+  useEffect(() => {
+    if (modalCliente !== 'referidos') return;
+    setReferidoCopiado(false);
+    cargarReferidos();
+  }, [modalCliente]);
+
   // Al entrar a Integraciones se precarga lo que ya está cargado
   // (tiendanubeAccessToken nunca viaja del backend, ese campo arranca vacío)
   useEffect(() => {
@@ -340,6 +356,7 @@ export default function Home() {
     setFormPuntosXPeso(negocioMostrado?.puntosXPeso ? String(negocioMostrado.puntosXPeso) : '');
     setFormMensajeRegistro(negocioMostrado?.mensajeRegistro || '');
     setFormRegaloCumpleanos(negocioMostrado?.regaloCumpleanosPuntos ? String(negocioMostrado.regaloCumpleanosPuntos) : '');
+    setFormPuntosReferido(negocioMostrado?.puntosReferido ? String(negocioMostrado.puntosReferido) : '');
     setFormVencimientoPuntos(negocioMostrado?.vencimientoPuntosMeses ? String(negocioMostrado.vencimientoPuntosMeses) : '');
     setFormSitioWeb(negocioMostrado?.sitioWeb || '');
     setFormPassword({ actual: '', nueva: '', confirmar: '' });
@@ -670,6 +687,29 @@ export default function Home() {
         return;
       }
       alert(formRegaloCumpleanos ? '✅ Regalo de cumpleaños activado' : '✅ Regalo de cumpleaños desactivado');
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
+    }
+  };
+
+  const guardarPuntosReferido = async () => {
+    if (formPuntosReferido && parseInt(formPuntosReferido) <= 0) {
+      alert('Los puntos por referido tienen que ser mayores a 0 (o vacío para desactivarlo)');
+      return;
+    }
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: negocioMostrado.id, puntosReferido: formPuntosReferido || null })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
+        return;
+      }
+      alert(formPuntosReferido ? '✅ Programa de referidos activado' : '✅ Programa de referidos desactivado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -1262,6 +1302,13 @@ export default function Home() {
       </div>
 
       <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Programa de referidos</div>
+        <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Puntos que ganan tanto quien invita como la persona invitada cuando esta hace su primera compra (mismo monto para las dos). Cada cliente tiene su propio link para compartir, en “Referí a una amiga” desde su panel. Dejalo vacío para desactivarlo.</label>
+        <input type="number" min="1" value={formPuntosReferido} onChange={e => setFormPuntosReferido(e.target.value)} placeholder="Desactivado" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 12 }} />
+        <button className="fid-btn-primary" onClick={guardarPuntosReferido} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+      </div>
+
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Vencimiento de puntos</div>
         <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Meses sin usar los puntos de una compra para que esa compra venza (cada compra vence por separado, según su propia fecha). Dejalo vacío para desactivarlo.</label>
         <input type="number" min="1" value={formVencimientoPuntos} onChange={e => setFormVencimientoPuntos(e.target.value)} placeholder="Desactivado" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 12 }} />
@@ -1481,6 +1528,9 @@ export default function Home() {
           </div>
           {mostrarMenuCliente && (
             <div style={{ position: 'absolute', top: '100%', right: 20, marginTop: 4, zIndex: 20, background: tema.superficie, border: `1px solid ${tema.borde}`, borderRadius: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: 230, overflow: 'hidden' }}>
+              {negocioDelCliente.puntosReferido && (
+                <div className="fid-row-hover" onClick={() => { setModalCliente('referidos'); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>🎁 Referí a una amiga</div>
+              )}
               <div className="fid-row-hover" onClick={() => { setModalCliente('movimientos'); setMovimientosClientePagina(1); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>📜 Mis movimientos</div>
               <div className="fid-row-hover" onClick={() => { setModalCliente('info'); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>ℹ️ Cómo funcionan los puntos</div>
               <div className="fid-row-hover" onClick={() => { setModalCliente('password'); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>🔑 Cambiar contraseña</div>
@@ -1489,6 +1539,54 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {modalCliente === 'referidos' && (() => {
+          const link = referidosData?.codigo
+            ? `${window.location.origin}/club/${negocioDelCliente.slug}?ref=${referidosData.codigo}`
+            : null;
+          const mensaje = `¡Hola! Te invito a sumarte a ${nombreClub(negocioDelCliente.nombre)} — sumá puntos con tus compras y canjealos por premios. Entrá acá: ${link || ''}`;
+          return (
+            <div onClick={() => setModalCliente(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 20 }}>
+              <div onClick={e => e.stopPropagation()} style={{ background: tema.superficie, color: tema.texto, borderRadius: 14, padding: 22, maxWidth: 380, width: '100%' }}>
+                <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Referí a una amiga</div>
+                <div style={{ fontSize: 13, color: tema.textoSecundario, marginBottom: 16 }}>
+                  Cuando tu amiga se registre con tu link y haga su primera compra, las dos ganan {negocioDelCliente.puntosReferido} puntos.
+                </div>
+                {!referidosData && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: tema.textoSecundario }}><Spinner size={14} /> Cargando...</div>}
+                {referidosData && (
+                  <>
+                    <div style={{ background: tema.fondo, borderRadius: 8, padding: '10px 12px', fontSize: 13, wordBreak: 'break-all', marginBottom: 12 }}>
+                      {link}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                      <button
+                        onClick={() => { navigator.clipboard?.writeText(link); setReferidoCopiado(true); }}
+                        className="fid-btn-secondary"
+                        style={{ flex: 1, padding: '10px 0', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}
+                      >
+                        {referidoCopiado ? '✓ Copiado' : 'Copiar link'}
+                      </button>
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent(mensaje)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ flex: 1, textAlign: 'center', padding: '10px 0', borderRadius: 8, border: 'none', background: '#25D366', color: '#fff', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}
+                      >
+                        💬 WhatsApp
+                      </a>
+                    </div>
+                    <div style={{ fontSize: 12, color: tema.textoSecundario, textAlign: 'center' }}>
+                      {referidosData.totalReferidos > 0
+                        ? `Ya invitaste a ${referidosData.totalReferidos} ${referidosData.totalReferidos === 1 ? 'amiga' : 'amigas'} que compraron 🎉`
+                        : 'Todavía no invitaste a nadie que haya comprado.'}
+                    </div>
+                  </>
+                )}
+                <button onClick={() => setModalCliente(null)} className="fid-btn-primary" style={{ marginTop: 16, width: '100%', padding: '10px 0', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Cerrar</button>
+              </div>
+            </div>
+          );
+        })()}
 
         {modalCliente === 'movimientos' && (
           <div onClick={() => setModalCliente(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 20 }}>

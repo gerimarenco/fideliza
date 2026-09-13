@@ -38,6 +38,10 @@ model Negocio {
   // netlify/functions/vencimiento-puntos.mjs). null/0 = desactivado — por
   // ahora solo Peperina lo tiene cargado, en 6.
   vencimientoPuntosMeses Int?
+  // Puntos que ganan tanto quien invita como la persona invitada cuando
+  // esta última hace su primera compra (ver lib/referidos.js). null/0 =
+  // desactivado, mismo criterio que regaloCumpleanosPuntos.
+  puntosReferido        Int?
   createdAt             DateTime  @default(now())
   clientes    Cliente[]
   premios     Premio[]
@@ -61,6 +65,21 @@ model Cliente {
   fechaNacimiento DateTime?
   dni             String?
   sexo            String?
+
+  // Código corto para compartir e invitar amigas (ver lib/referidos.js) —
+  // nullable porque se genera recién la primera vez que alguien abre
+  // "Referí a una amiga" en el panel, no al crear la cuenta.
+  codigoReferido String? @unique
+  // Quién la invitó, si se registró con el link de otra clienta. Nunca
+  // cambia una vez seteado. Sin relación en cascada: un cliente no se
+  // borra nunca desde la app, no hace falta contemplar ese caso.
+  referidoPorId  String?
+  referidoPor    Cliente?  @relation("Referidos", fields: [referidoPorId], references: [id])
+  referidos      Cliente[] @relation("Referidos")
+  // Si ya se le pagó a quien la invitó el bono de "primera compra
+  // referida" — evita tener que recontar todo el historial de compras en
+  // cada acreditación solo para saber si ya se pagó antes.
+  referidoRecompensado Boolean @default(false)
 
   @@index([negocioId])
 }
@@ -150,7 +169,7 @@ model MovimientoPuntos {
   clienteId String
   negocioId String   // denormalizado a propósito, para no tener que hacer join en las consultas de stats
   puntos    Int
-  origen    String   // "manual" | "mercadopago" | "tiendanube" | "dragonfish" | "cumpleanos" | "vencimiento"
+  origen    String   // "manual" | "mercadopago" | "tiendanube" | "dragonfish" | "cumpleanos" | "vencimiento" | "referido_invitador" | "referido_invitado"
   createdAt DateTime @default(now())
   // Cuánto de este lote de puntos sigue "vivo" (ni canjeado ni vencido) —
   // solo tiene sentido en un lote que suma puntos (puntos > 0); arranca
