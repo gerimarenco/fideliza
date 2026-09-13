@@ -1583,7 +1583,10 @@ export default function Home() {
                 ) : (
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
                 )}
-                <div style={{ fontSize: 11, color: tema.textoSecundario }}>Te faltan {p.puntos - clientePropio.puntos} puntos</div>
+                <div style={{ fontSize: 11, color: tema.textoSecundario, marginBottom: 5 }}>Te faltan {p.puntos - clientePropio.puntos} puntos</div>
+                <div style={{ height: 6, borderRadius: 4, background: tema.fondo, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.max(4, Math.min(100, Math.round((clientePropio.puntos / p.puntos) * 100)))}%`, background: tema.primario, borderRadius: 4 }} />
+                </div>
               </div>
             </div>
           ))}
