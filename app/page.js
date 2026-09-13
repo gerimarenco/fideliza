@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { nombreClub } from '@/lib/nombreClub';
-import { esCumpleanosHoy } from '@/lib/cumpleanos';
+import { esCumpleanosHoy, diasHastaProximoCumpleanos } from '@/lib/cumpleanos';
 import { descripcionNiveles, formatearMiles } from '@/lib/clienteStats';
 import { calcularPuntosPorCompra } from '@/lib/puntos';
 
@@ -1417,6 +1417,11 @@ export default function Home() {
     // puntos — no depende de la zona horaria del navegador de la clienta.
     const hoy = new Date();
     const esCumpleanos = clientePropio.fechaNacimiento && esCumpleanosHoy(clientePropio.fechaNacimiento, hoy);
+    // Contador de anticipación (no el día en sí, ese ya tiene su propio
+    // cartel abajo): solo dentro del último mes antes de la fecha, para no
+    // ser un dato de fondo todo el año.
+    const diasParaCumple = clientePropio.fechaNacimiento ? diasHastaProximoCumpleanos(clientePropio.fechaNacimiento, hoy) : null;
+    const mostrarContadorCumple = negocioDelCliente.regaloCumpleanosPuntos && diasParaCumple != null && diasParaCumple > 0 && diasParaCumple <= 30;
 
     return (
       <div style={{ minHeight: '100vh', background: tema.fondo, color: tema.texto, fontFamily: 'system-ui', maxWidth: 480, margin: '0 auto' }}>
@@ -1539,6 +1544,14 @@ export default function Home() {
               >✕</button>
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>🎉 ¡Feliz cumpleaños, {clientePropio.nombre ? clientePropio.nombre.split(' ')[0] : clientePropio.email.split('@')[0]}!</div>
               <div style={{ fontSize: 13, opacity: 0.95 }}>Que tengas un lindo día. De parte de Retornar te regalamos {negocioDelCliente.regaloCumpleanosPuntos} puntos 🎂</div>
+            </div>
+          )}
+          {mostrarContadorCumple && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: tema.resaltado, borderRadius: 12, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: tema.texto }}>
+              <span style={{ fontSize: 18 }}>🎂</span>
+              <span>
+                {diasParaCumple === 1 ? 'Mañana' : `Faltan ${diasParaCumple} días`} es tu cumpleaños — vas a sumar {negocioDelCliente.regaloCumpleanosPuntos} puntos de regalo.
+              </span>
             </div>
           )}
           <div style={{ background: tema.primario, borderRadius: 16, padding: 24, color: tema.primarioTexto, textAlign: 'center', marginBottom: 20 }}>
