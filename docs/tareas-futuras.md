@@ -671,7 +671,30 @@ Club" (menos a trámite, más a pertenencia). Aplicado en
 mostraba acá) dejó de usarse en esta pantalla — sigue mostrándose en el
 formulario de registro (`/registro/[negocio]`), no se tocó ahí.
 
-## 28. Otros pendientes menores (de sesiones previas, sin resolver)
+## 28. "Mis movimientos": historial de puntos en el panel del cliente (2026-09-13)
+
+Cecilia pidió sumar cosas que hagan ver a Retornar más "profesional",
+como otros sistemas de fidelización — el primer pedido concreto fue un
+historial de movimientos visible para el propio cliente (hasta ahora solo
+veía el saldo actual, sin poder ver de dónde salió). Se agregó
+"📜 Mis movimientos" al menú ⋮ existente (mismo menú del ítem 24), con:
+
+- Nuevo endpoint `GET /api/clientes/movimientos` (`app/api/clientes/movimientos/route.js`):
+  junta `MovimientoPuntos` (compras, regalo de cumpleaños, vencimientos)
+  y `Canje` (canjes no generan fila en `MovimientoPuntos`, solo quedan en
+  `Canje`) en una sola lista ordenada por fecha, paginada. Siempre acotado
+  al cliente logueado (`session.user.id`), nunca acepta ver el historial
+  de otro.
+- Modal con scroll + paginado (reutiliza el componente `Paginador` que ya
+  existía para Clientes/Canjes/Premios del lado del negocio), cada línea
+  con emoji, descripción, fecha y el puntaje con signo (verde si suma,
+  rojo si resta).
+
+Quedó pendiente (ella lo mencionó, no se implementó todavía): una barra
+de progreso visual hacia el próximo premio, en vez del texto plano actual
+("te faltan X puntos").
+
+## 29. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - Los webhooks de Tiendanube y Mercado Pago
   (`app/api/webhooks/tiendanube`, `app/api/webhooks/mercadopago`) no
