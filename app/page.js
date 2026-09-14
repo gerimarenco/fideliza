@@ -1013,6 +1013,13 @@ export default function Home() {
             <option value="diamante">Diamante</option>
             <option value="vip">VIP</option>
           </select>
+          <a
+            href={`/api/clientes/exportar?negocioId=${negocioMostrado?.id}${clientesBusquedaDebounced.trim() ? `&q=${encodeURIComponent(clientesBusquedaDebounced.trim())}` : ''}${clientesNivelFiltro ? `&nivel=${encodeURIComponent(clientesNivelFiltro)}` : ''}`}
+            className="fid-btn-secondary"
+            style={{ display: 'inline-flex', alignItems: 'center', padding: '8px 14px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap' }}
+          >
+            ⬇️ Exportar
+          </a>
         </div>
         {!clientesData && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: tema.textoSecundario }}><Spinner size={14} /> Cargando...</div>}
         {clientesData && clientesData.items.length === 0 && (
