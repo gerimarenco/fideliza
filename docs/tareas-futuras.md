@@ -980,7 +980,23 @@ dirección de ese dominio. Ese paso queda pendiente de que Cecilia lo
 haga (o lo hagamos juntos) desde las cuentas de Resend/Netlify, no es
 algo que se resuelva por código.
 
-## 38. Otros pendientes menores (de sesiones previas, sin resolver)
+## 38. Link "Registrate" en la pantalla de login (2026-09-14)
+
+Cecilia probó entrar a `retornar.com.ar` (que redirige sola a `/login`,
+ver `middleware.js`) buscando cómo registrarse y no encontró ningún
+indicio — la pantalla de login solo tiene email/contraseña, para entrar
+con una cuenta que ya existe. Se agregó un link "¿No tenés cuenta?
+Registrate" debajo del botón de "Ingresar".
+
+**Hardcodeado a `/registro/peperina`**: el registro en Retornar siempre
+es específico de un negocio (no existe una cuenta "genérica"), y hoy
+Peperina es el único negocio real. Cuando exista un segundo negocio de
+verdad, este link fijo deja de alcanzar — hay que resolverlo de otra
+forma (¿un selector de negocio?, ¿un subdominio propio por negocio?,
+¿que cada negocio tenga su propia URL de login?). Queda anotado para
+cuando llegue ese momento, no es una decisión definitiva.
+
+## 39. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
