@@ -14,7 +14,7 @@
 // precio lo pone la propia tienda en el data-precio de este div.
 (function () {
   function crearLink(el, datos, puntos) {
-    var base = el.getAttribute('data-retornar-base') || 'https://incomparable-zabaione-b58c21.netlify.app'
+    var base = el.getAttribute('data-retornar-base') || 'https://retornar.com.ar'
     var primario = datos.temaPrimario || '#111827'
     var primarioTexto = datos.temaPrimarioTexto || '#ffffff'
 
@@ -36,7 +36,7 @@
     var precio = parseFloat(el.getAttribute('data-precio'))
     if (!negocio || !Number.isFinite(precio) || precio < 0) return
 
-    var base = el.getAttribute('data-retornar-base') || 'https://incomparable-zabaione-b58c21.netlify.app'
+    var base = el.getAttribute('data-retornar-base') || 'https://retornar.com.ar'
 
     fetch(base + '/api/registro/' + encodeURIComponent(negocio))
       .then(function (res) {

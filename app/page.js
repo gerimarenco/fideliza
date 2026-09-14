@@ -1366,6 +1366,17 @@ export default function Home() {
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
   const PanelNegocio = ({ negocio, onVolver }) => (
     <div style={{ flex: 1, overflow: 'auto', background: tema.fondo, color: tema.texto }}>
+      {/* Solo aparece cuando lo abre un admin (onVolver viene de la
+          sidebar de admin, nunca del propio negocio logueado) -- con la
+          misma paleta oscura/índigo de esa sidebar, a propósito, para que
+          se asocie visualmente con "modo admin" sin importar el tema
+          propio de este negocio. Cecilia sentía que ambos paneles se
+          veían "prácticamente iguales" una vez adentro de un negocio. */}
+      {onVolver && (
+        <div style={{ padding: '6px 24px', background: '#111827', color: '#c7d2fe', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+          🛡️ Estás viendo esto como administrador, no como {negocio.nombre}
+        </div>
+      )}
       {tema.imagenPortada && (
         <img src={tema.imagenPortada} alt="" style={{ width: '100%', height: 160, objectFit: 'cover', display: 'block' }} />
       )}
@@ -1777,10 +1788,20 @@ export default function Home() {
       {/* PANEL ADMIN */}
       {isAdmin && (
         <div style={{ display: 'flex', minHeight: '100vh' }}>
-          <div className="fid-panel-sidebar" style={{ width: 210, background: '#fff', borderRight: '1px solid #eee', padding: '20px 0', display: 'flex', flexDirection: 'column' }}>
-            <div className="fid-sidebar-header" style={{ padding: '0 20px 16px', borderBottom: '1px solid #eee' }}>
-              <div style={{ fontSize: 18, fontWeight: 600, color: '#1a1a1a' }}>Retornar</div>
-              <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Panel de administrador</div>
+          {/* Fondo oscuro fijo (no depende del tema de ningún negocio) a
+              propósito: Cecilia sentía que el panel de admin y el de
+              negocio "se veían prácticamente igual" -- esta barra lateral
+              nunca cambia de color pase lo que pase, así siempre se nota a
+              simple vista que se está en modo administrador, incluso
+              cuando el contenido de la derecha es el mismo PanelNegocio()
+              que vería el propio dueño del negocio. */}
+          <div className="fid-panel-sidebar fid-panel-sidebar-admin" style={{ width: 210, background: '#111827', borderRight: '1px solid #1f2937', padding: '20px 0', display: 'flex', flexDirection: 'column' }}>
+            <div className="fid-sidebar-header" style={{ padding: '0 20px 16px', borderBottom: '1px solid #1f2937' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontSize: 18, fontWeight: 600, color: '#fff' }}>Retornar</div>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, color: '#c7d2fe', background: '#312e81', padding: '2px 7px', borderRadius: 20 }}>ADMIN</span>
+              </div>
+              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>Panel de administrador</div>
             </div>
             <div className="fid-sidebar-nav" style={{ padding: '12px 8px', flex: 1 }}>
               {[['🏠', 'Inicio', 'inicio'], ['🏪', 'Negocios', 'negocios'], ['👥', 'Clientes', 'clientes'], ['🎁', 'Premios', 'premios'], ['⭐', 'Puntos y canjes', 'canjes'], ['🔌', 'Integraciones', 'integraciones'], ['⚙️', 'Ajustes', 'ajustes']].map(([icon, label, id]) => {
@@ -1790,19 +1811,19 @@ export default function Home() {
                     key={label}
                     className={id ? 'fid-sidebar-item' : undefined}
                     onClick={id ? () => (id === 'negocios' ? volverANegocios() : setSeccionActiva(id)) : undefined}
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: activo ? '#6366f1' : '#555', background: activo ? '#eef2ff' : undefined, cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: activo ? '#c7d2fe' : '#9ca3af', background: activo ? '#1f2937' : undefined, cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
                   >
                     {icon} <span className="fid-sidebar-label">{label}</span>
                   </div>
                 );
               })}
             </div>
-            <div style={{ padding: '12px 16px', borderTop: '1px solid #eee', fontSize: 12, color: '#999' }}>
+            <div style={{ padding: '12px 16px', borderTop: '1px solid #1f2937', fontSize: 12, color: '#9ca3af' }}>
               <div className="fid-sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#6366f1' }}>C</div>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#312e81', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#c7d2fe' }}>C</div>
                 {session?.user?.name} · Admin
               </div>
-              <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#ef4444', cursor: 'pointer', width: '100%' }}>🚪 <span className="fid-sidebar-label">Cerrar sesión</span></button>
+              <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #374151', background: '#1f2937', color: '#f87171', cursor: 'pointer', width: '100%' }}>🚪 <span className="fid-sidebar-label">Cerrar sesión</span></button>
             </div>
           </div>
 

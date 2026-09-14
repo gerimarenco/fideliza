@@ -1099,7 +1099,68 @@ Diamante/VIP) — se combinan los dos filtros si están cargados los dos.
   búsqueda de texto anda bien, y el mensaje de "sin resultados" aparece
   cuando ningún cliente matchea los dos filtros juntos.
 
-## 43. Otros pendientes menores (de sesiones previas, sin resolver)
+## 43. Dominio viejo hardcodeado en el widget de la tienda online (2026-09-14)
+
+Cecilia pidió el cartelito de "comprando esto sumás X puntos" al lado
+del precio en la tienda online de Peperina — resultó que **ya existía**
+(`public/widget.js`, ver ítem 2 y su sección en el README), armado hace
+tiempo pero nunca embebido de verdad en una tienda real. Al revisarlo
+para confirmar que decía exactamente "sumás X puntos" (nunca "$35.000 o
+X puntos", para no confundir con que sea canjeable ahí) apareció el
+mismo bug de dominio viejo que los ítems 6 y el de `NEXTAUTH_URL`: el
+`base` por defecto (cuando la tienda no manda `data-retornar-base`)
+seguía apuntando a `incomparable-zabaione-b58c21.netlify.app` en vez de
+`retornar.com.ar`. Corregido en las dos funciones del widget, y sacada
+del README la nota vieja de "mientras retornar.com.ar no esté apuntado,
+usar la URL de Netlify" (ya está apuntado hace rato).
+
+**Lo que falta no es código**: agregar el `<div data-retornar-widget>` +
+`<script>` (ver README) al template de la página de producto de la
+tienda de Peperina en Tiendanube, algo que se hace desde el editor de
+temas de Tiendanube (no desde acá) y necesita el precio del producto en
+formato numérico plano en `data-precio` — la sintaxis exacta de esa
+variable en el theme de Peperina no se pudo confirmar desde este
+entorno (sin acceso a internet para consultar la documentación de
+Tiendanube ni al panel de la tienda), queda para resolver junto con
+Cecilia o quien administre el tema de la tienda.
+
+## 44. Diferenciar visualmente el panel de admin del de negocio (2026-09-14)
+
+Cecilia sentía que el panel de admin y el de un negocio "se ven
+prácticamente iguales" — con razón: cuando el admin entra al panel de un
+negocio puntual, `PanelNegocio()` es literalmente el mismo componente
+que ve el dueño de ese negocio logueado directo (mismo código a
+propósito, para no duplicar pantallas — ver ítem 40 y el resto del panel
+de negocio). Le pregunté qué tipo de diferencia buscaba (¿visual?,
+¿más información solo para admin?, ¿separar funciones?) y pidió lo
+visual: que se note a simple vista en cuál está, sin importar que el
+contenido sea el mismo.
+
+- La barra lateral de admin (`app/page.js`) pasó de blanca/genérica a un
+  esquema oscuro fijo (`#111827`, con acentos índigo) que **nunca**
+  cambia según el tema de ningún negocio — a diferencia de la del
+  negocio, que sí usa los colores de marca propios (`tema.superficie`
+  etc.), la de admin siempre se ve igual, para que sea inconfundible.
+  Se le agregó también una etiqueta "ADMIN" al lado del logo.
+- Cuando el admin entra al panel de un negocio puntual (`onVolver`
+  presente, viene de la sidebar de admin — nunca cuando el negocio
+  entra con su propia cuenta), aparece un cartel fijo arriba de todo
+  ("🛡️ Estás viendo esto como administrador, no como {negocio}"), con
+  la misma paleta oscura/índigo de la sidebar de admin, para asociarse
+  visualmente con "modo admin" sin importar el tema del negocio que se
+  esté mirando.
+- `.fid-sidebar-item:hover` (compartida entre las dos sidebars) tenía un
+  overlay oscuro que casi no se notaba sobre el fondo ahora oscuro de
+  admin — se agregó una regla aparte (`.fid-panel-sidebar-admin`) con un
+  overlay claro solo para esa sidebar, sin tocar el hover de la del
+  negocio (que sigue pudiendo ser clara u oscura según su marca).
+
+Probado con Playwright: el panel propio de Peperina (logueada como
+negocio) sigue exactamente igual que antes; el panel de admin se ve
+oscuro con la etiqueta ADMIN y, apenas entra a gestionar un negocio, el
+cartel de aviso aparece arriba de todo.
+
+## 45. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
