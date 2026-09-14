@@ -166,6 +166,7 @@ export default function Home() {
   const [clientesData, setClientesData] = useState(null);
   const [clientesBusqueda, setClientesBusqueda] = useState('');
   const [clientesBusquedaDebounced, setClientesBusquedaDebounced] = useState('');
+  const [clientesNivelFiltro, setClientesNivelFiltro] = useState('');
   const [clienteExpandidoId, setClienteExpandidoId] = useState(null);
   const [mostrarInfoNiveles, setMostrarInfoNiveles] = useState(false);
   const [canjesPagina, setCanjesPagina] = useState(1);
@@ -243,10 +244,11 @@ export default function Home() {
     cargarEstadisticas(negocioMostrado?.id);
   }, [negocioMostrado?.id]);
 
-  const cargarClientes = (negocioId, page = 1, busqueda = '') => {
+  const cargarClientes = (negocioId, page = 1, busqueda = '', nivel = '') => {
     if (!negocioId) { setClientesData(null); return; }
     const q = busqueda.trim() ? `&q=${encodeURIComponent(busqueda.trim())}` : '';
-    fetch(`/api/clientes?negocioId=${negocioId}&page=${page}&pageSize=10${q}`)
+    const n = nivel ? `&nivel=${encodeURIComponent(nivel)}` : '';
+    fetch(`/api/clientes?negocioId=${negocioId}&page=${page}&pageSize=10${q}${n}`)
       .then(res => res.json())
       .then(setClientesData)
       .catch(() => {});
@@ -286,6 +288,7 @@ export default function Home() {
   useEffect(() => {
     setClientesPagina(1);
     setClientesBusqueda('');
+    setClientesNivelFiltro('');
     setCanjesPagina(1);
     setPremiosPagina(1);
     setSeccionActiva('inicio');
@@ -302,11 +305,11 @@ export default function Home() {
 
   useEffect(() => {
     setClientesPagina(1);
-  }, [clientesBusquedaDebounced]);
+  }, [clientesBusquedaDebounced, clientesNivelFiltro]);
 
   useEffect(() => {
-    cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced);
-  }, [negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced]);
+    cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro);
+  }, [negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro]);
 
   // clientesData también alimenta la vista previa de Inicio (mismo estado,
   // ver VistaClientes e Inicio más abajo) -- sin esto, una búsqueda que
@@ -990,17 +993,31 @@ export default function Home() {
             </div>
           )}
         </div>
-        <input
-          type="text"
-          value={clientesBusqueda}
-          onChange={e => setClientesBusqueda(e.target.value)}
-          placeholder="Buscar por nombre, email o celular..."
-          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.fondo, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 14 }}
-        />
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            value={clientesBusqueda}
+            onChange={e => setClientesBusqueda(e.target.value)}
+            placeholder="Buscar por nombre, email o celular..."
+            style={{ flex: 1, minWidth: 160, padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.fondo, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }}
+          />
+          <select
+            value={clientesNivelFiltro}
+            onChange={e => setClientesNivelFiltro(e.target.value)}
+            style={{ padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.fondo, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }}
+          >
+            <option value="">Todos los niveles</option>
+            <option value="bronce">Bronce</option>
+            <option value="plata">Plata</option>
+            <option value="oro">Oro</option>
+            <option value="diamante">Diamante</option>
+            <option value="vip">VIP</option>
+          </select>
+        </div>
         {!clientesData && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: tema.textoSecundario }}><Spinner size={14} /> Cargando...</div>}
         {clientesData && clientesData.items.length === 0 && (
           <div style={{ fontSize: 13, color: tema.textoSecundario }}>
-            {clientesBusqueda.trim() ? 'No encontramos clientes que coincidan con esa búsqueda.' : 'Todavía no hay clientes.'}
+            {clientesBusqueda.trim() || clientesNivelFiltro ? 'No encontramos clientes que coincidan con ese filtro.' : 'Todavía no hay clientes.'}
           </div>
         )}
         {clientesData?.items.map(c => {
