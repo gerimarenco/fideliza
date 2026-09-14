@@ -1124,7 +1124,43 @@ entorno (sin acceso a internet para consultar la documentación de
 Tiendanube ni al panel de la tienda), queda para resolver junto con
 Cecilia o quien administre el tema de la tienda.
 
-## 44. Otros pendientes menores (de sesiones previas, sin resolver)
+## 44. Diferenciar visualmente el panel de admin del de negocio (2026-09-14)
+
+Cecilia sentía que el panel de admin y el de un negocio "se ven
+prácticamente iguales" — con razón: cuando el admin entra al panel de un
+negocio puntual, `PanelNegocio()` es literalmente el mismo componente
+que ve el dueño de ese negocio logueado directo (mismo código a
+propósito, para no duplicar pantallas — ver ítem 40 y el resto del panel
+de negocio). Le pregunté qué tipo de diferencia buscaba (¿visual?,
+¿más información solo para admin?, ¿separar funciones?) y pidió lo
+visual: que se note a simple vista en cuál está, sin importar que el
+contenido sea el mismo.
+
+- La barra lateral de admin (`app/page.js`) pasó de blanca/genérica a un
+  esquema oscuro fijo (`#111827`, con acentos índigo) que **nunca**
+  cambia según el tema de ningún negocio — a diferencia de la del
+  negocio, que sí usa los colores de marca propios (`tema.superficie`
+  etc.), la de admin siempre se ve igual, para que sea inconfundible.
+  Se le agregó también una etiqueta "ADMIN" al lado del logo.
+- Cuando el admin entra al panel de un negocio puntual (`onVolver`
+  presente, viene de la sidebar de admin — nunca cuando el negocio
+  entra con su propia cuenta), aparece un cartel fijo arriba de todo
+  ("🛡️ Estás viendo esto como administrador, no como {negocio}"), con
+  la misma paleta oscura/índigo de la sidebar de admin, para asociarse
+  visualmente con "modo admin" sin importar el tema del negocio que se
+  esté mirando.
+- `.fid-sidebar-item:hover` (compartida entre las dos sidebars) tenía un
+  overlay oscuro que casi no se notaba sobre el fondo ahora oscuro de
+  admin — se agregó una regla aparte (`.fid-panel-sidebar-admin`) con un
+  overlay claro solo para esa sidebar, sin tocar el hover de la del
+  negocio (que sigue pudiendo ser clara u oscura según su marca).
+
+Probado con Playwright: el panel propio de Peperina (logueada como
+negocio) sigue exactamente igual que antes; el panel de admin se ve
+oscuro con la etiqueta ADMIN y, apenas entra a gestionar un negocio, el
+cartel de aviso aparece arriba de todo.
+
+## 45. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.

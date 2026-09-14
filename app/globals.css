@@ -67,6 +67,13 @@ body {
 .fid-sidebar-item:hover {
   background-color: rgba(0, 0, 0, 0.045);
 }
+/* La sidebar de admin (app/page.js) es oscura a propósito y fija (no
+   depende de ningún tema de negocio, a diferencia de la del negocio, que
+   sí puede ser clara u oscura según su marca) -- un overlay oscuro casi
+   no se nota ahí encima, hace falta uno claro. */
+.fid-panel-sidebar-admin .fid-sidebar-item:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
 
 /* Spinner de carga: usa currentColor para heredar el color de texto que se
    le pase por style (ej. tema.primario), así funciona con cualquier marca. */
