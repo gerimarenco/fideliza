@@ -52,11 +52,11 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   try {
     const { negocio } = await params;
-    const { email, password, fechaNacimiento, dni, sexo, telefono, codigoReferido } = await request.json();
+    const { nombre, email, password, fechaNacimiento, dni, sexo, telefono, codigoReferido } = await request.json();
 
-    if (!email || !password) {
+    if (!nombre?.trim() || !email || !password) {
       return NextResponse.json(
-        { error: 'Email y contraseña son obligatorios.' },
+        { error: 'Nombre, email y contraseña son obligatorios.' },
         { status: 400 }
       );
     }
@@ -145,6 +145,7 @@ export async function POST(request, { params }) {
     // Crear el cliente, asociado al negocio encontrado
     const nuevoCliente = await prisma.cliente.create({
       data: {
+        nombre: nombre.trim(),
         email,
         password: await hashPassword(password),
         negocioId: negocioEncontrado.id,
