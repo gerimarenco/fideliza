@@ -929,13 +929,13 @@ export default function Home() {
         {canjesData?.items.map(c => (
           <div key={c.id} className="fid-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: `1px solid ${tema.borde}` }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{c.premio.emoji}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 500 }}>{c.premio.nombre}</div>
-              <div style={{ fontSize: 11, color: tema.textoSecundario }}>{c.cliente.nombre || c.cliente.email} · {new Date(c.createdAt).toLocaleDateString('es-AR')}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.premio.nombre}</div>
+              <div style={{ fontSize: 11, color: tema.textoSecundario, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.cliente.nombre || c.cliente.email} · {new Date(c.createdAt).toLocaleDateString('es-AR')}</div>
               {c.tiendanubeCuponCodigo && <div style={{ fontSize: 11, color: '#16a34a', marginTop: 2 }}>🎟️ Cupón: {c.tiendanubeCuponCodigo}</div>}
               {c.tiendanubeCuponError && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>⚠️ {c.tiendanubeCuponError} — entregar el descuento a mano</div>}
             </div>
-            <div style={{ fontSize: 12, fontWeight: 500, background: tema.resaltado, color: tema.texto, padding: '4px 10px', borderRadius: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, background: tema.resaltado, color: tema.texto, padding: '4px 10px', borderRadius: 20, flexShrink: 0 }}>
               {c.premio.puntos} pts
             </div>
           </div>
@@ -1019,17 +1019,17 @@ export default function Home() {
                   {(c.nombre || c.email).slice(0, 2).toUpperCase()}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500 }}>{c.nombre || c.email}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{c.nombre || c.email}</span>
                     {s.nivel && (
-                      <span style={{ fontSize: 10, fontWeight: 600, color: '#fff', background: s.nivel.color, padding: '2px 7px', borderRadius: 20 }}>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: '#fff', background: s.nivel.color, padding: '2px 7px', borderRadius: 20, flexShrink: 0 }}>
                         {s.nivel.nombre}
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: 11, color: tema.textoSecundario }}>{c.email}{c.telefono ? ` · ${c.telefono}` : ''}</div>
+                  <div style={{ fontSize: 11, color: tema.textoSecundario, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}{c.telefono ? ` · ${c.telefono}` : ''}</div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 500, background: tema.resaltado, color: tema.texto, padding: '4px 10px', borderRadius: 20, marginBottom: 4 }}>
                     {c.puntos} pts
                   </div>
@@ -1434,10 +1434,10 @@ export default function Home() {
                   <div style={{ width: 30, height: 30, borderRadius: '50%', background: tema.resaltado, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: tema.texto }}>
                     {c.email.slice(0, 2).toUpperCase()}
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{c.email}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</div>
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 500, background: tema.resaltado, color: tema.texto, padding: '4px 10px', borderRadius: 20 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, background: tema.resaltado, color: tema.texto, padding: '4px 10px', borderRadius: 20, flexShrink: 0 }}>
                     {c.puntos} pts
                   </div>
                 </div>

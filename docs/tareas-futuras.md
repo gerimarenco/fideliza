@@ -1056,7 +1056,29 @@ como negocio y como admin, en las pantallas con las grillas más anchas
 horizontal en ninguna, y sin cambios visuales en el panel de cliente
 (confirmado aparte, para no meter una regresión ahí).
 
-## 41. Otros pendientes menores (de sesiones previas, sin resolver)
+## 41. Texto largo superpuesto en las filas de clientes/canjes (celular) (2026-09-14)
+
+Apenas mergeado el ítem 40, Cecilia probó "Mis clientes" desde el celu y
+encontró otro caso que ese arreglo no cubría: con un nombre largo, el
+texto se metía debajo de la insignia de nivel y de la burbuja de puntos
+en vez de cortarse, y un email largo tampoco se llegaba a ver completo.
+No era scroll horizontal (lo del ítem 40 son grillas CSS) sino filas con
+`display: flex` normal, donde ni el nombre ni el email tenían ningún
+límite: sin `overflow`/`text-overflow`/`white-space`, un texto largo
+simplemente se dibuja más allá de su caja en vez de cortarse o
+envolverse, superponiéndose visualmente con lo que esté al lado.
+
+Se agregó recorte con "..." (`overflow: hidden`, `textOverflow:
+'ellipsis'`, `whiteSpace: 'nowrap'`, más `minWidth: 0` en el contenedor
+flex para que el recorte tenga sobre qué actuar) al nombre+insignia de
+nivel y al email en la lista de "Clientes" (`VistaClientes`), a la
+vista previa de clientes en Inicio, y al nombre de premio + cliente en
+"Puntos y canjes" (`VistaCanjes`) -- mismo patrón en los tres, encontrado
+al revisar dónde más se repetía. Las burbujas de puntos (que sí tienen
+que verse completas) se marcaron con `flexShrink: 0` para que nunca sean
+ellas las que se achiquen.
+
+## 42. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
