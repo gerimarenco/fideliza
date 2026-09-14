@@ -348,10 +348,14 @@ umbrales de cada nivel son un punto de partida razonable, no un valor con
 el que haya que quedarse fijo — ajustables directamente en
 `lib/clienteStats.js`.
 
-Arriba de la lista hay un buscador (nombre, email o celular) que filtra
-del lado del servidor vía `GET /api/clientes?q=...` — no solo la página
-cargada, así que encuentra a un cliente sin importar en qué página del
-paginado esté.
+Arriba de la lista hay un buscador (nombre, email o celular) y un
+desplegable para filtrar por nivel, los dos del lado del servidor vía
+`GET /api/clientes?q=...&nivel=...` (se combinan si están los dos
+cargados) — no solo la página cargada, así que encuentran a un cliente
+sin importar en qué página del paginado esté. Como el nivel no vive en
+la base (se calcula de los puntos ganados de por vida), filtrar por
+nivel primero suma los puntos de los candidatos con un
+`movimientoPuntos.groupBy` y recién ahí pagina.
 
 ## Menú del panel del cliente (⋮)
 

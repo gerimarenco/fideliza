@@ -1078,7 +1078,28 @@ al revisar dónde más se repetía. Las burbujas de puntos (que sí tienen
 que verse completas) se marcaron con `flexShrink: 0` para que nunca sean
 ellas las que se achiquen.
 
-## 42. Otros pendientes menores (de sesiones previas, sin resolver)
+## 42. Filtro por nivel en la lista de Clientes (2026-09-14)
+
+Al buscador de "Mis clientes" (nombre/email/celular, ver ítem 35) se le
+agregó un desplegable al lado para filtrar por nivel (Bronce/Plata/Oro/
+Diamante/VIP) — se combinan los dos filtros si están cargados los dos.
+
+- El nivel no vive en la base (se calcula de los puntos ganados de por
+  vida, ver ítem 39), así que `GET /api/clientes?nivel=...` necesita un
+  paso aparte *antes* de paginar: junta los clientes que ya matchean el
+  resto de los filtros, suma sus puntos ganados con un
+  `movimientoPuntos.groupBy`, les calcula el nivel, y recién ahí filtra y
+  pagina. Filtrar por nivel solo dentro de la página ya traída (después
+  de paginar, como hace `calcularStatsClientes` normalmente) daría
+  resultados incompletos según en qué página esté cada cliente.
+- Sin test automático de la ruta en sí (el proyecto solo testea lógica
+  pura en `lib/`, no rutas con base de datos, ver README) — se probó a
+  mano contra una base Postgres real con un cliente de cada nivel:
+  cada filtro muestra solo al que corresponde, la combinación con
+  búsqueda de texto anda bien, y el mensaje de "sin resultados" aparece
+  cuando ningún cliente matchea los dos filtros juntos.
+
+## 43. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
