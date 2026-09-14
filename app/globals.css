@@ -91,3 +91,57 @@ body {
 .fid-toast {
   animation: fid-toast-in 200ms ease-out;
 }
+
+/* Panel de negocio/admin (app/page.js) en celular: la barra lateral de
+   210px fijos se come más de la mitad de una pantalla angosta y obliga a
+   arrastrar todo el contenido hacia los costados. Acá abajo de 640px la
+   achicamos a una franja de solo íconos (se ocultan el título, el nombre
+   del usuario y el texto de los botones de navegación/salir, quedan sus
+   íconos), sin tocar el layout en sí (sigue siendo sidebar + contenido
+   lado a lado, ahora con la sidebar angosta) -- el !important es
+   necesario para pisar el ancho fijado inline en el propio elemento (es
+   por-negocio, tema.superficie/tema.borde, no se puede mover a esta hoja
+   de estilos sin perder esa personalización). */
+@media (max-width: 640px) {
+  .fid-panel-sidebar {
+    width: 56px !important;
+  }
+  .fid-panel-sidebar .fid-sidebar-header {
+    display: none !important;
+  }
+  .fid-panel-sidebar .fid-sidebar-nav > div {
+    justify-content: center !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+  .fid-sidebar-label {
+    display: none;
+  }
+}
+
+/* Las grillas de varias columnas (formularios, tarjetas de stats) usan
+   "1fr" para cada columna -- por una particularidad de CSS Grid, una
+   columna "1fr" no se achica por debajo del ancho mínimo de su
+   contenido (ej. el ancho por defecto de un <input>) salvo que sus
+   elementos tengan min-width: 0 explícito. Sin esto, esas grillas
+   fuerzan scroll horizontal en pantallas angostas aunque el resto del
+   layout ya se adapte bien -- se aplica a los hijos directos de
+   cualquier grilla (identificada por tener grid-template-columns en el
+   style inline) en vez de tocar una por una las ~18 que hay en
+   app/page.js. */
+[style*="grid-template-columns"] > * {
+  min-width: 0;
+}
+
+/* Lo anterior evita el scroll horizontal, pero una grilla de 4 o 5
+   columnas (ej. "Nuevo negocio", los colores de marca) igual queda
+   ilegible apretada en un celular angosto -- cada columna termina
+   mostrando una sola letra. Abajo de 480px, todas pasan a una sola
+   columna (mismo selector genérico que arriba, por eso también afecta
+   a grillas de 2-3 columnas que ya se veían bien angostas: apiladas se
+   siguen viendo bien, solo un poco más largas). */
+@media (max-width: 480px) {
+  [style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+}

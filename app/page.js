@@ -1760,12 +1760,12 @@ export default function Home() {
       {/* PANEL ADMIN */}
       {isAdmin && (
         <div style={{ display: 'flex', minHeight: '100vh' }}>
-          <div style={{ width: 210, background: '#fff', borderRight: '1px solid #eee', padding: '20px 0', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '0 20px 16px', borderBottom: '1px solid #eee' }}>
+          <div className="fid-panel-sidebar" style={{ width: 210, background: '#fff', borderRight: '1px solid #eee', padding: '20px 0', display: 'flex', flexDirection: 'column' }}>
+            <div className="fid-sidebar-header" style={{ padding: '0 20px 16px', borderBottom: '1px solid #eee' }}>
               <div style={{ fontSize: 18, fontWeight: 600, color: '#1a1a1a' }}>Retornar</div>
               <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>Panel de administrador</div>
             </div>
-            <div style={{ padding: '12px 8px', flex: 1 }}>
+            <div className="fid-sidebar-nav" style={{ padding: '12px 8px', flex: 1 }}>
               {[['🏠', 'Inicio', 'inicio'], ['🏪', 'Negocios', 'negocios'], ['👥', 'Clientes', 'clientes'], ['🎁', 'Premios', 'premios'], ['⭐', 'Puntos y canjes', 'canjes'], ['🔌', 'Integraciones', 'integraciones'], ['⚙️', 'Ajustes', 'ajustes']].map(([icon, label, id]) => {
                 const activo = id === 'negocios' ? !negocioActivo : (!!id && seccionActiva === id);
                 return (
@@ -1775,17 +1775,17 @@ export default function Home() {
                     onClick={id ? () => (id === 'negocios' ? volverANegocios() : setSeccionActiva(id)) : undefined}
                     style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: activo ? '#6366f1' : '#555', background: activo ? '#eef2ff' : undefined, cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
                   >
-                    {icon} {label}
+                    {icon} <span className="fid-sidebar-label">{label}</span>
                   </div>
                 );
               })}
             </div>
             <div style={{ padding: '12px 16px', borderTop: '1px solid #eee', fontSize: 12, color: '#999' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <div className="fid-sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#6366f1' }}>C</div>
                 {session?.user?.name} · Admin
               </div>
-              <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#ef4444', cursor: 'pointer', width: '100%' }}>Cerrar sesión</button>
+              <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#ef4444', cursor: 'pointer', width: '100%' }}>🚪 <span className="fid-sidebar-label">Cerrar sesión</span></button>
             </div>
           </div>
 
@@ -1940,12 +1940,12 @@ export default function Home() {
       {/* PANEL NEGOCIO */}
       {isNegocio && (
         <div style={{ display: 'flex', minHeight: '100vh' }}>
-          <div style={{ width: 210, background: tema.superficie, color: tema.texto, borderRight: `1px solid ${tema.borde}`, padding: '20px 0', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '0 20px 16px', borderBottom: `1px solid ${tema.borde}` }}>
+          <div className="fid-panel-sidebar" style={{ width: 210, background: tema.superficie, color: tema.texto, borderRight: `1px solid ${tema.borde}`, padding: '20px 0', display: 'flex', flexDirection: 'column' }}>
+            <div className="fid-sidebar-header" style={{ padding: '0 20px 16px', borderBottom: `1px solid ${tema.borde}` }}>
               <div style={{ fontSize: 17, fontWeight: 600, fontFamily: tema.fuenteTitulo }}>{negocioPropio?.nombre || session?.user?.name}</div>
               <div style={{ fontSize: 11, color: tema.textoSecundario, marginTop: 2 }}>Panel del negocio</div>
             </div>
-            <div style={{ padding: '12px 8px', flex: 1 }}>
+            <div className="fid-sidebar-nav" style={{ padding: '12px 8px', flex: 1 }}>
               {[['🏠', 'Inicio', 'inicio'], ['👥', 'Mis clientes', 'clientes'], ['🎁', 'Premios', 'premios'], ['🔄', 'Canjes', 'canjes'], ['🔌', 'Integraciones', 'integraciones'], ['⚙️', 'Ajustes', 'ajustes']].map(([icon, label, id]) => (
                 <div
                   key={label}
@@ -1953,18 +1953,18 @@ export default function Home() {
                   onClick={id ? () => setSeccionActiva(id) : undefined}
                   style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: seccionActiva === id ? tema.primario : tema.textoSecundario, background: seccionActiva === id ? tema.borde : undefined, cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
                 >
-                  {icon} {label}
+                  {icon} <span className="fid-sidebar-label">{label}</span>
                 </div>
               ))}
             </div>
             <div style={{ padding: '12px 16px', borderTop: `1px solid ${tema.borde}`, fontSize: 12, color: tema.textoSecundario }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <div className="fid-sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <div style={{ width: 28, height: 28, borderRadius: '50%', background: tema.resaltado, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: tema.texto }}>
                   {session?.user?.name?.[0] || 'N'}
                 </div>
                 {session?.user?.name}
               </div>
-              <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: '#ef4444', cursor: 'pointer', width: '100%' }}>Cerrar sesión</button>
+              <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: '#ef4444', cursor: 'pointer', width: '100%' }}>🚪 <span className="fid-sidebar-label">Cerrar sesión</span></button>
             </div>
           </div>
 

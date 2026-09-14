@@ -1021,7 +1021,42 @@ mantenerlo simple). Sin cambios en la lógica, solo en los números de
 cambia en el futuro, estos montos en pesos se corren proporcionalmente
 (los umbrales están en puntos, no en pesos).
 
-## 40. Otros pendientes menores (de sesiones previas, sin resolver)
+## 40. Panel de negocio/admin responsive en celular (2026-09-14)
+
+Cecilia entró desde el celu al panel de negocio y de administrador y
+tenía que arrastrar mucho de costado (o girar el teléfono) para ver todo
+completo -- el panel de cliente ya andaba bien, el problema era solo del
+lado de negocio/admin. Dos causas, las dos en `app/page.js` /
+`app/globals.css`:
+
+- **La barra lateral (`app/page.js`)** tiene 210px fijos -- en un celular
+  angosto se come más de la mitad de la pantalla. Abajo de 640px se
+  achica a una franja de solo íconos (56px): se ocultan el título, el
+  nombre del usuario y el texto de los botones de navegación/cerrar
+  sesión (quedan sus íconos, incluido uno nuevo 🚪 para "Cerrar sesión").
+  Nuevas clases `fid-panel-sidebar`, `fid-sidebar-header`,
+  `fid-sidebar-nav`, `fid-sidebar-label` para poder apuntarles desde el
+  CSS (antes todo el layout era inline, sin ningún className).
+- **Las grillas de varias columnas** (formularios, tarjetas de stats)
+  usan `1fr` por columna -- por una particularidad de CSS Grid, una
+  columna `1fr` no se achica por debajo del ancho mínimo de su contenido
+  (ej. un `<input>`) salvo que se le diga explícitamente, así que
+  forzaban scroll horizontal aunque el resto del layout ya se adaptara
+  bien. Se arregló con dos reglas genéricas en `globals.css` que apuntan
+  a cualquier elemento con `grid-template-columns` en el `style` inline
+  (en vez de tocar una por una las ~18 grillas que hay en el archivo):
+  `min-width: 0` en sus hijos directos (deja que se achiquen), y abajo de
+  480px pasan a una sola columna (una de 4-5 columnas, como "Nuevo
+  negocio" o los colores de marca, quedaba ilegible apretada aunque ya no
+  forzara scroll).
+
+Probado con Playwright contra un viewport de celular (390×844) logueado
+como negocio y como admin, en las pantallas con las grillas más anchas
+(Ajustes, Premios, Nuevo negocio, colores de marca) -- sin scroll
+horizontal en ninguna, y sin cambios visuales en el panel de cliente
+(confirmado aparte, para no meter una regresión ahí).
+
+## 41. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
