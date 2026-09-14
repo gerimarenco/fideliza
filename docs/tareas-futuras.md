@@ -1160,7 +1160,32 @@ negocio) sigue exactamente igual que antes; el panel de admin se ve
 oscuro con la etiqueta ADMIN y, apenas entra a gestionar un negocio, el
 cartel de aviso aparece arriba de todo.
 
-## 45. Otros pendientes menores (de sesiones previas, sin resolver)
+## 45. Exportar clientes a CSV/Excel (2026-09-14)
+
+Cecilia quería tener los datos de sus clientes en un Excel, para poder
+usarlos fuera de Retornar (ej. una campaña de WhatsApp o mail masivo).
+Se agregó un botón "⬇️ Exportar" al lado del buscador/filtro de nivel en
+"Mis clientes" — descarga un CSV con todos los clientes que matchean los
+filtros activos (si hay búsqueda o nivel cargados, exporta ESO, no
+siempre la lista completa).
+
+- `GET /api/clientes/exportar` (mismos filtros `q`/`nivel` que la lista
+  en pantalla, mismo cálculo de nivel vía `calcularStatsClientes`) arma
+  el CSV a mano, sin ninguna librería nueva.
+- Separador `;` (no `,`): es lo que Excel en español espera para abrir
+  el archivo directo con los acentos bien, sin pasar por el asistente de
+  importación (`,` es el separador decimal en es-AR, así que Excel local
+  no lo toma como separador de columnas).
+- BOM UTF-8 al principio del archivo: sin esto Excel interpreta los
+  acentos/ñ con el charset equivocado y quedan como símbolos raros.
+- Columnas: nombre, email, teléfono, puntos actuales, nivel, compras
+  registradas, fecha de alta, última actividad.
+- Probado con Playwright (login real, click en el botón, confirmar la
+  descarga) contra una base Postgres real, incluyendo un cliente con
+  comillas y punto y coma en el nombre para confirmar que el escapado
+  CSV los maneja bien.
+
+## 46. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.

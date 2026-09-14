@@ -354,6 +354,13 @@ la base (se calcula de los puntos ganados de por vida), filtrar por
 nivel primero suma los puntos de los candidatos con un
 `movimientoPuntos.groupBy` y recién ahí pagina.
 
+Al lado hay un botón "Exportar" que descarga un CSV (`GET
+/api/clientes/exportar`, mismos filtros `q`/`nivel` que la lista) con
+nombre, email, teléfono, puntos, nivel, compras registradas, fecha de
+alta y última actividad de cada cliente — separado por `;` y con BOM
+UTF-8 al principio para que Excel en español lo abra directo, con los
+acentos bien, sin pasar por el asistente de importación.
+
 ## Menú del panel del cliente (⋮)
 
 Arriba a la derecha del panel del cliente hay un botón "⋮" con tres
