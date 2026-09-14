@@ -544,11 +544,10 @@ en `VistaClientes` (`app/page.js`):
 - **Nivel del cliente** (`lib/clienteStats.js`): Bronce / Plata / Oro /
   Diamante / VIP según puntos **ganados de por vida**, no el saldo actual
   (que baja con cada canje — así un cliente frecuente no "pierde" nivel
-  por canjear premios, sería premiarlo al revés). **Los umbrales
-  (Bronce 0 / Plata 1000 / Oro 3000 / Diamante 6000 / VIP 10000) son un
-  punto de partida mío, no un número que haya pedido Cecilia** — hay que
-  revisarlos con ella una vez que haya suficientes clientes reales para
-  ver si el reparto entre niveles tiene sentido.
+  por canjear premios, sería premiarlo al revés). ~~Los umbrales (Bronce 0
+  / Plata 1000 / Oro 3000 / Diamante 6000 / VIP 10000) son un punto de
+  partida mío, no un número que haya pedido Cecilia — hay que revisarlos
+  con ella~~ — ✅ revisados y subidos, ver ítem 39.
 - **Estadísticas por cliente**, calculadas a partir de `MovimientoPuntos`
   (una sola consulta por página de la lista, no una por cliente): compras
   registradas (cuenta solo orígenes de venta real: manual, Mercado Pago,
@@ -996,7 +995,33 @@ forma (¿un selector de negocio?, ¿un subdominio propio por negocio?,
 ¿que cada negocio tenga su propia URL de login?). Queda anotado para
 cuando llegue ese momento, no es una decisión definitiva.
 
-## 39. Otros pendientes menores (de sesiones previas, sin resolver)
+## 39. Umbrales de nivel de cliente, subidos (2026-09-14)
+
+Quedó pendiente desde el ítem 23: los umbrales de nivel (Bronce/Plata/
+Oro/Diamante/VIP) eran un punto de partida mío sin confirmar con
+Cecilia. Ahora sí: le parecía muy fácil llegar a VIP. Con "1 punto cada
+$100" (el `puntosXPeso` real de Peperina), los umbrales viejos ya
+equivalían a $100mil/$300mil/$600mil/$1 millón de pesos gastados
+acumulados — no tan bajo como ella pensaba (probablemente la impresión
+vino de alguna compra de prueba cargada con un monto grande), pero de
+todas formas pidió subirlos bastante más. Quedaron así:
+
+| Nivel | Puntos (antes → ahora) | Pesos gastados (con $100/punto) |
+|---|---|---|
+| Bronce | 0 → 0 | $0 (arranca ahí, sin cambios) |
+| Plata | 1.000 → 3.000 | $300.000 |
+| Oro | 3.000 → 8.000 | $800.000 |
+| Diamante | 6.000 → 15.000 | $1.500.000 |
+| VIP | 10.000 → 30.000 | $3.000.000 |
+
+Bronce sigue siendo el nivel automático desde el primer día (no hay un
+estado "sin nivel" antes de eso — se lo planteé a Cecilia y prefirió
+mantenerlo simple). Sin cambios en la lógica, solo en los números de
+`NIVELES` (`lib/clienteStats.js`) — si el `puntosXPeso` de Peperina
+cambia en el futuro, estos montos en pesos se corren proporcionalmente
+(los umbrales están en puntos, no en pesos).
+
+## 40. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
