@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -94,6 +95,18 @@ export default function Login() {
         <button onClick={handleLogin} disabled={loading} style={{ width: '100%', padding: '11px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
           {loading ? 'Ingresando...' : 'Ingresar'}
         </button>
+
+        {/* Hardcodeado a Peperina: hoy es el único negocio real, y el
+            registro es siempre específico de un negocio (no hay una cuenta
+            "genérica" en Retornar). Cuando exista un segundo negocio real,
+            esto va a necesitar resolverse de otra forma (ej. un selector,
+            o un subdominio propio por negocio) en vez de un link fijo. */}
+        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#888' }}>
+          ¿No tenés cuenta?{' '}
+          <Link href="/registro/peperina" style={{ color: '#6366f1', fontWeight: 600, textDecoration: 'none' }}>
+            Registrate
+          </Link>
+        </div>
       </div>
     </div>
   );
