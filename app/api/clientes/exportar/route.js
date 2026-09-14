@@ -52,7 +52,7 @@ export async function GET(request) {
   const clientes = await prisma.cliente.findMany({
     where,
     orderBy: { createdAt: 'desc' },
-    select: { id: true, nombre: true, telefono: true, email: true, puntos: true, createdAt: true },
+    select: { id: true, nombre: true, telefono: true, email: true, puntos: true, createdAt: true, dni: true, fechaNacimiento: true },
   })
 
   // El nivel no vive en la base (se calcula de los puntos ganados de por
@@ -64,13 +64,19 @@ export async function GET(request) {
     ? clientes.filter((c) => stats[c.id]?.nivel?.nombre.toLowerCase() === nivelFiltro)
     : clientes
 
-  const encabezados = ['Nombre', 'Email', 'Teléfono', 'Puntos actuales', 'Nivel', 'Compras registradas', 'Cliente desde', 'Última actividad']
+  const encabezados = ['Nombre', 'Email', 'Teléfono', 'DNI', 'Fecha de nacimiento', 'Puntos actuales', 'Nivel', 'Compras registradas', 'Cliente desde', 'Última actividad']
   const filas = clientesFiltrados.map((c) => {
     const s = stats[c.id] || {}
     return [
       celdaCsv(c.nombre || ''),
       celdaCsv(c.email),
       celdaCsv(c.telefono || ''),
+      celdaCsv(c.dni || ''),
+      // timeZone: 'UTC' a propósito: fechaNacimiento se guarda como
+      // medianoche UTC (mismo criterio que lib/cumpleanos.js), formatearla
+      // con la zona horaria del servidor podría correrla un día para
+      // atrás según dónde corra el deploy.
+      celdaCsv(c.fechaNacimiento ? c.fechaNacimiento.toLocaleDateString('es-AR', { timeZone: 'UTC' }) : ''),
       celdaCsv(c.puntos),
       celdaCsv(s.nivel?.nombre || ''),
       celdaCsv(s.comprasRegistradas ?? 0),
