@@ -356,10 +356,11 @@ nivel primero suma los puntos de los candidatos con un
 
 Al lado hay un botón "Exportar" que descarga un CSV (`GET
 /api/clientes/exportar`, mismos filtros `q`/`nivel` que la lista) con
-nombre, email, teléfono, puntos, nivel, compras registradas, fecha de
-alta y última actividad de cada cliente — separado por `;` y con BOM
-UTF-8 al principio para que Excel en español lo abra directo, con los
-acentos bien, sin pasar por el asistente de importación.
+nombre, email, teléfono, DNI, fecha de nacimiento, puntos, nivel,
+compras registradas, fecha de alta y última actividad de cada cliente —
+separado por `;` y con BOM UTF-8 al principio para que Excel en español
+lo abra directo, con los acentos bien, sin pasar por el asistente de
+importación.
 
 ## Menú del panel del cliente (⋮)
 

@@ -1178,12 +1178,20 @@ siempre la lista completa).
   no lo toma como separador de columnas).
 - BOM UTF-8 al principio del archivo: sin esto Excel interpreta los
   acentos/ñ con el charset equivocado y quedan como símbolos raros.
-- Columnas: nombre, email, teléfono, puntos actuales, nivel, compras
-  registradas, fecha de alta, última actividad.
+- Columnas: nombre, email, teléfono, DNI, fecha de nacimiento, puntos
+  actuales, nivel, compras registradas, fecha de alta, última actividad
+  (DNI y fecha de nacimiento se sumaron a pedido de Cecilia apenas
+  probó la primera versión). Vacío en vez de romper para un cliente
+  que no tiene esos datos cargados (dados de alta antes del registro
+  extendido, o cargados a mano sin completarlos). La fecha de
+  nacimiento se formatea forzando `timeZone: 'UTC'` (se guarda como
+  medianoche UTC, mismo criterio que `lib/cumpleanos.js`) para que no
+  se corra un día para atrás según en qué huso horario corra el deploy.
 - Probado con Playwright (login real, click en el botón, confirmar la
   descarga) contra una base Postgres real, incluyendo un cliente con
   comillas y punto y coma en el nombre para confirmar que el escapado
-  CSV los maneja bien.
+  CSV los maneja bien, y un cliente con DNI/fecha de nacimiento cargados
+  junto a otro sin esos datos.
 
 ## 46. Otros pendientes menores (de sesiones previas, sin resolver)
 
