@@ -1099,7 +1099,32 @@ Diamante/VIP) — se combinan los dos filtros si están cargados los dos.
   búsqueda de texto anda bien, y el mensaje de "sin resultados" aparece
   cuando ningún cliente matchea los dos filtros juntos.
 
-## 43. Otros pendientes menores (de sesiones previas, sin resolver)
+## 43. Dominio viejo hardcodeado en el widget de la tienda online (2026-09-14)
+
+Cecilia pidió el cartelito de "comprando esto sumás X puntos" al lado
+del precio en la tienda online de Peperina — resultó que **ya existía**
+(`public/widget.js`, ver ítem 2 y su sección en el README), armado hace
+tiempo pero nunca embebido de verdad en una tienda real. Al revisarlo
+para confirmar que decía exactamente "sumás X puntos" (nunca "$35.000 o
+X puntos", para no confundir con que sea canjeable ahí) apareció el
+mismo bug de dominio viejo que los ítems 6 y el de `NEXTAUTH_URL`: el
+`base` por defecto (cuando la tienda no manda `data-retornar-base`)
+seguía apuntando a `incomparable-zabaione-b58c21.netlify.app` en vez de
+`retornar.com.ar`. Corregido en las dos funciones del widget, y sacada
+del README la nota vieja de "mientras retornar.com.ar no esté apuntado,
+usar la URL de Netlify" (ya está apuntado hace rato).
+
+**Lo que falta no es código**: agregar el `<div data-retornar-widget>` +
+`<script>` (ver README) al template de la página de producto de la
+tienda de Peperina en Tiendanube, algo que se hace desde el editor de
+temas de Tiendanube (no desde acá) y necesita el precio del producto en
+formato numérico plano en `data-precio` — la sintaxis exacta de esa
+variable en el theme de Peperina no se pudo confirmar desde este
+entorno (sin acceso a internet para consultar la documentación de
+Tiendanube ni al panel de la tienda), queda para resolver junto con
+Cecilia o quien administre el tema de la tienda.
+
+## 44. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.

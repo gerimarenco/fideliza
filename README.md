@@ -246,9 +246,6 @@ Se agrega así en el HTML de la página de producto de la tienda:
 <script src="https://retornar.com.ar/widget.js" defer></script>
 ```
 
-(Mientras `retornar.com.ar` no esté apuntado al deploy de Netlify — ver
-"Deploy" más abajo — usar la URL real de Netlify en el `src` en su lugar.)
-
 - `data-negocio`: el `slug` del negocio en Retornar (el mismo que usa la URL
   pública `/registro/[slug]`).
 - `data-precio`: el precio final del producto, en pesos, sin separadores ni
