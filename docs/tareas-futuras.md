@@ -1193,7 +1193,31 @@ siempre la lista completa).
   CSV los maneja bien, y un cliente con DNI/fecha de nacimiento cargados
   junto a otro sin esos datos.
 
-## 46. Otros pendientes menores (de sesiones previas, sin resolver)
+## 46. Nombre y apellido en el registro público (2026-09-14)
+
+El formulario de auto-registro (`/registro/[negocio]`) nunca pedía el
+nombre del cliente — solo email, contraseña, fecha de nacimiento, DNI,
+celular y sexo. Por eso una clienta que se registraba sola aparecía en
+el panel y en el Excel mostrando su email en vez de su nombre. Cecilia
+preguntó si valía la pena agregarlo; dado que ya se pide el DNI (mucho
+más invasivo), un campo de nombre no suma fricción real al registro.
+
+- Dos campos separados en el formulario, "Nombre" y "Apellido" (a
+  pedido de Cecilia), que se combinan en un solo string antes de
+  mandarlo a la API (`${nombre} ${apellido}`) — el resto de la app
+  (lista de clientes, mensaje de WhatsApp, exportación a Excel, alta
+  manual desde el panel) ya trata `Cliente.nombre` como un solo campo
+  de texto, así que no hizo falta agregar una columna `apellido`
+  aparte ni tocar nada más.
+- Ahora obligatorio (antes no existía el campo). Los clientes que ya se
+  habían registrado sin nombre antes de este cambio quedan igual que
+  estaban (`nombre: null`, siguen mostrando el email) — no se completa
+  solo con nada retroactivamente.
+- Probado con Playwright contra una base Postgres real: registro
+  completo con "Julieta" / "Gómez" en los dos campos, confirmado en la
+  base que quedó guardado como `"Julieta Gómez"`.
+
+## 47. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.

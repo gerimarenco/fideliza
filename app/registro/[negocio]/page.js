@@ -13,6 +13,8 @@ export default function RegistroPage() {
   // ignora en silencio, no hace falta validarlo acá.
   const codigoReferido = searchParams.get('ref');
 
+  const [nombre, setNombre] = useState('');
+  const [apellido, setApellido] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fechaNacimiento, setFechaNacimiento] = useState('');
@@ -39,7 +41,7 @@ export default function RegistroPage() {
       const res = await fetch(`/api/registro/${negocio}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, fechaNacimiento, dni, sexo, telefono, codigoReferido }),
+        body: JSON.stringify({ nombre: `${nombre.trim()} ${apellido.trim()}`.trim(), email, password, fechaNacimiento, dni, sexo, telefono, codigoReferido }),
       });
 
       const data = await res.json();
@@ -97,6 +99,62 @@ export default function RegistroPage() {
         </p>
 
         <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '6px',
+                fontSize: '14px',
+                color: '#374151',
+                fontWeight: '500',
+              }}
+            >
+              Nombre
+            </label>
+            <input
+              type="text"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid #d1d5db',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '6px',
+                fontSize: '14px',
+                color: '#374151',
+                fontWeight: '500',
+              }}
+            >
+              Apellido
+            </label>
+            <input
+              type="text"
+              value={apellido}
+              onChange={(e) => setApellido(e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid #d1d5db',
+                fontSize: '14px',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
           <div style={{ marginBottom: '16px' }}>
             <label
               style={{
