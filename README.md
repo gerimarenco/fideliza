@@ -498,9 +498,10 @@ Pensado para Netlify (`netlify.toml`): build con `prisma generate && npm run
 build`, plugin `@netlify/plugin-nextjs`. Cargar las variables de entorno de la
 tabla de arriba en el dashboard de Netlify antes de deployar.
 
-Dominio propio: se registró `retornar.com.ar`, pero todavía no está
-apuntado al deploy de Netlify (hay que agregarlo como dominio personalizado
-en el dashboard de Netlify + cargar los registros DNS que pida en NIC.ar).
-Hasta que esté hecho, la URL real sigue siendo la de Netlify
-(`incomparable-zabaione-b58c21.netlify.app`) — `NEXT_PUBLIC_BASE_URL` y el
-`src` del widget deben usarla mientras tanto.
+Dominio propio: `retornar.com.ar` ya está apuntado al deploy de Netlify
+(dominio personalizado + DNS delegado en NIC.ar a los nameservers de
+Netlify) y es la URL real del sitio — `NEXT_PUBLIC_BASE_URL`, `NEXTAUTH_URL`,
+el `src` del widget y cualquier URL nueva que se agregue tienen que usar
+`https://retornar.com.ar`, nunca la dirección interna de Netlify
+(`incomparable-zabaione-b58c21.netlify.app` — esa solo sirve puertas
+adentro, para los deploy previews de cada PR).

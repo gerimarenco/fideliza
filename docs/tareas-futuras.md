@@ -25,11 +25,16 @@ tocó**:
 - El repo de GitHub sigue llamándose `fideliza` — renombrarlo es una
   decisión aparte (rompe/redirige links existentes), no se hizo todavía.
 
-**Pendiente real**: `retornar.com.ar` está registrado pero **todavía no
-apunta al deploy de Netlify** (falta cargarlo como dominio personalizado
-en Netlify + los registros DNS que pida en NIC.ar). Hasta que eso esté
-hecho, la URL real de producción sigue siendo la de Netlify
-(`incomparable-zabaione-b58c21.netlify.app`).
+~~**Pendiente real**: `retornar.com.ar` está registrado pero todavía no
+apunta al deploy de Netlify~~ — ✅ resuelto: el dominio ya está cargado
+como dominio personalizado en Netlify, con el DNS delegado en NIC.ar a
+los nameservers de Netlify. `https://retornar.com.ar` es la URL real de
+producción — la de Netlify (`incomparable-zabaione-b58c21.netlify.app`)
+sigue existiendo puertas adentro (Deploy Previews de cada PR), pero no
+hay que usarla en ningún lado más (env vars, código, ni como link para
+probar el sitio) — quedó pegada por error en varios lugares mientras
+tanto (`NEXTAUTH_URL`, `NEXT_PUBLIC_BASE_URL`, el widget embebible, el
+agente de Dragon Fish), todos ya corregidos.
 
 ## 2. Notificar a clientes por email — ✅ resuelto (2026-09-04)
 
@@ -1261,7 +1266,41 @@ Probado con Playwright contra una base Postgres real: registro
 completo, sin que aparezca ningún alert, termina en `/` mostrando
 "Hola, Sofía" ya dentro del panel de cliente.
 
-## 49. Otros pendientes menores (de sesiones previas, sin resolver)
+## 49. Último rincón con el dominio viejo de Netlify + posible login con Google roto (2026-09-15)
+
+Cecilia notó que los carteles de "creado con éxito"/"cargado con éxito"
+mostraban "incomparable-zabaione-b58c21.netlify.app" en vez de
+Retornar — eso es el navegador mostrando el sitio real en el que está
+parada (no algo que el código pueda cambiar), así que confirma que
+está entrando por la URL vieja de Netlify en vez de `retornar.com.ar`
+(seguramente un favorito/acceso directo guardado de antes).
+
+Aprovechando la revisión, encontré y corregí la causa raíz probable de
+por qué esa URL quedó pegada en tantos lugares esta sesión
+(`NEXTAUTH_URL`, `NEXT_PUBLIC_BASE_URL`, el widget, y ahora esto): el
+propio `docs/contexto-proyecto.md` (el documento que uso para arrancar
+cualquier sesión sin releer todo el código) decía literalmente que "el
+sitio de producción real" era la URL de Netlify — desactualizado desde
+que `retornar.com.ar` quedó apuntado. Corregido ahí y en el ítem 1 de
+este mismo archivo.
+
+- `dragonfish-agente/index.js`: el `FIDELIZA_BASE_URL` por defecto (si
+  se deja en blanco en el `.env` de la PC de Peperina, que es lo
+  recomendado) también apuntaba a la URL de Netlify — corregido a
+  `retornar.com.ar`.
+
+**⚠️ Encontré algo más serio revisando esto, sin confirmar todavía**:
+cuando se corrigió `NEXTAUTH_URL` (2026-09-14, ver más arriba), el
+"URI de redireccionamiento autorizado" cargado en el Cliente OAuth de
+Google Cloud Console sigue siendo el de Netlify (nunca se actualizó).
+Si es así, el botón "Iniciar sesión con Google" en producción
+probablemente esté devolviendo `Error 400: redirect_uri_mismatch`
+ahora mismo. Hace falta que Cecilia (o quien tenga acceso) entre a
+Google Cloud Console → Credenciales → Cliente OAuth "Fideliza Web" →
+agregue `https://retornar.com.ar/api/auth/callback/google` a los URIs
+autorizados. Detalle completo en `docs/contexto-proyecto.md`.
+
+## 50. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.

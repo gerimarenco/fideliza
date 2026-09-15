@@ -21,7 +21,7 @@
 // dejado las variables cargadas a mano en esa sesión de PowerShell/cmd.
 require('dotenv').config({ quiet: true })
 
-const FIDELIZA_BASE_URL = process.env.FIDELIZA_BASE_URL || 'https://incomparable-zabaione-b58c21.netlify.app'
+const FIDELIZA_BASE_URL = process.env.FIDELIZA_BASE_URL || 'https://retornar.com.ar'
 const FIDELIZA_AGENT_TOKEN = process.env.FIDELIZA_AGENT_TOKEN
 
 // Ej: http://localhost:8008/api.Dragonfish (host/puerto según "Configuración >
