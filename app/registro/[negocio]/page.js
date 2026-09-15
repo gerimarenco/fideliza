@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 
 export default function RegistroPage() {
   const params = useParams();
@@ -52,8 +53,19 @@ export default function RegistroPage() {
         return;
       }
 
-      alert('¡Cuenta creada con éxito! Ahora podés iniciar sesión.');
-      router.push('/login');
+      // La cuenta ya existe con este email/contraseña -- inicia sesión sola
+      // en vez de mandarla a /login a tipear de nuevo lo que acaba de
+      // elegir. Si por algún motivo el login automático fallara (nunca
+      // debería, son las mismas credenciales que recién se guardaron),
+      // sigue funcionando como antes: la cuenta quedó creada igual, solo
+      // que la manda a loguearse a mano.
+      const resultado = await signIn('credentials', { email, password, redirect: false });
+      if (resultado?.error) {
+        alert('¡Cuenta creada con éxito! Ahora podés iniciar sesión.');
+        router.push('/login');
+        return;
+      }
+      router.push('/');
     } catch (err) {
       setError('Ocurrió un error al registrarte. Intentá de nuevo.');
       setLoading(false);

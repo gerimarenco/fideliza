@@ -1242,7 +1242,26 @@ después de futuros cambios. Quien ya lo tenía cacheado (como el
 hermano de Cecilia en este caso) todavía necesita un refresco forzado
 una vez.
 
-## 48. Otros pendientes menores (de sesiones previas, sin resolver)
+## 48. Login automático después de registrarse (2026-09-15)
+
+El hermano de Cecilia se registró y notó que, después de crear la
+cuenta, lo mandaba a `/login` a tipear de nuevo el email/contraseña que
+acababa de elegir — un paso de más e innecesario, ya que esos datos
+recién se guardaron.
+
+`app/registro/[negocio]/page.js` ahora llama a `signIn('credentials',
+{ email, password, redirect: false })` con esas mismas credenciales
+apenas el registro se confirma, y manda a `/` en vez de a `/login` — la
+clienta cae directo en su panel ya logueada, sin ningún paso extra. Si
+por algún motivo ese login automático fallara (no debería, son las
+credenciales que recién se guardaron), sigue el comportamiento de antes
+como respaldo: aviso de cuenta creada y redirección a `/login`.
+
+Probado con Playwright contra una base Postgres real: registro
+completo, sin que aparezca ningún alert, termina en `/` mostrando
+"Hola, Sofía" ya dentro del panel de cliente.
+
+## 49. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
