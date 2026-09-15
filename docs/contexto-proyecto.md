@@ -266,7 +266,21 @@ técnico, por Google Cloud Console y Netlify):
   Builds+Functions+Runtime, necesario para que la API route de login
   pueda usarlo en tiempo de ejecución, no solo en el build).
 - `NEXTAUTH_URL` agregada (no existía) con el valor de producción.
-- Validado en producción real: login con un email sin cuenta → rechazado
+
+⚠️ **`NEXTAUTH_URL` se corrigió después (2026-09-14) a `https://retornar.com.ar`**
+(estaba mal cargada apuntando a `incomparable-zabaione-b58c21.netlify.app`,
+ver `docs/tareas-futuras.md`) — pero el "URI de redireccionamiento
+autorizado" en el Cliente OAuth de Google Cloud (arriba) sigue siendo el
+de Netlify, nunca se actualizó. Si nadie lo corrigió mientras tanto, el
+botón "Iniciar sesión con Google" en producción probablemente esté roto
+de nuevo con el mismo error (`redirect_uri_mismatch`), ahora con
+`redirect_uri=https://retornar.com.ar/...` en vez de `localhost`. Hay
+que entrar a Google Cloud Console → Credenciales → el Cliente OAuth
+"Fideliza Web" → agregar `https://retornar.com.ar/api/auth/callback/google`
+a los URIs de redireccionamiento autorizados (se puede dejar el de
+Netlify también, no hace falta borrarlo).
+
+- Validado en producción real (en su momento): login con un email sin cuenta → rechazado
   con el mensaje esperado en español. Login exitoso (email que sí
   coincide con una cuenta) queda para probar cuando haga falta.
 
@@ -377,10 +391,18 @@ completa en `dragonfish-agente/README.md`.
   Deploy Previews automáticos por cada PR (`deploy-preview-N--
   incomparable-zabaione-b58c21.netlify.app`) — **importante**: un link de
   preview queda congelado en el momento en que ese PR se cierra/mergea,
-  no se actualiza más aunque seguamos mergeando código a `main` después.
+  no se actualiza más aunque sigamos mergeando código a `main` después.
   El sitio de producción real (el que hay que usar para probar el estado
-  actual) es **`https://incomparable-zabaione-b58c21.netlify.app`**, sin
-  ningún prefijo.
+  actual) es **`https://retornar.com.ar`** — el dominio propio ya está
+  apuntado (DNS delegado en NIC.ar a los nameservers de Netlify, ver más
+  abajo). `incomparable-zabaione-b58c21.netlify.app` sigue existiendo
+  como URL interna de Netlify (la usan los Deploy Previews), pero
+  **nunca hay que hardcodearla en código ni en variables de entorno de
+  producción** — ya pasó más de una vez (`NEXTAUTH_URL`,
+  `NEXT_PUBLIC_BASE_URL`, el widget embebible, el agente de Dragon
+  Fish) que quedó pegada ahí por error y rompió cosas de forma confusa
+  (login que termina en el dominio equivocado, carteles de "creado con
+  éxito" mostrando ese nombre en vez de Retornar).
 
 ### Estado de la cuenta de Netlify (resuelto el 2026-08-25)
 
