@@ -55,13 +55,15 @@ export default function RegistroPage() {
 
       // La cuenta ya existe con este email/contraseña -- inicia sesión sola
       // en vez de mandarla a /login a tipear de nuevo lo que acaba de
-      // elegir. Si por algún motivo el login automático fallara (nunca
-      // debería, son las mismas credenciales que recién se guardaron),
-      // sigue funcionando como antes: la cuenta quedó creada igual, solo
-      // que la manda a loguearse a mano.
+      // elegir. Sin ningún alert() bloqueante en el medio: a Cecilia y a
+      // su hermano les molestaba el cartelito de "cuenta creada con
+      // éxito" interrumpiendo el paso a la app, sin importar qué dijera.
+      // Si por algún motivo el login automático fallara (nunca debería,
+      // son las mismas credenciales que recién se guardaron), la cuenta
+      // quedó creada igual -- solo la manda a /login sin ningún aviso de
+      // por medio, ahí puede entrar a mano.
       const resultado = await signIn('credentials', { email, password, redirect: false });
       if (resultado?.error) {
-        alert('¡Cuenta creada con éxito! Ahora podés iniciar sesión.');
         router.push('/login');
         return;
       }

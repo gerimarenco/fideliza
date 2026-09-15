@@ -1257,14 +1257,19 @@ recién se guardaron.
 `app/registro/[negocio]/page.js` ahora llama a `signIn('credentials',
 { email, password, redirect: false })` con esas mismas credenciales
 apenas el registro se confirma, y manda a `/` en vez de a `/login` — la
-clienta cae directo en su panel ya logueada, sin ningún paso extra. Si
-por algún motivo ese login automático fallara (no debería, son las
-credenciales que recién se guardaron), sigue el comportamiento de antes
-como respaldo: aviso de cuenta creada y redirección a `/login`.
+clienta cae directo en su panel ya logueada, sin ningún paso extra.
 
 Probado con Playwright contra una base Postgres real: registro
 completo, sin que aparezca ningún alert, termina en `/` mostrando
 "Hola, Sofía" ya dentro del panel de cliente.
+
+**Actualización (mismo día)**: el hermano de Cecilia igual vio un
+cartel de "¡Cuenta creada con éxito!" — eso salía del *respaldo* que
+quedaba por si el login automático llegaba a fallar (`alert(...)`
+antes de mandar a `/login`). A los dos les molestaba el cartel en sí,
+sin importar qué dijera. Se sacó ese `alert()`: si el login automático
+llegara a fallar, ahora manda a `/login` en silencio, sin ningún aviso
+de por medio (la cuenta queda creada igual).
 
 ## 49. Último rincón con el dominio viejo de Netlify + posible login con Google roto (2026-09-15)
 
