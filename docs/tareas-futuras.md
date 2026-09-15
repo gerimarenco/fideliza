@@ -1217,7 +1217,32 @@ más invasivo), un campo de nombre no suma fricción real al registro.
   completo con "Julieta" / "Gómez" en los dos campos, confirmado en la
   base que quedó guardado como `"Julieta Gómez"`.
 
-## 47. Otros pendientes menores (de sesiones previas, sin resolver)
+## 47. Cache-Control: no-store en las pantallas públicas (2026-09-15)
+
+Apenas mergeado el ítem 46, el hermano de Cecilia probó registrarse y le
+apareció el formulario VIEJO (sin los campos de Nombre/Apellido) pero
+con el error NUEVO ("Nombre, email y contraseña son obligatorios.") —
+su navegador tenía guardada una versión vieja de `/registro/[negocio]`
+(sin los campos nuevos) pero el POST le pegó al backend ya actualizado
+(que sí exige `nombre`), un combo imposible de entender para quien lo
+sufre. Mismo tipo de confusión que ya había pasado con el redirect de
+`/login` (ítem 38) unos días antes — pasó dos veces en la misma sesión.
+
+Se agregó `Cache-Control: no-store` (`next.config.mjs`, `headers()`)
+para `/login`, `/registro/[negocio]` y `/club/[negocio]` -- las tres
+pantallas de cara a alguien que todavía no tiene sesión iniciada, y por
+lo tanto no sabe que existe un botón de "recargar forzado" cuando algo
+no cuadra. No cubre el panel de negocio/admin/cliente (ahí si hace
+falta se lo puedo pedir yo directamente a quien lo esté viendo).
+
+Confirmado con `next build && next start` + `curl -I` que las tres
+rutas devuelven el header. **Esto no borra lo que el navegador de una
+visita anterior ya tenía guardado** — solo previene que vuelva a pasar
+después de futuros cambios. Quien ya lo tenía cacheado (como el
+hermano de Cecilia en este caso) todavía necesita un refresco forzado
+una vez.
+
+## 48. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
