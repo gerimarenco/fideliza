@@ -689,7 +689,6 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
-      alert(formRegaloCumpleanos ? '✅ Regalo de cumpleaños activado' : '✅ Regalo de cumpleaños desactivado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
