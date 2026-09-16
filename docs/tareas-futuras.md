@@ -1305,7 +1305,21 @@ Google Cloud Console → Credenciales → Cliente OAuth "Fideliza Web" →
 agregue `https://retornar.com.ar/api/auth/callback/google` a los URIs
 autorizados. Detalle completo en `docs/contexto-proyecto.md`.
 
-## 50. Otros pendientes menores (de sesiones previas, sin resolver)
+## 50. Sacar el cartel de confirmación al guardar el regalo de cumpleaños (2026-09-16)
+
+Cecilia cambió los puntos de regalo de cumpleaños desde el panel del
+negocio y le apareció un cartel de confirmación ("✅ Regalo de
+cumpleaños activado/desactivado") — mismo reclamo que en el ítem 48
+con el registro: no importa qué diga el cartel, no lo quiere, prefiere
+que guarde y listo. Se sacó ese `alert()` de
+`guardarRegaloCumpleanos` en `app/page.js`; los `alert()` de error (si
+falla el guardado) se dejaron, esos sí son necesarios para que sepa
+que algo salió mal.
+
+No se tocaron los demás `alert()` del panel (hay varios más, para
+otras acciones de guardado) — el pedido fue puntual sobre este botón.
+
+## 51. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
