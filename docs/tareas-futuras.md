@@ -1319,6 +1319,29 @@ que algo salió mal.
 No se tocaron los demás `alert()` del panel (hay varios más, para
 otras acciones de guardado) — el pedido fue puntual sobre este botón.
 
+**Actualización (2026-09-16)**: Cecilia pidió una revisión completa —
+"no debería aparecer ningún cartel nunca". Se hizo una barrida por todo
+`app/page.js` y se sacaron los 6 `alert()` de pura confirmación que
+quedaban, todos con el mismo patrón (guardar algo en Ajustes y avisar
+que se guardó, sin agregar información nueva): Integraciones, Puntos
+por peso, Programa de referidos, Vencimiento de puntos, Mensaje de
+registro y Sitio web. Ahora esas seis acciones guardan y listo, sin
+ningún cartel.
+
+**A propósito se dejaron sin tocar** los `alert()` que no son una
+simple confirmación, porque muestran información que hay que leer o
+copiar en el momento (no se puede recuperar después si se cierra el
+cartel sin querer):
+- La contraseña generada al crear un cliente o un negocio nuevo.
+- El token del agente de Dragon Fish al generarlo (se muestra una sola
+  vez, no se puede volver a ver).
+- El comprobante de canje de un premio (cupón de Tiendanube o aviso de
+  "mostrale esto al negocio") — la clienta lo necesita para anotarlo o
+  mostrarlo, no que desaparezca solo.
+- Los avisos de error (`❌ ...`) y de validación de formulario (ej.
+  "tiene que ser mayor a 0") — necesitan que alguien los lea para
+  corregir algo, no son un simple "listo".
+
 ## 51. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅

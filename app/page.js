@@ -614,7 +614,6 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
-      alert('✅ Integraciones actualizadas');
       setFormIntegraciones(f => ({ ...f, tiendanubeAccessToken: '' }));
       cargarNegocios();
     } catch (err) {
@@ -666,7 +665,6 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
-      alert('✅ Puntos por peso actualizados');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -711,7 +709,6 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
-      alert(formPuntosReferido ? '✅ Programa de referidos activado' : '✅ Programa de referidos desactivado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -734,7 +731,6 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
-      alert(formVencimientoPuntos ? '✅ Vencimiento de puntos activado' : '✅ Vencimiento de puntos desactivado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -753,7 +749,6 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
-      alert('✅ Mensaje de registro actualizado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -772,7 +767,6 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
-      alert(formSitioWeb ? '✅ Sitio web guardado' : '✅ Sitio web sacado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
