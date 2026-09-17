@@ -6,6 +6,12 @@ import { nombreClub } from '@/lib/nombreClub';
 import { esCumpleanosHoy, diasHastaProximoCumpleanos } from '@/lib/cumpleanos';
 import { descripcionNiveles, formatearMiles } from '@/lib/clienteStats';
 import { calcularPuntosPorCompra } from '@/lib/puntos';
+import { ICONOS_PREMIO, IconoPremio } from '@/lib/premioIconos';
+import {
+  Home as HomeIcon, Store, Users, Gift, Star, RefreshCw, Plug, Settings, LogOut, Shield,
+  AlertTriangle, MessageCircle, ScrollText, KeyRound, ClipboardList, Cake,
+  ShoppingBag, Hourglass, Link as LinkIcon, Ticket, Info,
+} from 'lucide-react';
 
 // Paleta por defecto (clara) del panel de negocio y del panel de cliente.
 // Un negocio con marca propia (ej. Peperina) puede sobreescribir cualquiera
@@ -865,6 +871,35 @@ export default function Home() {
     <span className="fid-spinner" style={{ width: size, height: size, color: color || tema.primario }} />
   );
 
+  // Grilla para elegir el ícono de un premio (ver lib/premioIconos.js) en vez
+  // de tipear un emoji a mano.
+  const SelectorIconoPremio = ({ value, onChange }) => (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+      {ICONOS_PREMIO.map(({ clave, Icono }) => (
+        <button
+          key={clave}
+          type="button"
+          onClick={() => onChange(clave)}
+          title={clave}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            border: `1px solid ${value === clave ? tema.primario : tema.borde}`,
+            background: value === clave ? tema.primario : tema.superficie,
+            color: value === clave ? tema.primarioTexto : tema.texto,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <Icono size={16} strokeWidth={2} />
+        </button>
+      ))}
+    </div>
+  );
+
   // Confirmación visual breve para acciones que se guardan bien o fallan.
   // Colores fijos (no atados a `tema`) para verse igual en el chrome del
   // Admin, que nunca se tematiza, y en los paneles de negocio/cliente.
@@ -924,12 +959,12 @@ export default function Home() {
         {canjesData && canjesData.items.length === 0 && <div style={{ fontSize: 13, color: tema.textoSecundario }}>Todavía no hay canjes.</div>}
         {canjesData?.items.map(c => (
           <div key={c.id} className="fid-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: `1px solid ${tema.borde}` }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{c.premio.emoji}</div>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconoPremio nombre={c.premio.emoji} size={16} /></div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.premio.nombre}</div>
               <div style={{ fontSize: 11, color: tema.textoSecundario, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.cliente.nombre || c.cliente.email} · {new Date(c.createdAt).toLocaleDateString('es-AR')}</div>
-              {c.tiendanubeCuponCodigo && <div style={{ fontSize: 11, color: '#16a34a', marginTop: 2 }}>🎟️ Cupón: {c.tiendanubeCuponCodigo}</div>}
-              {c.tiendanubeCuponError && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 2 }}>⚠️ {c.tiendanubeCuponError} — entregar el descuento a mano</div>}
+              {c.tiendanubeCuponCodigo && <div style={{ fontSize: 11, color: '#16a34a', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}><Ticket size={11} /> Cupón: {c.tiendanubeCuponCodigo}</div>}
+              {c.tiendanubeCuponError && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={11} /> {c.tiendanubeCuponError} — entregar el descuento a mano</div>}
             </div>
             <div style={{ fontSize: 12, fontWeight: 500, background: tema.resaltado, color: tema.texto, padding: '4px 10px', borderRadius: 20, flexShrink: 0 }}>
               {c.premio.puntos} pts
@@ -1111,7 +1146,7 @@ export default function Home() {
       {mostrarFormPremio && (
         <div style={{ marginBottom: 20, background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.primario}`, padding: 20 }}>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Nuevo premio</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: 12, marginBottom: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
               <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Nombre *</label>
               <input value={nuevoPremio.nombre} onChange={e => setNuevoPremio({...nuevoPremio, nombre: e.target.value})} placeholder="Café gratis" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
@@ -1120,10 +1155,10 @@ export default function Home() {
               <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Puntos *</label>
               <input type="number" value={nuevoPremio.puntos} onChange={e => setNuevoPremio({...nuevoPremio, puntos: e.target.value})} placeholder="100" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
             </div>
-            <div>
-              <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Emoji *</label>
-              <input value={nuevoPremio.emoji} onChange={e => setNuevoPremio({...nuevoPremio, emoji: e.target.value})} placeholder="☕" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
-            </div>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Ícono *</label>
+            <SelectorIconoPremio value={nuevoPremio.emoji} onChange={clave => setNuevoPremio({...nuevoPremio, emoji: clave})} />
           </div>
           <div style={{ fontSize: 12, color: tema.textoSecundario, marginBottom: 8 }}>Integración con Tiendanube (opcional) — completá ID de producto para un premio que da un producto puntual, o % de descuento para uno de descuento en toda la tienda. No hace falta cargar ninguno de los dos.</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: 12, marginBottom: 12 }}>
@@ -1154,7 +1189,7 @@ export default function Home() {
         {premiosData?.items.map(p => (
           <div key={p.id} className="fid-row-hover" style={{ padding: '10px 0', borderBottom: `1px solid ${tema.borde}`, opacity: p.activo ? 1 : 0.6 }}>
             {premioEditandoId === p.id ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px auto', gap: 10, alignItems: 'end' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, alignItems: 'end' }}>
                 <div>
                   <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Nombre</label>
                   <input value={formEdicionPremio.nombre} onChange={e => setFormEdicionPremio({...formEdicionPremio, nombre: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
@@ -1163,13 +1198,13 @@ export default function Home() {
                   <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Puntos</label>
                   <input type="number" value={formEdicionPremio.puntos} onChange={e => setFormEdicionPremio({...formEdicionPremio, puntos: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
                 </div>
-                <div>
-                  <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Emoji</label>
-                  <input value={formEdicionPremio.emoji} onChange={e => setFormEdicionPremio({...formEdicionPremio, emoji: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
-                </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button className="fid-btn-primary" onClick={guardarEdicionPremio} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: 'none', background: tema.primario, color: tema.primarioTexto, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
                   <button className="fid-btn-secondary" onClick={() => setPremioEditandoId(null)} style={{ fontSize: 12, padding: '8px 14px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.textoSecundario, cursor: 'pointer' }}>Cancelar</button>
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Ícono</label>
+                  <SelectorIconoPremio value={formEdicionPremio.emoji} onChange={clave => setFormEdicionPremio({...formEdicionPremio, emoji: clave})} />
                 </div>
                 <div style={{ gridColumn: '1 / -1', fontSize: 11, color: tema.textoSecundario, marginTop: 8 }}>Integración con Tiendanube (opcional)</div>
                 <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: 10 }}>
@@ -1189,16 +1224,18 @@ export default function Home() {
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{p.emoji}</div>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconoPremio nombre={p.emoji} size={16} /></div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 500 }}>{p.nombre}{!p.activo && <span style={{ marginLeft: 8, fontSize: 11, color: tema.textoSecundario }}>(desactivado)</span>}</div>
                   <div style={{ fontSize: 11, color: tema.textoSecundario }}>
                     {p.puntos} puntos
                     {p.tiendanubeProductoId && ' · con precio de Tiendanube'}
                     {p.tiendanubeProductoUrl && (
-                      <> · <a href={p.tiendanubeProductoUrl} target="_blank" rel="noopener noreferrer" style={{ color: tema.primario }}>🔗 ver producto</a></>
+                      <> · <a href={p.tiendanubeProductoUrl} target="_blank" rel="noopener noreferrer" style={{ color: tema.primario, display: 'inline-flex', alignItems: 'center', gap: 3 }}><LinkIcon size={11} /> ver producto</a></>
                     )}
-                    {p.tiendanubeDescuentoPorcentaje ? ` · 🎟️ cupón ${p.tiendanubeDescuentoPorcentaje}%` : ''}
+                    {p.tiendanubeDescuentoPorcentaje ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}> · <Ticket size={11} /> cupón {p.tiendanubeDescuentoPorcentaje}%</span>
+                    ) : ''}
                   </div>
                 </div>
                 <button className="fid-btn-secondary" onClick={() => iniciarEdicionPremio(p)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.textoSecundario, cursor: 'pointer' }}>Editar</button>
@@ -1374,7 +1411,7 @@ export default function Home() {
           veían "prácticamente iguales" una vez adentro de un negocio. */}
       {onVolver && (
         <div style={{ padding: '6px 24px', background: '#111827', color: '#c7d2fe', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
-          🛡️ Estás viendo esto como administrador, no como {negocio.nombre}
+          <Shield size={14} /> Estás viendo esto como administrador, no como {negocio.nombre}
         </div>
       )}
       {tema.imagenPortada && (
@@ -1479,7 +1516,7 @@ export default function Home() {
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Premios configurados</div>
               {negocio.premios?.map(p => (
                 <div key={p.id} className="fid-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{p.emoji}</div>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconoPremio nombre={p.emoji} size={16} /></div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 500 }}>{p.nombre}</div>
                     <div style={{ fontSize: 11, color: tema.textoSecundario }}>{p.puntos} puntos</div>
@@ -1557,13 +1594,13 @@ export default function Home() {
           {mostrarMenuCliente && (
             <div style={{ position: 'absolute', top: '100%', right: 20, marginTop: 4, zIndex: 20, background: tema.superficie, border: `1px solid ${tema.borde}`, borderRadius: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', minWidth: 230, overflow: 'hidden' }}>
               {negocioDelCliente.puntosReferido && (
-                <div className="fid-row-hover" onClick={() => { setModalCliente('referidos'); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>🎁 Referí a una amiga</div>
+                <div className="fid-row-hover" onClick={() => { setModalCliente('referidos'); setMostrarMenuCliente(false); }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}><Gift size={15} /> Referí a una amiga</div>
               )}
-              <div className="fid-row-hover" onClick={() => { setModalCliente('movimientos'); setMovimientosClientePagina(1); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>📜 Mis movimientos</div>
-              <div className="fid-row-hover" onClick={() => { setModalCliente('info'); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>ℹ️ Cómo funcionan los puntos</div>
-              <div className="fid-row-hover" onClick={() => { setModalCliente('password'); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>🔑 Cambiar contraseña</div>
-              <div className="fid-row-hover" onClick={() => { setModalCliente('bases'); setMostrarMenuCliente(false); }} style={{ padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}>📋 Bases y condiciones</div>
-              <a href={`mailto:${EMAIL_SOPORTE}`} onClick={() => setMostrarMenuCliente(false)} className="fid-row-hover" style={{ display: 'block', padding: '12px 16px', fontSize: 13, color: tema.texto, textDecoration: 'none' }}>💬 Contactar soporte</a>
+              <div className="fid-row-hover" onClick={() => { setModalCliente('movimientos'); setMovimientosClientePagina(1); setMostrarMenuCliente(false); }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}><ScrollText size={15} /> Mis movimientos</div>
+              <div className="fid-row-hover" onClick={() => { setModalCliente('info'); setMostrarMenuCliente(false); }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}><Info size={15} /> Cómo funcionan los puntos</div>
+              <div className="fid-row-hover" onClick={() => { setModalCliente('password'); setMostrarMenuCliente(false); }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}><KeyRound size={15} /> Cambiar contraseña</div>
+              <div className="fid-row-hover" onClick={() => { setModalCliente('bases'); setMostrarMenuCliente(false); }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}><ClipboardList size={15} /> Bases y condiciones</div>
+              <a href={`mailto:${EMAIL_SOPORTE}`} onClick={() => setMostrarMenuCliente(false)} className="fid-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', fontSize: 13, color: tema.texto, textDecoration: 'none' }}><MessageCircle size={15} /> Contactar soporte</a>
             </div>
           )}
         </div>
@@ -1627,7 +1664,9 @@ export default function Home() {
                 )}
                 {movimientosClienteData?.items.map((m) => (
                   <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: `1px solid ${tema.borde}` }}>
-                    <span style={{ fontSize: 18 }}>{m.emoji}</span>
+                    <span style={{ display: 'flex', color: tema.textoSecundario }}>
+                      {m.tipo === 'canje' ? <IconoPremio nombre={m.premioIcono} size={18} /> : m.tipo === 'vencimiento' ? <Hourglass size={18} /> : m.tipo === 'cumpleanos' ? <Cake size={18} /> : <ShoppingBag size={18} />}
+                    </span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13 }}>{m.descripcion}</div>
                       <div style={{ fontSize: 11, color: tema.textoSecundario }}>{new Date(m.fecha).toLocaleDateString('es-AR')}</div>
@@ -1727,12 +1766,12 @@ export default function Home() {
           )}
           {premiosDisponibles.map(p => (
             <div key={p.id} className="fid-card-hover" style={{ background: tema.superficie, border: '1px solid #22c55e', borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{p.emoji}</div>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconoPremio nombre={p.emoji} size={18} /></div>
               <div style={{ flex: 1 }}>
                 {/* "Click en un premio → lleva al producto en Tiendanube" (Grupo 7): solo
                     clickeable cuando el negocio cargó una URL de producto para este premio. */}
                 {p.tiendanubeProductoUrl ? (
-                  <a href={p.tiendanubeProductoUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: tema.texto, textDecoration: 'none' }}>{p.nombre} 🔗</a>
+                  <a href={p.tiendanubeProductoUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: tema.texto, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{p.nombre} <LinkIcon size={12} /></a>
                 ) : (
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
                 )}
@@ -1752,10 +1791,10 @@ export default function Home() {
           <div style={{ fontSize: 14, fontWeight: 600, margin: '20px 0 10px' }}>Próximos premios</div>
           {premiosBloqueados.map(p => (
             <div key={p.id} style={{ background: tema.superficie, border: `1px solid ${tema.borde}`, borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, opacity: 0.7 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{p.emoji}</div>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f5f5f5', color: tema.textoSecundario, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconoPremio nombre={p.emoji} size={18} /></div>
               <div style={{ flex: 1 }}>
                 {p.tiendanubeProductoUrl ? (
-                  <a href={p.tiendanubeProductoUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: tema.texto, textDecoration: 'none' }}>{p.nombre} 🔗</a>
+                  <a href={p.tiendanubeProductoUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 600, color: tema.texto, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>{p.nombre} <LinkIcon size={12} /></a>
                 ) : (
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{p.nombre}</div>
                 )}
@@ -1804,7 +1843,7 @@ export default function Home() {
               <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>Panel de administrador</div>
             </div>
             <div className="fid-sidebar-nav" style={{ padding: '12px 8px', flex: 1 }}>
-              {[['🏠', 'Inicio', 'inicio'], ['🏪', 'Negocios', 'negocios'], ['👥', 'Clientes', 'clientes'], ['🎁', 'Premios', 'premios'], ['⭐', 'Puntos y canjes', 'canjes'], ['🔌', 'Integraciones', 'integraciones'], ['⚙️', 'Ajustes', 'ajustes']].map(([icon, label, id]) => {
+              {[[HomeIcon, 'Inicio', 'inicio'], [Store, 'Negocios', 'negocios'], [Users, 'Clientes', 'clientes'], [Gift, 'Premios', 'premios'], [Star, 'Puntos y canjes', 'canjes'], [Plug, 'Integraciones', 'integraciones'], [Settings, 'Ajustes', 'ajustes']].map(([Icono, label, id]) => {
                 const activo = id === 'negocios' ? !negocioActivo : (!!id && seccionActiva === id);
                 return (
                   <div
@@ -1813,7 +1852,7 @@ export default function Home() {
                     onClick={id ? () => (id === 'negocios' ? volverANegocios() : setSeccionActiva(id)) : undefined}
                     style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: activo ? '#c7d2fe' : '#9ca3af', background: activo ? '#1f2937' : undefined, cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
                   >
-                    {icon} <span className="fid-sidebar-label">{label}</span>
+                    <Icono size={16} /> <span className="fid-sidebar-label">{label}</span>
                   </div>
                 );
               })}
@@ -1823,7 +1862,7 @@ export default function Home() {
                 <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#312e81', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#c7d2fe' }}>C</div>
                 {session?.user?.name} · Admin
               </div>
-              <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #374151', background: '#1f2937', color: '#f87171', cursor: 'pointer', width: '100%' }}>🚪 <span className="fid-sidebar-label">Cerrar sesión</span></button>
+              <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #374151', background: '#1f2937', color: '#f87171', cursor: 'pointer', width: '100%' }}><LogOut size={14} /> <span className="fid-sidebar-label">Cerrar sesión</span></button>
             </div>
           </div>
 
@@ -1984,14 +2023,14 @@ export default function Home() {
               <div style={{ fontSize: 11, color: tema.textoSecundario, marginTop: 2 }}>Panel del negocio</div>
             </div>
             <div className="fid-sidebar-nav" style={{ padding: '12px 8px', flex: 1 }}>
-              {[['🏠', 'Inicio', 'inicio'], ['👥', 'Mis clientes', 'clientes'], ['🎁', 'Premios', 'premios'], ['🔄', 'Canjes', 'canjes'], ['🔌', 'Integraciones', 'integraciones'], ['⚙️', 'Ajustes', 'ajustes']].map(([icon, label, id]) => (
+              {[[HomeIcon, 'Inicio', 'inicio'], [Users, 'Mis clientes', 'clientes'], [Gift, 'Premios', 'premios'], [RefreshCw, 'Canjes', 'canjes'], [Plug, 'Integraciones', 'integraciones'], [Settings, 'Ajustes', 'ajustes']].map(([Icono, label, id]) => (
                 <div
                   key={label}
                   className={id ? 'fid-sidebar-item' : undefined}
                   onClick={id ? () => setSeccionActiva(id) : undefined}
                   style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: seccionActiva === id ? tema.primario : tema.textoSecundario, background: seccionActiva === id ? tema.borde : undefined, cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
                 >
-                  {icon} <span className="fid-sidebar-label">{label}</span>
+                  <Icono size={16} /> <span className="fid-sidebar-label">{label}</span>
                 </div>
               ))}
             </div>
@@ -2002,7 +2041,7 @@ export default function Home() {
                 </div>
                 {session?.user?.name}
               </div>
-              <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: '#ef4444', cursor: 'pointer', width: '100%' }}>🚪 <span className="fid-sidebar-label">Cerrar sesión</span></button>
+              <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: '#ef4444', cursor: 'pointer', width: '100%' }}><LogOut size={14} /> <span className="fid-sidebar-label">Cerrar sesión</span></button>
             </div>
           </div>
 

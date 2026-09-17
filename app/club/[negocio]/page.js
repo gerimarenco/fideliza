@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
+import { ShoppingBag, Gift, Cake } from 'lucide-react';
 
 // Paso intermedio antes de /registro/[negocio]: pensada para linkear desde
 // afuera de Retornar (ej. un ítem de menú en la tienda online del negocio)
@@ -53,15 +54,15 @@ export default function ClubLandingPage() {
 
         <div style={{ display: 'grid', gap: 14, textAlign: 'left', marginBottom: 32 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: '#fff', padding: '14px 16px', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-            <span style={{ fontSize: 22 }}>🛍️</span>
+            <span style={{ color: primario, display: 'flex', flexShrink: 0 }}><ShoppingBag size={22} /></span>
             <span style={{ fontSize: 14, color: '#374151' }}>Sumás puntos con cada compra</span>
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: '#fff', padding: '14px 16px', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-            <span style={{ fontSize: 22 }}>🎁</span>
+            <span style={{ color: primario, display: 'flex', flexShrink: 0 }}><Gift size={22} /></span>
             <span style={{ fontSize: 14, color: '#374151' }}>Canjealos por premios y prendas seleccionadas</span>
           </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: '#fff', padding: '14px 16px', borderRadius: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-            <span style={{ fontSize: 22 }}>🎂</span>
+            <span style={{ color: primario, display: 'flex', flexShrink: 0 }}><Cake size={22} /></span>
             <span style={{ fontSize: 14, color: '#374151' }}>Disfrutá beneficios y sorpresas especiales</span>
           </div>
         </div>

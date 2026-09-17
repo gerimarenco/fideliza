@@ -1342,7 +1342,59 @@ cartel sin querer):
   "tiene que ser mayor a 0") — necesitan que alguien los lea para
   corregir algo, no son un simple "listo".
 
-## 51. Otros pendientes menores (de sesiones previas, sin resolver)
+## 51. Reemplazo de emojis por íconos SVG (Lucide) en el menú y los premios (2026-09-17)
+
+Pedido de mejora de "producto terminado" en vez de "proyecto personal":
+los emojis como iconografía se ven distinto en cada dispositivo/sistema
+operativo (Windows, iOS, Android, cada uno tiene su propio dibujo para
+el mismo emoji) y rompen la coherencia visual — el ejemplo puntual eran
+los íconos de los premios (🎀 📦 👜, cargados a mano por Cecilia al
+crear cada premio). Se sumó `lucide-react` (SVG, gratis, MIT, sin
+dependencias) y se reemplazaron por un set consistente en dos frentes:
+
+- **El ícono de cada premio** (`Premio.emoji` en la base — se dejó el
+  nombre de la columna para no tocar el schema, pero ahora guarda una
+  clave como `"gift"` o `"shopping-bag"` en vez de un emoji literal):
+  el input de texto libre para tipear el emoji se reemplazó por una
+  grilla de 16 íconos para elegir (`lib/premioIconos.js`,
+  `SelectorIconoPremio` en `app/page.js`), en el alta y la edición de
+  premios. Se actualizaron los 5 lugares donde se mostraba el ícono del
+  premio (lista de premios del negocio/admin, "Premios disponibles" y
+  "Próximos premios" del panel del cliente, historial de canjes, "Mis
+  movimientos") para usar el nuevo componente `IconoPremio`.
+  **Los premios ya cargados con un emoji de antes siguen andando sin
+  que nadie tenga que volver a editarlos**: `IconoPremio` traduce los
+  emoji más comunes (🎀, 📦, 👜, ☕, etc.) a su ícono más parecido con
+  una tabla de equivalencias, y si no reconoce ninguno usa un ícono de
+  regalo por defecto — nunca se rompe ni queda vacío.
+- **El menú de navegación**: las dos barras laterales (panel de Admin y
+  panel de Negocio) y el menú ⋮ del panel del cliente, que antes
+  usaban emojis fijos (🏠 🎁 ⚙️ 🔑 etc.) ahora usan los mismos íconos
+  de Lucide directamente en el código (sin picker, son fijos). También
+  se actualizaron con el mismo criterio: el botón "Cerrar sesión", el
+  cartelito "Estás viendo esto como administrador", el link "ver
+  producto"/cupón de Tiendanube en la lista de premios, y los tres
+  íconos de la mini-landing `/club/[negocio]` (sumar puntos / canjear
+  premios / sorpresas).
+
+**A propósito no se tocó** (mismo criterio de no ampliar el pedido más
+de lo pedido): el emoji propio de cada *negocio* (`Negocio.emoji`,
+ej. el 👗 al lado de "Peperina" en el panel), que es una elección de
+marca por negocio distinta al problema de iconografía repetida — si
+más adelante se quiere el mismo tratamiento, es un cambio chico
+adicional sobre lo mismo. Tampoco los emojis sueltos dentro de textos
+que se mandan afuera de la app (el mensaje sugerido de WhatsApp, los
+títulos de la pantalla de conexión con Tiendanube) ni los del panel de
+estadísticas de clientes (aviso de inactividad, botón de WhatsApp) —
+esos no son "iconografía" de la interfaz, son parte del texto en sí.
+
+Probado localmente con Postgres + Playwright: se creó un premio nuevo
+eligiendo un ícono de la grilla, quedó guardado y mostrado
+correctamente en las cuatro pantallas donde aparece, y los premios ya
+cargados en el seed (con emoji viejo) se vieron con su ícono
+equivalente sin tocarlos.
+
+## 52. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
