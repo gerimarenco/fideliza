@@ -47,9 +47,8 @@ export async function GET(request) {
       id: `mov-${m.id}`,
       fecha: m.createdAt,
       puntos: m.puntos,
-      tipo: m.origen === 'vencimiento' ? 'vencimiento' : 'credito',
+      tipo: m.origen === 'vencimiento' ? 'vencimiento' : (m.origen === 'cumpleanos' ? 'cumpleanos' : 'compra'),
       descripcion: m.origen === 'vencimiento' ? 'Vencimiento de puntos' : (ORIGEN_A_DESCRIPCION[m.origen] || 'Puntos acreditados'),
-      emoji: m.origen === 'vencimiento' ? '⏳' : (m.origen === 'cumpleanos' ? '🎂' : '🛍️'),
     })),
     ...canjes.map((c) => ({
       id: `canje-${c.id}`,
@@ -57,7 +56,7 @@ export async function GET(request) {
       puntos: -c.premio.puntos,
       tipo: 'canje',
       descripcion: `Canjeaste "${c.premio.nombre}"`,
-      emoji: c.premio.emoji || '🎁',
+      premioIcono: c.premio.emoji,
     })),
   ].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 
