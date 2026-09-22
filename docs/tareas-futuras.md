@@ -1394,7 +1394,46 @@ correctamente en las cuatro pantallas donde aparece, y los premios ya
 cargados en el seed (con emoji viejo) se vieron con su ícono
 equivalente sin tocarlos.
 
-## 52. Otros pendientes menores (de sesiones previas, sin resolver)
+## 52. Sacar la creación automática de cuenta desde Dragon Fish (2026-09-22)
+
+Probando el agente de Dragon Fish en la PC de Peperina (backlog de ventas
+viejas acumuladas), Cecilia se dio cuenta de un problema de fondo: cuando
+una venta traía el email de alguien sin cuenta en Retornar todavía, el
+sistema le creaba la cuenta sola y le mandaba un mail de bienvenida con
+una contraseña generada — sin que esa persona se haya registrado ni
+sepa que existe Retornar. El pedido explícito fue sacar eso: no quiere
+que el negocio tenga que pedirle el email a cada clienta en el mostrador
+para que esto funcione, y sobre todo no quiere que alguien se entere
+"de sorpresa" de que tiene una cuenta con su mail en una página de
+fidelización sin haber elegido sumarse.
+
+Se sacó la creación automática de cuenta de
+`app/api/dragonfish/resolver/route.js`: ahora, si la venta es de alguien
+sin cuenta en Retornar (no matchea por email ni teléfono), la factura
+queda marcada `sin_cliente` y no pasa nada más — ni cuenta, ni mail, ni
+puntos. Se limpió también el mail de bienvenida (`enviarEmailBienvenida`
+en `lib/email.js`), que solo se usaba en ese flujo y quedó sin ningún
+lugar que lo llame.
+
+**Cómo queda el flujo correcto ahora**: los clientes tienen que
+registrarse ellos mismos en `/registro/[negocio]` (cargando su propio
+email/teléfono) — recién ahí, sus próximas compras en el local (con ese
+mismo email o teléfono) las va a poder relacionar Dragon Fish y sumarles
+puntos automáticamente. Las compras de gente sin cuenta simplemente no
+suman puntos hasta que se registre.
+
+**Pendiente, fuera del alcance de este cambio de código**: Cecilia pidió
+además borrar los datos de clientes ya cargados en producción, para que
+al registrarse alguien no le aparezca "ya existe una cuenta con ese
+email" por una cuenta que se creó sola sin que ella lo supiera. Esto es
+una operación sobre la base de datos de producción, a la que no tengo
+acceso — queda pendiente de que ella (o quien tenga acceso a la base)
+decida el alcance exacto (¿todos los clientes, o solo los creados
+automáticamente por Dragon Fish que nunca se registraron ni iniciaron
+sesión?) antes de borrar nada, para no perder puntos de clientas que sí
+se registraron de verdad.
+
+## 53. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
