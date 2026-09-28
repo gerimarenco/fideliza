@@ -105,10 +105,14 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Buscar el negocio por su slug (el que viene en la URL)
-    const negocioEncontrado = await prisma.negocio.findUnique({
-      where: { slug: negocio },
-    });
+    // Buscar el negocio por su slug (el que viene en la URL) y verificar que
+    // el email no esté ya registrado -- las dos consultas son independientes
+    // entre sí, se piden juntas en vez de una detrás de la otra para no
+    // sumar esa demora extra a cada registro.
+    const [negocioEncontrado, clienteExistente] = await Promise.all([
+      prisma.negocio.findUnique({ where: { slug: negocio } }),
+      prisma.cliente.findUnique({ where: { email } }),
+    ]);
 
     if (!negocioEncontrado || !negocioEncontrado.activo) {
       return NextResponse.json(
@@ -116,11 +120,6 @@ export async function POST(request, { params }) {
         { status: 404 }
       );
     }
-
-    // Verificar que el email no esté ya registrado
-    const clienteExistente = await prisma.cliente.findUnique({
-      where: { email },
-    });
 
     if (clienteExistente) {
       return NextResponse.json(
