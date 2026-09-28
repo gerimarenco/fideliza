@@ -18,6 +18,7 @@ export default function RegistroPage() {
   const [apellido, setApellido] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [mostrarPassword, setMostrarPassword] = useState(false);
   const [fechaNacimiento, setFechaNacimiento] = useState('');
   const [dni, setDni] = useState('');
   const [sexo, setSexo] = useState('');
@@ -209,21 +210,31 @@ export default function RegistroPage() {
             >
               Contraseña
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={mostrarPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                style={{
+                  width: '100%',
+                  padding: '10px 40px 10px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '14px',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setMostrarPassword((s) => !s)}
+                aria-label={mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: '#888', padding: 4 }}
+              >
+                {mostrarPassword ? 'Ocultar' : 'Mostrar'}
+              </button>
+            </div>
           </div>
 
           <div style={{ marginBottom: '16px' }}>
@@ -327,7 +338,7 @@ export default function RegistroPage() {
                 fontWeight: '500',
               }}
             >
-              Sexo
+              Género
             </label>
             <select
               value={sexo}

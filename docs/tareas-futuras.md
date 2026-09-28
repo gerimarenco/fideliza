@@ -1342,7 +1342,116 @@ cartel sin querer):
   "tiene que ser mayor a 0") — necesitan que alguien los lea para
   corregir algo, no son un simple "listo".
 
-## 51. Otros pendientes menores (de sesiones previas, sin resolver)
+## 51. Reemplazo de emojis por íconos SVG (Lucide) en el menú y los premios (2026-09-17)
+
+Pedido de mejora de "producto terminado" en vez de "proyecto personal":
+los emojis como iconografía se ven distinto en cada dispositivo/sistema
+operativo (Windows, iOS, Android, cada uno tiene su propio dibujo para
+el mismo emoji) y rompen la coherencia visual — el ejemplo puntual eran
+los íconos de los premios (🎀 📦 👜, cargados a mano por Cecilia al
+crear cada premio). Se sumó `lucide-react` (SVG, gratis, MIT, sin
+dependencias) y se reemplazaron por un set consistente en dos frentes:
+
+- **El ícono de cada premio** (`Premio.emoji` en la base — se dejó el
+  nombre de la columna para no tocar el schema, pero ahora guarda una
+  clave como `"gift"` o `"shopping-bag"` en vez de un emoji literal):
+  el input de texto libre para tipear el emoji se reemplazó por una
+  grilla de 16 íconos para elegir (`lib/premioIconos.js`,
+  `SelectorIconoPremio` en `app/page.js`), en el alta y la edición de
+  premios. Se actualizaron los 5 lugares donde se mostraba el ícono del
+  premio (lista de premios del negocio/admin, "Premios disponibles" y
+  "Próximos premios" del panel del cliente, historial de canjes, "Mis
+  movimientos") para usar el nuevo componente `IconoPremio`.
+  **Los premios ya cargados con un emoji de antes siguen andando sin
+  que nadie tenga que volver a editarlos**: `IconoPremio` traduce los
+  emoji más comunes (🎀, 📦, 👜, ☕, etc.) a su ícono más parecido con
+  una tabla de equivalencias, y si no reconoce ninguno usa un ícono de
+  regalo por defecto — nunca se rompe ni queda vacío.
+- **El menú de navegación**: las dos barras laterales (panel de Admin y
+  panel de Negocio) y el menú ⋮ del panel del cliente, que antes
+  usaban emojis fijos (🏠 🎁 ⚙️ 🔑 etc.) ahora usan los mismos íconos
+  de Lucide directamente en el código (sin picker, son fijos). También
+  se actualizaron con el mismo criterio: el botón "Cerrar sesión", el
+  cartelito "Estás viendo esto como administrador", el link "ver
+  producto"/cupón de Tiendanube en la lista de premios, y los tres
+  íconos de la mini-landing `/club/[negocio]` (sumar puntos / canjear
+  premios / sorpresas).
+
+**A propósito no se tocó** (mismo criterio de no ampliar el pedido más
+de lo pedido): el emoji propio de cada *negocio* (`Negocio.emoji`,
+ej. el 👗 al lado de "Peperina" en el panel), que es una elección de
+marca por negocio distinta al problema de iconografía repetida — si
+más adelante se quiere el mismo tratamiento, es un cambio chico
+adicional sobre lo mismo. Tampoco los emojis sueltos dentro de textos
+que se mandan afuera de la app (el mensaje sugerido de WhatsApp, los
+títulos de la pantalla de conexión con Tiendanube) ni los del panel de
+estadísticas de clientes (aviso de inactividad, botón de WhatsApp) —
+esos no son "iconografía" de la interfaz, son parte del texto en sí.
+
+Probado localmente con Postgres + Playwright: se creó un premio nuevo
+eligiendo un ícono de la grilla, quedó guardado y mostrado
+correctamente en las cuatro pantallas donde aparece, y los premios ya
+cargados en el seed (con emoji viejo) se vieron con su ícono
+equivalente sin tocarlos.
+
+## 52. Sacar la creación automática de cuenta desde Dragon Fish (2026-09-22)
+
+Probando el agente de Dragon Fish en la PC de Peperina (backlog de ventas
+viejas acumuladas), Cecilia se dio cuenta de un problema de fondo: cuando
+una venta traía el email de alguien sin cuenta en Retornar todavía, el
+sistema le creaba la cuenta sola y le mandaba un mail de bienvenida con
+una contraseña generada — sin que esa persona se haya registrado ni
+sepa que existe Retornar. El pedido explícito fue sacar eso: no quiere
+que el negocio tenga que pedirle el email a cada clienta en el mostrador
+para que esto funcione, y sobre todo no quiere que alguien se entere
+"de sorpresa" de que tiene una cuenta con su mail en una página de
+fidelización sin haber elegido sumarse.
+
+Se sacó la creación automática de cuenta de
+`app/api/dragonfish/resolver/route.js`: ahora, si la venta es de alguien
+sin cuenta en Retornar (no matchea por email ni teléfono), la factura
+queda marcada `sin_cliente` y no pasa nada más — ni cuenta, ni mail, ni
+puntos. Se limpió también el mail de bienvenida (`enviarEmailBienvenida`
+en `lib/email.js`), que solo se usaba en ese flujo y quedó sin ningún
+lugar que lo llame.
+
+**Cómo queda el flujo correcto ahora**: los clientes tienen que
+registrarse ellos mismos en `/registro/[negocio]` (cargando su propio
+email/teléfono) — recién ahí, sus próximas compras en el local (con ese
+mismo email o teléfono) las va a poder relacionar Dragon Fish y sumarles
+puntos automáticamente. Las compras de gente sin cuenta simplemente no
+suman puntos hasta que se registre.
+
+**Pendiente, fuera del alcance de este cambio de código**: Cecilia pidió
+además borrar los datos de clientes ya cargados en producción, para que
+al registrarse alguien no le aparezca "ya existe una cuenta con ese
+email" por una cuenta que se creó sola sin que ella lo supiera. Esto es
+una operación sobre la base de datos de producción, a la que no tengo
+acceso — queda pendiente de que ella (o quien tenga acceso a la base)
+decida el alcance exacto (¿todos los clientes, o solo los creados
+automáticamente por Dragon Fish que nunca se registraron ni iniciaron
+sesión?) antes de borrar nada, para no perder puntos de clientas que sí
+se registraron de verdad.
+
+## 53. Botón "Mostrar contraseña" en el registro público (2026-09-28)
+
+El login ya tenía un botón para mostrar/ocultar la contraseña mientras se
+escribe, pero el formulario de registro público (`/registro/[negocio]`)
+no — Cecilia lo notó al completar todos los campos (DNI, fecha de
+nacimiento, WhatsApp, email, nombre) y no poder revisar la contraseña
+antes de enviar. Se agregó el mismo patrón que ya usa el login (botón
+"Mostrar"/"Ocultar" adentro del campo).
+
+## 54. "Sexo" → "Género" en el registro público (2026-09-28)
+
+Cambio de texto puntual en `/registro/[negocio]`: la etiqueta del campo
+pasó de "Sexo" a "Género". Solo cambia lo que ve la clienta — el nombre
+interno del campo (`sexo`, tanto en el estado de React como en la
+columna de la base) se dejó igual a propósito, para no tocar el schema
+ni el resto del código que ya lo usa, por un cambio que es puramente de
+texto.
+
+## 55. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.

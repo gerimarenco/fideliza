@@ -1,8 +1,7 @@
 import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { autenticarAgente } from '@/lib/dragonfishAgente'
-import { hashPassword } from '@/lib/password'
-import { enviarEmailBienvenida, enviarEmailPuntosAcreditados } from '@/lib/email'
+import { enviarEmailPuntosAcreditados } from '@/lib/email'
 import { calcularPuntosPorCompra } from '@/lib/puntos'
 import { acreditarSiEsPrimeraCompraReferida } from '@/lib/referidos'
 
@@ -12,11 +11,11 @@ import { acreditarSiEsPrimeraCompraReferida } from '@/lib/referidos'
 // y/o teléfono — Dragon Fish no maneja el mismo DNI/email que Retornar
 // necesariamente, así que puede no encontrar nada; ver docs/ para el estado
 // de esa parte).
-// Los cuatro desenlaces que no acreditan puntos (sin_datos, sin_cliente x2,
+// Los tres desenlaces que no acreditan puntos (sin_datos, sin_cliente,
 // duplicado) comparten el mismo patrón: marcar la factura como procesada
 // con ese resultado y devolverlo. Un helper evita que una futura corrección
-// de este patrón (ej. loguear algo más) se aplique en tres lugares y se
-// olvide en el cuarto.
+// de este patrón (ej. loguear algo más) se aplique en dos lugares y se
+// olvide en el tercero.
 async function marcarFactura(facturaId, codigo, resultado) {
   await prisma.facturaPendiente.update({
     where: { id: facturaId },
@@ -90,38 +89,14 @@ export async function POST(request) {
     },
   })
 
-  let passwordGenerada
+  // A propósito no se crea cuenta sola acá aunque la venta traiga email:
+  // el negocio no quiere que alguien se entere de que tiene una cuenta en
+  // Retornar (y que se le está usando su mail para eso) sin haberse
+  // registrado ella misma. Una venta de alguien sin cuenta todavía queda
+  // sin acreditar hasta que se registre por su cuenta en /registro/[negocio]
+  // — ahí sí, sus próximas compras la van a encontrar por email/teléfono.
   if (!cliente) {
-    // Sin email no hay con qué loguearse — no se puede crear cuenta, solo
-    // queda identificar al cliente por teléfono si ya estaba registrado.
-    if (!emailNormalizado) {
-      return marcarFactura(factura.id, codigo, 'sin_cliente')
-    }
-
-    // Cliente no registrado en Retornar: se crea la cuenta sola a partir de
-    // los datos de la venta, con una contraseña generada que se manda por
-    // mail (ver lib/email.js) — es la única forma de que se entere, porque
-    // nadie está mirando la pantalla cuando llega este webhook.
-    try {
-      passwordGenerada = Math.random().toString(36).slice(-8)
-      cliente = await prisma.cliente.create({
-        data: {
-          email: emailNormalizado,
-          telefono: telefonoNormalizado || null,
-          password: await hashPassword(passwordGenerada),
-          negocioId: negocio.id,
-          puntos: 0,
-        },
-      })
-    } catch (error) {
-      // El email es único en toda la base: si ya existe (de otro negocio,
-      // o una carrera con otro reporte del agente), no se puede crear —
-      // se deja como sin_cliente en vez de romper el flujo.
-      if (error.code === 'P2002') {
-        return marcarFactura(factura.id, codigo, 'sin_cliente')
-      }
-      throw error
-    }
+    return marcarFactura(factura.id, codigo, 'sin_cliente')
   }
 
   const puntos = calcularPuntosPorCompra(montoNumerico, negocio.puntosXPeso)
@@ -163,24 +138,12 @@ export async function POST(request) {
     ? (await prisma.cliente.findUnique({ where: { id: cliente.id }, select: { puntos: true } })).puntos
     : clienteActualizado.puntos
 
-  // Con cuenta nueva se manda un solo mail combinado (bienvenida + puntos
-  // de esta compra); con cliente ya existente, el aviso de puntos solo.
-  if (passwordGenerada) {
-    await enviarEmailBienvenida({
-      email: cliente.email,
-      passwordGenerada,
-      puntosAcreditados: puntos,
-      puntosTotales: puntosTotalesFinales,
-      negocioNombre: negocio.nombre,
-    })
-  } else {
-    await enviarEmailPuntosAcreditados({
-      email: cliente.email,
-      puntosAcreditados: puntos,
-      puntosTotales: puntosTotalesFinales,
-      negocioNombre: negocio.nombre,
-    })
-  }
+  await enviarEmailPuntosAcreditados({
+    email: cliente.email,
+    puntosAcreditados: puntos,
+    puntosTotales: puntosTotalesFinales,
+    negocioNombre: negocio.nombre,
+  })
 
   if (referido) {
     await enviarEmailPuntosAcreditados({
