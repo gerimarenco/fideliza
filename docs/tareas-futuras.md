@@ -1433,7 +1433,16 @@ automáticamente por Dragon Fish que nunca se registraron ni iniciaron
 sesión?) antes de borrar nada, para no perder puntos de clientas que sí
 se registraron de verdad.
 
-## 53. Otros pendientes menores (de sesiones previas, sin resolver)
+## 53. Botón "Mostrar contraseña" en el registro público (2026-09-28)
+
+El login ya tenía un botón para mostrar/ocultar la contraseña mientras se
+escribe, pero el formulario de registro público (`/registro/[negocio]`)
+no — Cecilia lo notó al completar todos los campos (DNI, fecha de
+nacimiento, WhatsApp, email, nombre) y no poder revisar la contraseña
+antes de enviar. Se agregó el mismo patrón que ya usa el login (botón
+"Mostrar"/"Ocultar" adentro del campo).
+
+## 54. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
