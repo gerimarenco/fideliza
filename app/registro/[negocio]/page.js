@@ -338,7 +338,7 @@ export default function RegistroPage() {
                 fontWeight: '500',
               }}
             >
-              Sexo
+              Género
             </label>
             <select
               value={sexo}

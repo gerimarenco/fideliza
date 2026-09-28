@@ -1442,7 +1442,16 @@ nacimiento, WhatsApp, email, nombre) y no poder revisar la contraseña
 antes de enviar. Se agregó el mismo patrón que ya usa el login (botón
 "Mostrar"/"Ocultar" adentro del campo).
 
-## 54. Otros pendientes menores (de sesiones previas, sin resolver)
+## 54. "Sexo" → "Género" en el registro público (2026-09-28)
+
+Cambio de texto puntual en `/registro/[negocio]`: la etiqueta del campo
+pasó de "Sexo" a "Género". Solo cambia lo que ve la clienta — el nombre
+interno del campo (`sexo`, tanto en el estado de React como en la
+columna de la base) se dejó igual a propósito, para no tocar el schema
+ni el resto del código que ya lo usa, por un cambio que es puramente de
+texto.
+
+## 55. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
