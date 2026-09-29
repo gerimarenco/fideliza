@@ -1451,7 +1451,47 @@ columna de la base) se dejó igual a propósito, para no tocar el schema
 ni el resto del código que ya lo usa, por un cambio que es puramente de
 texto.
 
-## 55. Otros pendientes menores (de sesiones previas, sin resolver)
+## 55. Flash de color y demoras al registrarse/loguearse (2026-09-28)
+
+La hermana de Cecilia probó `retornar.com.ar` desde `peperina.com` y reportó
+tres cosas: la web "tarda bastante" (1-3 segundos, no 20, pero se nota),
+al tocar "Sumate al Club Peperina" aparece un instante en un color azul
+antes de pasar al marrón real de Peperina, y por una fracción de segundo
+se ve "como si ya estuvieras adentro" antes de haber hecho nada. Se
+encontraron y corrigieron dos causas reales:
+
+- **El flash de color** (`app/club/[negocio]/page.js`): la pantalla se
+  dibujaba de entrada con el color índigo por defecto de toda la app,
+  mientras todavía se estaba pidiendo el color real del negocio — recién
+  al llegar los datos se repintaba en marrón. Ahora, mientras no llegó el
+  color real, no se dibuja nada con color (pantalla en blanco neutro), y
+  recién se muestra todo junto cuando ya está el dato correcto. Esto
+  también explica el "como si ya estuvieras adentro": era la misma
+  pantalla genérica (sin la marca de Peperina todavía) la que se veía por
+  un instante. Probado con Postgres real + Playwright, simulando una
+  conexión lenta a propósito para poder capturar el estado intermedio:
+  confirmado que ya no aparece ningún color hasta que está todo listo.
+- **Demora al registrarse/loguearse** (`lib/auth.js`,
+  `app/api/registro/[negocio]/route.js`): tanto el login (`authorize` de
+  NextAuth) como el registro público hacían dos consultas a la base de
+  datos **una detrás de la otra** cuando en realidad son independientes
+  entre sí (ej. buscar si el email es de un negocio, y recién después
+  buscar si es de un cliente — para el caso más común, un login de
+  clienta, la primera consulta siempre da negativo y se pierde ese tiempo
+  antes de arrancar la segunda). Se cambiaron las dos a `Promise.all`
+  para que se pidan al mismo tiempo. Como el registro público además
+  hace login automático apenas se crea la cuenta (ítem 48), esto ayuda
+  doblemente en ese flujo.
+
+**Lo que no se pudo arreglar del todo**: el "tarda bastante" en general
+probablemente tiene que ver con el arranque en frío de las funciones
+serverless de Netlify (la primera consulta después de un rato sin uso
+tarda más, es una limitación de la infraestructura gratuita/estándar, no
+del código) — no hay mucho margen para mejorar eso sin cambiar de plan o
+de proveedor. Las dos correcciones de arriba reducen la demora real, pero
+no la eliminan del todo.
+
+## 56. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.

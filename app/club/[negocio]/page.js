@@ -26,9 +26,6 @@ export default function ClubLandingPage() {
       .catch(() => setNoEncontrado(true));
   }, [negocio]);
 
-  const primario = datosNegocio?.temaPrimario || '#6366f1';
-  const primarioTexto = datosNegocio?.temaPrimarioTexto || '#ffffff';
-
   if (noEncontrado) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif', color: '#6b7280', padding: 20, textAlign: 'center' }}>
@@ -37,9 +34,20 @@ export default function ClubLandingPage() {
     );
   }
 
+  // Mientras no llega el color real del negocio, no se dibuja nada con
+  // color -- antes se mostraba un instante con el índigo por defecto de
+  // toda la app y después "saltaba" al color real (marrón en Peperina),
+  // un flash que se notaba y quedaba feo.
+  if (!datosNegocio) {
+    return <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }} />;
+  }
+
+  const primario = datosNegocio.temaPrimario || '#6366f1';
+  const primarioTexto = datosNegocio.temaPrimarioTexto || '#ffffff';
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb', fontFamily: 'system-ui, -apple-system, sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      {datosNegocio?.temaImagenPortada && (
+      {datosNegocio.temaImagenPortada && (
         <img src={datosNegocio.temaImagenPortada} alt="" style={{ width: '100%', maxHeight: 140, objectFit: 'cover' }} />
       )}
 
@@ -49,7 +57,7 @@ export default function ClubLandingPage() {
         </h1>
 
         <p style={{ color: '#4b5563', fontSize: 14, lineHeight: 1.5, marginBottom: 28 }}>
-          Sumá 1 punto por cada ${datosNegocio?.puntosXPeso ?? 100} de compra en el local y en nuestra tienda online.
+          Sumá 1 punto por cada ${datosNegocio.puntosXPeso ?? 100} de compra en el local y en nuestra tienda online.
         </p>
 
         <div style={{ display: 'grid', gap: 14, textAlign: 'left', marginBottom: 32 }}>
