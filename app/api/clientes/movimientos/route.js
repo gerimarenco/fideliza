@@ -19,6 +19,8 @@ const ORIGEN_A_DESCRIPCION = {
   tiendanube: 'Compra online',
   dragonfish: 'Compra',
   cumpleanos: 'Regalo de cumpleaños',
+  referido_invitador: 'Bono por invitar a una amiga',
+  referido_invitado: 'Bono de bienvenida por invitación',
 }
 
 export async function GET(request) {
@@ -47,7 +49,10 @@ export async function GET(request) {
       id: `mov-${m.id}`,
       fecha: m.createdAt,
       puntos: m.puntos,
-      tipo: m.origen === 'vencimiento' ? 'vencimiento' : (m.origen === 'cumpleanos' ? 'cumpleanos' : 'compra'),
+      tipo: m.origen === 'vencimiento' ? 'vencimiento'
+        : m.origen === 'cumpleanos' ? 'cumpleanos'
+        : (m.origen === 'referido_invitador' || m.origen === 'referido_invitado') ? 'referido'
+        : 'compra',
       descripcion: m.origen === 'vencimiento' ? 'Vencimiento de puntos' : (ORIGEN_A_DESCRIPCION[m.origen] || 'Puntos acreditados'),
     })),
     ...canjes.map((c) => ({

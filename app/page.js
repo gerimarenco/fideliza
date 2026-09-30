@@ -1665,7 +1665,7 @@ export default function Home() {
                 {movimientosClienteData?.items.map((m) => (
                   <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: `1px solid ${tema.borde}` }}>
                     <span style={{ display: 'flex', color: tema.textoSecundario }}>
-                      {m.tipo === 'canje' ? <IconoPremio nombre={m.premioIcono} size={18} /> : m.tipo === 'vencimiento' ? <Hourglass size={18} /> : m.tipo === 'cumpleanos' ? <Cake size={18} /> : <ShoppingBag size={18} />}
+                      {m.tipo === 'canje' ? <IconoPremio nombre={m.premioIcono} size={18} /> : m.tipo === 'vencimiento' ? <Hourglass size={18} /> : m.tipo === 'cumpleanos' ? <Cake size={18} /> : m.tipo === 'referido' ? <Gift size={18} /> : <ShoppingBag size={18} />}
                     </span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13 }}>{m.descripcion}</div>
