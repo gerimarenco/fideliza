@@ -1294,16 +1294,17 @@ este mismo archivo.
   recomendado) también apuntaba a la URL de Netlify — corregido a
   `retornar.com.ar`.
 
-**⚠️ Encontré algo más serio revisando esto, sin confirmar todavía**:
+~~**⚠️ Encontré algo más serio revisando esto, sin confirmar todavía**:
 cuando se corrigió `NEXTAUTH_URL` (2026-09-14, ver más arriba), el
 "URI de redireccionamiento autorizado" cargado en el Cliente OAuth de
 Google Cloud Console sigue siendo el de Netlify (nunca se actualizó).
 Si es así, el botón "Iniciar sesión con Google" en producción
 probablemente esté devolviendo `Error 400: redirect_uri_mismatch`
-ahora mismo. Hace falta que Cecilia (o quien tenga acceso) entre a
-Google Cloud Console → Credenciales → Cliente OAuth "Fideliza Web" →
-agregue `https://retornar.com.ar/api/auth/callback/google` a los URIs
-autorizados. Detalle completo en `docs/contexto-proyecto.md`.
+ahora mismo.~~ — ✅ **resuelto (2026-09-30)**: Cecilia agregó
+`https://retornar.com.ar/api/auth/callback/google` a los URIs
+autorizados en Google Cloud Console → Credenciales → Cliente OAuth
+"Fideliza Web" (sin sacar el de Netlify) y confirmó que "Iniciar
+sesión con Google" ya funciona en producción.
 
 ## 50. Sacar el cartel de confirmación al guardar el regalo de cumpleaños (2026-09-16)
 
