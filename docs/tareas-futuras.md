@@ -1491,7 +1491,28 @@ del código) — no hay mucho margen para mejorar eso sin cambiar de plan o
 de proveedor. Las dos correcciones de arriba reducen la demora real, pero
 no la eliminan del todo.
 
-## 56. Otros pendientes menores (de sesiones previas, sin resolver)
+## 56. Bug: los bonos de "Referí a una amiga" salían mal en "Mis movimientos" (2026-09-30)
+
+Mientras Cecilia hacía otra cosa, se pidió una revisión de bugs. Encontrado
+uno real en `app/api/clientes/movimientos/route.js`: los puntos que se
+ganan por el programa de referidos (`origen: "referido_invitador"` y
+`"referido_invitado"`, ver `lib/referidos.js`) no estaban contemplados en
+el mapeo de orígenes de esa pantalla — aparecían en "Mis movimientos" del
+panel del cliente como una compra genérica ("Puntos acreditados" con el
+ícono de bolsa de compras) en vez de decir claramente que era un bono por
+invitar a una amiga o por haber sido invitada. Se agregaron los dos
+orígenes al mapeo, con su propio texto ("Bono por invitar a una amiga" /
+"Bono de bienvenida por invitación") y el ícono de regalo (mismo que ya
+se usa para "Referí a una amiga" en el menú ⋮).
+
+De paso se revisó el resto de los lugares que tocan puntos/plata
+(`app/api/canjes`, `app/api/compras`, `lib/referidos.js`,
+`netlify/functions/vencimiento-puntos.mjs`, `lib/clienteStats.js`) sin
+encontrar más bugs — todos ya venían bien protegidos contra condiciones
+de carrera de revisiones anteriores, y `clienteStats.js` ya excluye
+correctamente los bonos de referidos del conteo de "compras registradas".
+
+## 57. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
