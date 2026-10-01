@@ -124,6 +124,18 @@ body {
   .fid-sidebar-label {
     display: none;
   }
+
+  /* Barra superior del panel de admin (app/page.js, sin sidebar): los 7
+     ítems de navegación con texto no entran en el ancho de un celular --
+     se ocultan las etiquetas (quedan solo los íconos) y se achica el
+     padding de cada ítem para que entren todos sin scroll horizontal. */
+  .fid-admin-nav-label {
+    display: none;
+  }
+  .fid-admin-nav-item {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
 }
 
 /* Las grillas de varias columnas (formularios, tarjetas de stats) usan

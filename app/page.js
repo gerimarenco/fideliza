@@ -1857,22 +1857,23 @@ export default function Home() {
                 <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Retornar</div>
                 <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: admin.acento, background: admin.acentoFondo, padding: '2px 6px', borderRadius: 4 }}>ADMIN</span>
               </div>
-              <div style={{ display: 'flex', gap: 2, flex: 1, overflowX: 'auto' }}>
+              <div style={{ display: 'flex', gap: 2, flex: 1, minWidth: 0, overflowX: 'auto' }}>
                 {[[HomeIcon, 'Inicio', 'inicio'], [Store, 'Negocios', 'negocios'], [Users, 'Clientes', 'clientes'], [Gift, 'Premios', 'premios'], [Star, 'Puntos y canjes', 'canjes'], [Plug, 'Integraciones', 'integraciones'], [Settings, 'Ajustes', 'ajustes']].map(([Icono, label, id]) => {
                   const activo = id === 'negocios' ? !negocioActivo : (!!id && seccionActiva === id);
                   return (
                     <div
                       key={label}
+                      className="fid-admin-nav-item"
                       onClick={() => (id === 'negocios' ? volverANegocios() : setSeccionActiva(id))}
                       style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', height: 56, fontSize: 13, color: activo ? '#fff' : admin.textoSecundario, borderBottom: activo ? `2px solid ${admin.acento}` : '2px solid transparent', cursor: 'pointer', whiteSpace: 'nowrap' }}
                     >
-                      <Icono size={14} /> {label}
+                      <Icono size={14} /> <span className="fid-admin-nav-label">{label}</span>
                     </div>
                   );
                 })}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: admin.textoSecundario, flexShrink: 0 }}>
-                <span>{session?.user?.name} · Admin</span>
+                <span className="fid-admin-nav-label">{session?.user?.name} · Admin</span>
                 <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${admin.inputBorde}`, background: 'transparent', color: '#f87171', cursor: 'pointer' }}><LogOut size={14} /></button>
               </div>
             </div>
@@ -1945,8 +1946,12 @@ export default function Home() {
                 {/* Tabla con columnas en vez de tarjetas o lista simple --
                     distinta en formato tanto de la grilla de tarjetas
                     original como de cualquier lista del panel del negocio. */}
-                <div style={{ border: `1px solid ${admin.borde}`, borderRadius: 8, overflow: 'hidden' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr', padding: '10px 16px', fontSize: 11, color: admin.textoSecundario, borderBottom: `1px solid ${admin.borde}`, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                {/* overflowX + minWidth en vez de achicar las columnas: en
+                    celular se scrollea el ancho de la tabla en vez de
+                    amontonar las columnas o cortar contenido afuera de la
+                    pantalla (lo que pasaba antes de este ajuste). */}
+                <div style={{ border: `1px solid ${admin.borde}`, borderRadius: 8, overflowX: 'auto' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr', minWidth: 560, padding: '10px 16px', fontSize: 11, color: admin.textoSecundario, borderBottom: `1px solid ${admin.borde}`, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                     <div>Negocio</div><div>Estado</div><div>Clientes</div><div>Premios</div><div>Acciones</div>
                   </div>
                   {negocios.map((neg, i) => (
@@ -2006,7 +2011,7 @@ export default function Home() {
                           </div>
                         </>
                       ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr', alignItems: 'center' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr', minWidth: 560, alignItems: 'center' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <span style={{ fontSize: 16 }}>{neg.emoji}</span>
                             <div>
