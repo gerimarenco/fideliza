@@ -113,6 +113,7 @@ async function vencimientoPuntos() {
         puntosVencidos: resultado.total,
         puntosTotales: resultado.clienteActualizado.puntos,
         negocioNombre: negocio.nombre,
+        negocioId: negocio.id,
         meses: negocio.vencimientoPuntosMeses,
       })
 
