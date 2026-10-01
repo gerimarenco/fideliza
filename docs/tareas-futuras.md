@@ -43,28 +43,16 @@ entrar a ninguna web** — que casi ni se enteren de que existe un panel —
 y en cambio reciban un mail después de cada compra con los puntos que
 sumaron. Quedó implementado así:
 
-- Servicio de envío conectado: **Resend**, sin dominio propio todavía
-  (remitente de prueba `onboarding@resend.dev`, ver `lib/email.js`) —
-  mientras tanto solo puede mandar mails a la casilla con la que se creó
-  la cuenta de Resend, no a clientes reales. Migrar a un dominio propio
-  verificado es el paso que falta para que llegue a cualquier cliente.
+- Servicio de envío conectado: **Resend** (ver `lib/email.js`). Dominio
+  propio `retornar.com.ar` verificado — ver ítem 57.
 - El disparador es cada acreditación de puntos (`MovimientoPuntos`), sin
   importar el origen: manual (`app/api/compras`), Mercado Pago,
   Tiendanube o Dragon Fish (los cuatro webhooks/endpoints llaman a
   `enviarEmailPuntosAcreditados` después de la transacción que suma los
   puntos).
-- Si Dragon Fish reporta una venta de alguien sin cuenta en Retornar (y
-  trae su email), se le crea la cuenta sola con una contraseña generada
-  y se le manda un mail de bienvenida combinado (cuenta + puntos de esa
-  compra) en vez del aviso genérico — ver `enviarEmailBienvenida` y
-  `app/api/dragonfish/resolver`.
 - Sin `RESEND_API_KEY` configurada, no rompe el flujo de puntos: solo no
   manda el mail (mismo criterio que el login con Google si faltan sus
   credenciales).
-- Pendiente real: verificar dominio propio en Resend para poder mandarle
-  mails a clientas reales (hoy limitado a la casilla de prueba); y
-  eventualmente si hace falta algo de personalización visual del mail en
-  sí (coherente con la marca de cada negocio).
 
 ## 3. Dragon Fish — ✅ resuelto (2026-09-03/04, arranque automático 2026-09-07)
 
@@ -972,17 +960,9 @@ mail falla, no hay que revertir un canje ya confirmado).
   transacción (no se calcula a mano), para que sea el número real aunque
   algún otro movimiento haya pasado justo entre medio.
 
-**Esto no alcanza por sí solo para que los mails le lleguen a clientes
-reales**: mientras `RESEND_FROM_EMAIL` siga sin configurar, el remitente
-por defecto (`onboarding@resend.dev`, el dominio de prueba de Resend)
-solo entrega a la casilla con la que se creó la cuenta de Resend. Para
-que llegue a cualquier clienta hace falta verificar `retornar.com.ar`
-como dominio propio en Resend (agregando ahí los registros DNS que pida,
-en el DNS de Netlify ya que el dominio delega a sus nameservers — ver
-ítem sobre la delegación de NIC.ar) y cargar `RESEND_FROM_EMAIL` con una
-dirección de ese dominio. Ese paso queda pendiente de que Cecilia lo
-haga (o lo hagamos juntos) desde las cuentas de Resend/Netlify, no es
-algo que se resuelva por código.
+~~Esto no alcanza por sí solo para que los mails le lleguen a clientes
+reales**: mientras `RESEND_FROM_EMAIL` siga sin configurar...~~ — ✅
+resuelto, ver ítem 57.
 
 ## 38. Link "Registrate" en la pantalla de login (2026-09-14)
 
@@ -1513,7 +1493,43 @@ encontrar más bugs — todos ya venían bien protegidos contra condiciones
 de carrera de revisiones anteriores, y `clienteStats.js` ya excluye
 correctamente los bonos de referidos del conteo de "compras registradas".
 
-## 57. Otros pendientes menores (de sesiones previas, sin resolver)
+## 57. Dominio propio verificado en Resend — los mails ya llegan a clientas reales (2026-10-01)
+
+Quedaba pendiente desde hace tiempo (ítems 2 y 37): mientras `retornar.com.ar`
+no estuviera verificado como dominio propio en Resend, todos los mails
+(puntos acreditados, canje, vencimiento, cumpleaños) salían del remitente
+de prueba `onboarding@resend.dev`, que solo entrega a la casilla con la
+que se creó la cuenta de Resend — nunca a una clienta real. Genaro hizo
+el trámite completo:
+
+- Reclamó `retornar.com.ar` en la cuenta de Resend correspondiente (el
+  dominio ya estaba cargado en otra cuenta de Resend de él mismo, con
+  otro mail, de algo anterior sin usar — se transfirió sin problema).
+- Cargó los registros DNS que pidió Resend (verificación de dominio,
+  DKIM, SPF vía dos CNAME, y DMARC opcional) en el DNS de Netlify, que es
+  donde vive el DNS real de `retornar.com.ar` (delegado ahí desde NIC.ar).
+- Dominio verificado y confirmado "ready to send emails" en Resend.
+- Cargada `RESEND_FROM_EMAIL=Retornar <club@retornar.com.ar>` en Netlify.
+
+**Encontrado en el camino**: la primera prueba real (una compra manual
+de $1.000 para un cliente con el mail de Genaro) acreditó bien los
+puntos pero el mail nunca llegó — ni a la bandeja, ni a spam, ni
+aparecía ningún intento en el panel de "Emails" de Resend. Se descartó
+dominio sin verificar, email mal cargado, variable faltante y permisos
+de la API key (todo estaba bien) — la causa real terminó siendo la
+propia `RESEND_API_KEY` vieja, cargada en algún momento anterior, que
+por algún motivo ya no servía (sin ningún error visible, Resend
+simplemente no registraba el intento). Se generó una clave nueva en
+Resend ("Full access", todos los dominios) y se reemplazó en Netlify —
+con eso, el mail de prueba siguiente llegó perfecto. Si en algún momento
+los mails dejan de llegar de nuevo sin ningún error obvio en el código,
+revisar esto primero: puede ser la API key, no necesariamente el código.
+
+Con esto, Resend queda completamente andando para clientas reales — el
+plan gratis permite 3.000 mails por mes (tope de 100 por día), de sobra
+para el volumen actual de Peperina.
+
+## 58. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
