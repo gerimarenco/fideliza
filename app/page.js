@@ -1385,16 +1385,18 @@ export default function Home() {
     </div>
   );
 
-  // Ajustes del panel Admin: solo datos de cuenta de lectura por ahora, sin tema (el chrome del Admin nunca se tematiza)
+  // Ajustes del panel Admin: solo datos de cuenta de lectura por ahora. Usa
+  // la paleta fija "grafito cálido" del admin (ver `admin` más abajo), no el
+  // tema de ningún negocio en particular.
   const VistaAjustesAdmin = () => (
-    <div style={{ flex: 1, overflow: 'auto' }}>
-      <div style={{ padding: '14px 24px', background: '#fff', borderBottom: '1px solid #eee' }}>
-        <div style={{ fontSize: 15, fontWeight: 600 }}>Ajustes</div>
+    <div>
+      <div style={{ padding: '14px 24px', borderBottom: `1px solid ${admin.borde}` }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>Ajustes</div>
       </div>
       <div style={{ padding: 24, display: 'grid', gap: 16, maxWidth: 480 }}>
-        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: 20 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Cuenta</div>
-          <div style={{ fontSize: 13, color: '#555' }}>Email de acceso: <strong>{session?.user?.email}</strong></div>
+        <div style={{ background: admin.inputFondo, borderRadius: 12, border: `1px solid ${admin.borde}`, padding: 20 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: '#fff' }}>Cuenta</div>
+          <div style={{ fontSize: 13, color: admin.textoSecundario }}>Email de acceso: <strong style={{ color: admin.texto }}>{session?.user?.email}</strong></div>
         </div>
       </div>
     </div>
@@ -1403,14 +1405,14 @@ export default function Home() {
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
   const PanelNegocio = ({ negocio, onVolver }) => (
     <div style={{ flex: 1, overflow: 'auto', background: tema.fondo, color: tema.texto }}>
-      {/* Solo aparece cuando lo abre un admin (onVolver viene de la
-          sidebar de admin, nunca del propio negocio logueado) -- con la
-          misma paleta oscura/índigo de esa sidebar, a propósito, para que
+      {/* Solo aparece cuando lo abre un admin (onVolver viene de la barra
+          superior de admin, nunca del propio negocio logueado) -- con la
+          misma paleta "grafito cálido" de esa barra, a propósito, para que
           se asocie visualmente con "modo admin" sin importar el tema
-          propio de este negocio. Cecilia sentía que ambos paneles se
+          propio de este negocio. Genaro sentía que ambos paneles se
           veían "prácticamente iguales" una vez adentro de un negocio. */}
       {onVolver && (
-        <div style={{ padding: '6px 24px', background: '#111827', color: '#c7d2fe', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ padding: '6px 24px', background: admin.fondo, color: admin.acento, fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
           <Shield size={14} /> Estás viendo esto como administrador, no como {negocio.nombre}
         </div>
       )}
@@ -1821,139 +1823,158 @@ export default function Home() {
     );
   };
 
+  // Paleta propia del panel de admin ("grafito cálido") -- un gris carbón
+  // con tinte marrón y acento ámbar, elegido a propósito para no competir
+  // con ningún color de marca de los negocios (ni con el marrón crema de
+  // Peperina) y para que el panel de admin se vea como una herramienta
+  // distinta, no como una variante del panel del negocio.
+  const admin = {
+    fondo: '#1c1917',
+    borde: '#292524',
+    texto: '#f5f5f4',
+    textoSecundario: '#a8a29e',
+    acento: '#fbbf24',
+    acentoFondo: '#451a03',
+    inputFondo: '#292524',
+    inputBorde: '#44403c',
+  };
+
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', minHeight: '100vh', background: '#f5f5f5' }}>
 
       {/* PANEL ADMIN */}
       {isAdmin && (
-        <div style={{ display: 'flex', minHeight: '100vh' }}>
-          {/* Fondo oscuro fijo (no depende del tema de ningún negocio) a
-              propósito: Cecilia sentía que el panel de admin y el de
-              negocio "se veían prácticamente igual" -- esta barra lateral
-              nunca cambia de color pase lo que pase, así siempre se nota a
-              simple vista que se está en modo administrador, incluso
-              cuando el contenido de la derecha es el mismo PanelNegocio()
-              que vería el propio dueño del negocio. */}
-          <div className="fid-panel-sidebar fid-panel-sidebar-admin" style={{ width: 210, background: '#111827', borderRight: '1px solid #1f2937', padding: '20px 0', display: 'flex', flexDirection: 'column' }}>
-            <div className="fid-sidebar-header" style={{ padding: '0 20px 16px', borderBottom: '1px solid #1f2937' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ fontSize: 18, fontWeight: 600, color: '#fff' }}>Retornar</div>
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, color: '#c7d2fe', background: '#312e81', padding: '2px 7px', borderRadius: 20 }}>ADMIN</span>
+        <div style={{ minHeight: '100vh', background: admin.fondo }}>
+          {/* Sin sidebar a propósito: la navegación es una barra horizontal
+              arriba de todo, y toda la pantalla (no solo una franja) usa la
+              paleta oscura propia del admin -- Genaro sentía que una
+              sidebar angosta con la misma lista de secciones (Inicio,
+              Negocios, Clientes...) se parecía demasiado, en estructura, a
+              la del panel del negocio, aunque el color fuera distinto. */}
+          <div style={{ background: admin.fondo, borderBottom: `1px solid ${admin.borde}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '0 24px', height: 56 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Retornar</div>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, color: admin.acento, background: admin.acentoFondo, padding: '2px 6px', borderRadius: 4 }}>ADMIN</span>
               </div>
-              <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>Panel de administrador</div>
-            </div>
-            <div className="fid-sidebar-nav" style={{ padding: '12px 8px', flex: 1 }}>
-              {[[HomeIcon, 'Inicio', 'inicio'], [Store, 'Negocios', 'negocios'], [Users, 'Clientes', 'clientes'], [Gift, 'Premios', 'premios'], [Star, 'Puntos y canjes', 'canjes'], [Plug, 'Integraciones', 'integraciones'], [Settings, 'Ajustes', 'ajustes']].map(([Icono, label, id]) => {
-                const activo = id === 'negocios' ? !negocioActivo : (!!id && seccionActiva === id);
-                return (
-                  <div
-                    key={label}
-                    className={id ? 'fid-sidebar-item' : undefined}
-                    onClick={id ? () => (id === 'negocios' ? volverANegocios() : setSeccionActiva(id)) : undefined}
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: activo ? '#c7d2fe' : '#9ca3af', background: activo ? '#1f2937' : undefined, cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
-                  >
-                    <Icono size={16} /> <span className="fid-sidebar-label">{label}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ padding: '12px 16px', borderTop: '1px solid #1f2937', fontSize: 12, color: '#9ca3af' }}>
-              <div className="fid-sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#312e81', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#c7d2fe' }}>C</div>
-                {session?.user?.name} · Admin
+              <div style={{ display: 'flex', gap: 2, flex: 1, overflowX: 'auto' }}>
+                {[[HomeIcon, 'Inicio', 'inicio'], [Store, 'Negocios', 'negocios'], [Users, 'Clientes', 'clientes'], [Gift, 'Premios', 'premios'], [Star, 'Puntos y canjes', 'canjes'], [Plug, 'Integraciones', 'integraciones'], [Settings, 'Ajustes', 'ajustes']].map(([Icono, label, id]) => {
+                  const activo = id === 'negocios' ? !negocioActivo : (!!id && seccionActiva === id);
+                  return (
+                    <div
+                      key={label}
+                      onClick={() => (id === 'negocios' ? volverANegocios() : setSeccionActiva(id))}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', height: 56, fontSize: 13, color: activo ? '#fff' : admin.textoSecundario, borderBottom: activo ? `2px solid ${admin.acento}` : '2px solid transparent', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                    >
+                      <Icono size={14} /> {label}
+                    </div>
+                  );
+                })}
               </div>
-              <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #374151', background: '#1f2937', color: '#f87171', cursor: 'pointer', width: '100%' }}><LogOut size={14} /> <span className="fid-sidebar-label">Cerrar sesión</span></button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12, color: admin.textoSecundario, flexShrink: 0 }}>
+                <span>{session?.user?.name} · Admin</span>
+                <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${admin.inputBorde}`, background: 'transparent', color: '#f87171', cursor: 'pointer' }}><LogOut size={14} /></button>
+              </div>
             </div>
           </div>
 
           {!negocioActivo && seccionActiva !== 'inicio' && seccionActiva !== 'negocios' && seccionActiva !== 'ajustes' ? (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: '#999' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: admin.textoSecundario, minHeight: 'calc(100vh - 56px)' }}>
               <div style={{ fontSize: 14 }}>Elegí un negocio para ver sus {seccionActiva}</div>
-              <button className="fid-btn-primary" onClick={() => setSeccionActiva('negocios')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer' }}>Ver negocios</button>
+              <button className="fid-btn-primary" onClick={() => setSeccionActiva('negocios')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: admin.acento, color: '#451a03', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Ver negocios</button>
             </div>
           ) : !negocioActivo && seccionActiva === 'ajustes' ? (
             VistaAjustesAdmin()
           ) : !negocioActivo ? (
-            <div style={{ flex: 1, overflow: 'auto' }}>
-              <div style={{ padding: '14px 24px', background: '#fff', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 15, fontWeight: 600 }}>Inicio</div>
-                <button className="fid-btn-secondary" onClick={() => setMostrarFormNegocio(true)} style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 13, cursor: 'pointer' }}>+ Nuevo negocio</button>
+            <div>
+              <div style={{ padding: '14px 24px', borderBottom: `1px solid ${admin.borde}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#fff' }}>Inicio</div>
+                <button className="fid-btn-secondary" onClick={() => setMostrarFormNegocio(true)} style={{ padding: '6px 16px', borderRadius: 8, border: `1px solid ${admin.inputBorde}`, background: 'transparent', color: admin.texto, fontSize: 13, cursor: 'pointer' }}>+ Nuevo negocio</button>
               </div>
               {mostrarFormNegocio && (
-                <div style={{ margin: '20px 24px 0', background: '#fff', borderRadius: 12, border: '1px solid #6366f1', padding: 20 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Nuevo negocio</div>
+                <div style={{ margin: '20px 24px 0', background: admin.inputFondo, borderRadius: 12, border: `1px solid ${admin.acento}`, padding: 20 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: '#fff' }}>Nuevo negocio</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 80px 1fr', gap: 12, marginBottom: 12 }}>
                     <div>
-                      <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Nombre *</label>
-                      <input value={nuevoNegocio.nombre} onChange={e => setNuevoNegocio({...nuevoNegocio, nombre: e.target.value})} placeholder="Café Central" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                      <label style={{ fontSize: 12, color: admin.textoSecundario, display: 'block', marginBottom: 4 }}>Nombre *</label>
+                      <input value={nuevoNegocio.nombre} onChange={e => setNuevoNegocio({...nuevoNegocio, nombre: e.target.value})} placeholder="Café Central" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${admin.inputBorde}`, background: admin.fondo, color: admin.texto, fontSize: 13, boxSizing: 'border-box' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Tipo *</label>
-                      <input value={nuevoNegocio.tipo} onChange={e => setNuevoNegocio({...nuevoNegocio, tipo: e.target.value})} placeholder="Cafetería" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                      <label style={{ fontSize: 12, color: admin.textoSecundario, display: 'block', marginBottom: 4 }}>Tipo *</label>
+                      <input value={nuevoNegocio.tipo} onChange={e => setNuevoNegocio({...nuevoNegocio, tipo: e.target.value})} placeholder="Cafetería" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${admin.inputBorde}`, background: admin.fondo, color: admin.texto, fontSize: 13, boxSizing: 'border-box' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Ciudad *</label>
-                      <input value={nuevoNegocio.ciudad} onChange={e => setNuevoNegocio({...nuevoNegocio, ciudad: e.target.value})} placeholder="Chacabuco" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                      <label style={{ fontSize: 12, color: admin.textoSecundario, display: 'block', marginBottom: 4 }}>Ciudad *</label>
+                      <input value={nuevoNegocio.ciudad} onChange={e => setNuevoNegocio({...nuevoNegocio, ciudad: e.target.value})} placeholder="Chacabuco" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${admin.inputBorde}`, background: admin.fondo, color: admin.texto, fontSize: 13, boxSizing: 'border-box' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Emoji *</label>
-                      <input value={nuevoNegocio.emoji} onChange={e => setNuevoNegocio({...nuevoNegocio, emoji: e.target.value})} placeholder="☕" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                      <label style={{ fontSize: 12, color: admin.textoSecundario, display: 'block', marginBottom: 4 }}>Emoji *</label>
+                      <input value={nuevoNegocio.emoji} onChange={e => setNuevoNegocio({...nuevoNegocio, emoji: e.target.value})} placeholder="☕" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${admin.inputBorde}`, background: admin.fondo, color: admin.texto, fontSize: 13, boxSizing: 'border-box' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Email *</label>
-                      <input value={nuevoNegocio.email} onChange={e => setNuevoNegocio({...nuevoNegocio, email: e.target.value})} placeholder="negocio@email.com" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                      <label style={{ fontSize: 12, color: admin.textoSecundario, display: 'block', marginBottom: 4 }}>Email *</label>
+                      <input value={nuevoNegocio.email} onChange={e => setNuevoNegocio({...nuevoNegocio, email: e.target.value})} placeholder="negocio@email.com" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${admin.inputBorde}`, background: admin.fondo, color: admin.texto, fontSize: 13, boxSizing: 'border-box' }} />
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="fid-btn-primary" onClick={crearNegocio} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar negocio</button>
-                    <button className="fid-btn-secondary" onClick={() => setMostrarFormNegocio(false)} style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+                    <button className="fid-btn-primary" onClick={crearNegocio} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: admin.acento, color: '#451a03', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>Guardar negocio</button>
+                    <button className="fid-btn-secondary" onClick={() => setMostrarFormNegocio(false)} style={{ padding: '8px 20px', borderRadius: 8, border: `1px solid ${admin.inputBorde}`, background: 'transparent', color: admin.texto, fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
                   </div>
                 </div>
               )}
               <div style={{ padding: 24 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-                  <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-                    <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Negocios activos</div>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: '#1a1a1a' }}>{loading ? <Spinner size={18} color="#6366f1" /> : negocios.filter(n => n.activo).length}</div>
-                  </div>
-                  <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-                    <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Clientes registrados</div>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: '#1a1a1a' }}>{loading ? <Spinner size={18} color="#6366f1" /> : negocios.reduce((acc, n) => acc + (n.clientes?.length || 0), 0)}</div>
-                  </div>
-                  <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-                    <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Puntos en circulación</div>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: '#1a1a1a' }}>{loading ? <Spinner size={18} color="#6366f1" /> : negocios.reduce((acc, n) => acc + (n.clientes?.reduce((a, c) => a + c.puntos, 0) || 0), 0)}</div>
-                  </div>
+                {/* Tira de métricas en una sola línea, sin cajas -- distinta
+                    tanto en color como en formato de los 3 recuadros blancos
+                    que arma VistaInicio() del lado del negocio. */}
+                <div style={{ display: 'flex', gap: 32, paddingBottom: 20, marginBottom: 20, borderBottom: `1px solid ${admin.borde}` }}>
+                  {[
+                    ['Negocios activos', negocios.filter(n => n.activo).length],
+                    ['Clientes registrados', negocios.reduce((acc, n) => acc + (n.clientes?.length || 0), 0)],
+                    ['Puntos en circulación', negocios.reduce((acc, n) => acc + (n.clientes?.reduce((a, c) => a + c.puntos, 0) || 0), 0)],
+                  ].map(([etiqueta, valor]) => (
+                    <div key={etiqueta}>
+                      <div style={{ fontSize: 11, color: admin.textoSecundario, marginBottom: 4 }}>{etiqueta}</div>
+                      <div style={{ fontSize: 20, fontWeight: 600, color: '#fff' }}>{loading ? <Spinner size={16} color={admin.acento} /> : valor}</div>
+                    </div>
+                  ))}
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Mis negocios</div>
-                {loading && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#999' }}><Spinner size={14} color="#6366f1" /> Cargando...</div>}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: admin.textoSecundario, textTransform: 'uppercase', letterSpacing: 0.5 }}>Mis negocios</div>
+                  {loading && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: admin.textoSecundario }}><Spinner size={14} color={admin.acento} /> Cargando...</div>}
+                </div>
+                {/* Tabla con columnas en vez de tarjetas o lista simple --
+                    distinta en formato tanto de la grilla de tarjetas
+                    original como de cualquier lista del panel del negocio. */}
+                <div style={{ border: `1px solid ${admin.borde}`, borderRadius: 8, overflow: 'hidden' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr', padding: '10px 16px', fontSize: 11, color: admin.textoSecundario, borderBottom: `1px solid ${admin.borde}`, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    <div>Negocio</div><div>Estado</div><div>Clientes</div><div>Premios</div><div>Acciones</div>
+                  </div>
                   {negocios.map((neg, i) => (
-                    <div key={neg.id} className="fid-card-hover" style={{ background: '#fff', border: '1px solid #eee', borderRadius: 12, padding: 20 }}>
+                    <div key={neg.id} className={negocioEditandoId === neg.id ? undefined : 'fid-row-hover'} style={{ padding: '14px 16px', borderBottom: i < negocios.length - 1 ? `1px solid ${admin.borde}` : 'none' }}>
                       {negocioEditandoId === neg.id ? (
                         <>
-                          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Editar negocio</div>
+                          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: '#fff' }}>Editar negocio</div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 10, marginBottom: 10 }}>
                             <div>
-                              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Nombre</label>
-                              <input value={formEdicionNegocio.nombre} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, nombre: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                              <label style={{ fontSize: 12, color: admin.textoSecundario, display: 'block', marginBottom: 4 }}>Nombre</label>
+                              <input value={formEdicionNegocio.nombre} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, nombre: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${admin.inputBorde}`, background: admin.fondo, color: admin.texto, fontSize: 13, boxSizing: 'border-box' }} />
                             </div>
                             <div>
-                              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Emoji</label>
-                              <input value={formEdicionNegocio.emoji} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, emoji: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                              <label style={{ fontSize: 12, color: admin.textoSecundario, display: 'block', marginBottom: 4 }}>Emoji</label>
+                              <input value={formEdicionNegocio.emoji} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, emoji: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${admin.inputBorde}`, background: admin.fondo, color: admin.texto, fontSize: 13, boxSizing: 'border-box' }} />
                             </div>
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                             <div>
-                              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Tipo</label>
-                              <input value={formEdicionNegocio.tipo} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tipo: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                              <label style={{ fontSize: 12, color: admin.textoSecundario, display: 'block', marginBottom: 4 }}>Tipo</label>
+                              <input value={formEdicionNegocio.tipo} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tipo: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${admin.inputBorde}`, background: admin.fondo, color: admin.texto, fontSize: 13, boxSizing: 'border-box' }} />
                             </div>
                             <div>
-                              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Ciudad</label>
-                              <input value={formEdicionNegocio.ciudad} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, ciudad: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                              <label style={{ fontSize: 12, color: admin.textoSecundario, display: 'block', marginBottom: 4 }}>Ciudad</label>
+                              <input value={formEdicionNegocio.ciudad} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, ciudad: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${admin.inputBorde}`, background: admin.fondo, color: admin.texto, fontSize: 13, boxSizing: 'border-box' }} />
                             </div>
                           </div>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 }}>Colores de marca (panel del negocio y de sus clientes)</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: admin.textoSecundario, marginBottom: 6 }}>Colores de marca (panel del negocio y de sus clientes)</div>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
                             {[
                               ['fondo', 'Fondo'],
@@ -1966,42 +1987,42 @@ export default function Home() {
                               ['resaltado', 'Resaltado (chips)'],
                             ].map(([clave, etiqueta]) => (
                               <div key={clave}>
-                                <label style={{ fontSize: 10, color: '#555', display: 'block', marginBottom: 4 }}>{etiqueta}</label>
-                                <input type="color" value={formEdicionNegocio.tema[clave]} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, [clave]: e.target.value}})} style={{ width: '100%', height: 28, padding: 0, borderRadius: 6, border: '1px solid #ddd', cursor: 'pointer' }} />
+                                <label style={{ fontSize: 10, color: admin.textoSecundario, display: 'block', marginBottom: 4 }}>{etiqueta}</label>
+                                <input type="color" value={formEdicionNegocio.tema[clave]} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, [clave]: e.target.value}})} style={{ width: '100%', height: 28, padding: 0, borderRadius: 6, border: `1px solid ${admin.inputBorde}`, cursor: 'pointer' }} />
                               </div>
                             ))}
                           </div>
                           <div style={{ marginBottom: 12 }}>
-                            <label style={{ fontSize: 10, color: '#555', display: 'block', marginBottom: 4 }}>Tipografía de títulos (ej: Georgia, serif)</label>
-                            <input value={formEdicionNegocio.tema.fuenteTitulo} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, fuenteTitulo: e.target.value}})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                            <label style={{ fontSize: 10, color: admin.textoSecundario, display: 'block', marginBottom: 4 }}>Tipografía de títulos (ej: Georgia, serif)</label>
+                            <input value={formEdicionNegocio.tema.fuenteTitulo} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, fuenteTitulo: e.target.value}})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${admin.inputBorde}`, background: admin.fondo, color: admin.texto, fontSize: 13, boxSizing: 'border-box' }} />
                           </div>
                           <div style={{ marginBottom: 12 }}>
-                            <label style={{ fontSize: 10, color: '#555', display: 'block', marginBottom: 4 }}>Imagen de portada (URL, tipo muro de Facebook)</label>
-                            <input value={formEdicionNegocio.tema.imagenPortada} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, imagenPortada: e.target.value}})} placeholder="https://..." style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
+                            <label style={{ fontSize: 10, color: admin.textoSecundario, display: 'block', marginBottom: 4 }}>Imagen de portada (URL, tipo muro de Facebook)</label>
+                            <input value={formEdicionNegocio.tema.imagenPortada} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, imagenPortada: e.target.value}})} placeholder="https://..." style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${admin.inputBorde}`, background: admin.fondo, color: admin.texto, fontSize: 13, boxSizing: 'border-box' }} />
                           </div>
                           <div style={{ display: 'flex', gap: 8 }}>
-                            <button className="fid-btn-primary" onClick={guardarEdicionNegocio} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
-                            <button className="fid-btn-secondary" onClick={() => setNegocioEditandoId(null)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Cancelar</button>
+                            <button className="fid-btn-primary" onClick={guardarEdicionNegocio} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', background: admin.acento, color: '#451a03', cursor: 'pointer', fontWeight: 600 }}>Guardar</button>
+                            <button className="fid-btn-secondary" onClick={() => setNegocioEditandoId(null)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: `1px solid ${admin.inputBorde}`, background: 'transparent', color: admin.texto, cursor: 'pointer' }}>Cancelar</button>
                           </div>
                         </>
                       ) : (
-                        <>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                            <div style={{ width: 36, height: 36, borderRadius: 8, background: '#FBEAF0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{neg.emoji}</div>
-                            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: neg.activo ? '#dcfce7' : '#f3f4f6', color: neg.activo ? '#16a34a' : '#999', fontWeight: 500 }}>{neg.activo ? 'Activo' : 'Inactivo'}</span>
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ fontSize: 16 }}>{neg.emoji}</span>
+                            <div>
+                              <div style={{ fontSize: 13, color: '#fff' }}>{neg.nombre}</div>
+                              <div style={{ fontSize: 11, color: admin.textoSecundario }}>{neg.tipo} · {neg.ciudad}</div>
+                            </div>
                           </div>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{neg.nombre}</div>
-                          <div style={{ fontSize: 12, color: '#999' }}>{neg.tipo} · {neg.ciudad}</div>
-                          <div style={{ display: 'flex', gap: 16, marginTop: 12, paddingTop: 12, borderTop: '1px solid #eee' }}>
-                            <span style={{ fontSize: 12, color: '#555' }}><strong>{neg.clientes?.length || 0}</strong> clientes</span>
-                            <span style={{ fontSize: 12, color: '#555' }}><strong>{neg.premios?.length || 0}</strong> premios</span>
+                          <div><span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: neg.activo ? '#14532d' : '#44403c', color: neg.activo ? '#86efac' : '#d6d3d1', fontWeight: 500 }}>{neg.activo ? 'Activo' : 'Inactivo'}</span></div>
+                          <div style={{ fontSize: 13, color: '#d6d3d1' }}>{neg.clientes?.length || 0}</div>
+                          <div style={{ fontSize: 13, color: '#d6d3d1' }}>{neg.premios?.length || 0}</div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="fid-btn-primary" onClick={() => { setNegocioActivo(neg); setMostrarFormCliente(false); }} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${admin.inputBorde}`, background: 'transparent', color: admin.texto, cursor: 'pointer' }}>Ver panel</button>
+                            <button className="fid-btn-secondary" onClick={() => iniciarEdicionNegocio(neg)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${admin.inputBorde}`, background: 'transparent', color: admin.textoSecundario, cursor: 'pointer' }}>Editar</button>
+                            <button className="fid-btn-secondary" onClick={() => toggleNegocioActivo(neg)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: `1px solid ${admin.inputBorde}`, background: 'transparent', color: neg.activo ? '#f87171' : '#86efac', cursor: 'pointer' }}>{neg.activo ? 'Desactivar' : 'Reactivar'}</button>
                           </div>
-                          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                            <button className="fid-btn-primary" onClick={() => { setNegocioActivo(neg); setMostrarFormCliente(false); }} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: 'none', background: '#eef2ff', color: '#6366f1', cursor: 'pointer' }}>Ver panel</button>
-                            <button className="fid-btn-secondary" onClick={() => iniciarEdicionNegocio(neg)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Editar</button>
-                            <button className="fid-btn-secondary" onClick={() => toggleNegocioActivo(neg)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: neg.activo ? '#ef4444' : '#16a34a', cursor: 'pointer' }}>{neg.activo ? 'Desactivar' : 'Reactivar'}</button>
-                          </div>
-                        </>
+                        </div>
                       )}
                     </div>
                   ))}
