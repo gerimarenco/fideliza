@@ -122,6 +122,7 @@ export async function POST(request) {
         puntosAcreditados: puntosASumar,
         puntosTotales: puntosTotalesFinales,
         negocioNombre: negocio.nombre,
+        negocioId: negocio.id,
       });
 
       if (referido) {
@@ -130,6 +131,7 @@ export async function POST(request) {
           puntosAcreditados: referido.puntos,
           puntosTotales: referido.invitadorPuntosTotales,
           negocioNombre: negocio.nombre,
+          negocioId: negocio.id,
         });
       }
     } else {

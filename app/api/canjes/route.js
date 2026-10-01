@@ -202,6 +202,7 @@ export async function POST(request) {
       puntosUsados: premio.puntos,
       puntosRestantes: clienteFinal.puntos,
       negocioNombre: premio.negocio.nombre,
+      negocioId: premio.negocioId,
       cuponCodigo,
       tiendanubeProductoUrl: premio.tiendanubeProductoUrl,
     })

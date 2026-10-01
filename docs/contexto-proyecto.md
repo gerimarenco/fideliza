@@ -267,18 +267,16 @@ técnico, por Google Cloud Console y Netlify):
   pueda usarlo en tiempo de ejecución, no solo en el build).
 - `NEXTAUTH_URL` agregada (no existía) con el valor de producción.
 
-⚠️ **`NEXTAUTH_URL` se corrigió después (2026-09-14) a `https://retornar.com.ar`**
+`NEXTAUTH_URL` se corrigió después (2026-09-14) a `https://retornar.com.ar`
 (estaba mal cargada apuntando a `incomparable-zabaione-b58c21.netlify.app`,
-ver `docs/tareas-futuras.md`) — pero el "URI de redireccionamiento
-autorizado" en el Cliente OAuth de Google Cloud (arriba) sigue siendo el
-de Netlify, nunca se actualizó. Si nadie lo corrigió mientras tanto, el
-botón "Iniciar sesión con Google" en producción probablemente esté roto
-de nuevo con el mismo error (`redirect_uri_mismatch`), ahora con
-`redirect_uri=https://retornar.com.ar/...` en vez de `localhost`. Hay
-que entrar a Google Cloud Console → Credenciales → el Cliente OAuth
-"Fideliza Web" → agregar `https://retornar.com.ar/api/auth/callback/google`
-a los URIs de redireccionamiento autorizados (se puede dejar el de
-Netlify también, no hace falta borrarlo).
+ver `docs/tareas-futuras.md`). El "URI de redireccionamiento autorizado"
+en el Cliente OAuth de Google Cloud (arriba) se quedó apuntando al de
+Netlify por un tiempo, rompiendo "Iniciar sesión con Google" en
+producción — **resuelto el 2026-09-30**: Cecilia agregó
+`https://retornar.com.ar/api/auth/callback/google` a los URIs de
+redireccionamiento autorizados en Google Cloud Console → Credenciales →
+Cliente OAuth "Fideliza Web" (dejando el de Netlify también) y confirmó
+que el login con Google ya funciona.
 
 - Validado en producción real (en su momento): login con un email sin cuenta → rechazado
   con el mensaje esperado en español. Login exitoso (email que sí
