@@ -1410,7 +1410,7 @@ export default function Home() {
           propio de este negocio. Cecilia sentía que ambos paneles se
           veían "prácticamente iguales" una vez adentro de un negocio. */}
       {onVolver && (
-        <div style={{ padding: '6px 24px', background: '#111827', color: '#c7d2fe', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ padding: '6px 24px', background: '#111827', color: '#5eead4', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
           <Shield size={14} /> Estás viendo esto como administrador, no como {negocio.nombre}
         </div>
       )}
@@ -1838,7 +1838,7 @@ export default function Home() {
             <div className="fid-sidebar-header" style={{ padding: '0 20px 16px', borderBottom: '1px solid #1f2937' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ fontSize: 18, fontWeight: 600, color: '#fff' }}>Retornar</div>
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, color: '#c7d2fe', background: '#312e81', padding: '2px 7px', borderRadius: 20 }}>ADMIN</span>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, color: '#5eead4', background: '#134e4a', padding: '2px 7px', borderRadius: 20 }}>ADMIN</span>
               </div>
               <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>Panel de administrador</div>
             </div>
@@ -1850,7 +1850,7 @@ export default function Home() {
                     key={label}
                     className={id ? 'fid-sidebar-item' : undefined}
                     onClick={id ? () => (id === 'negocios' ? volverANegocios() : setSeccionActiva(id)) : undefined}
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: activo ? '#c7d2fe' : '#9ca3af', background: activo ? '#1f2937' : undefined, cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, fontSize: 14, color: activo ? '#5eead4' : '#9ca3af', background: activo ? '#1f2937' : undefined, cursor: id ? 'pointer' : 'default', marginBottom: 2 }}
                   >
                     <Icono size={16} /> <span className="fid-sidebar-label">{label}</span>
                   </div>
@@ -1859,7 +1859,7 @@ export default function Home() {
             </div>
             <div style={{ padding: '12px 16px', borderTop: '1px solid #1f2937', fontSize: 12, color: '#9ca3af' }}>
               <div className="fid-sidebar-header" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#312e81', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#c7d2fe' }}>C</div>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#134e4a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#5eead4' }}>C</div>
                 {session?.user?.name} · Admin
               </div>
               <button className="fid-btn-secondary" onClick={() => signOut({ callbackUrl: '/login' })} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #374151', background: '#1f2937', color: '#f87171', cursor: 'pointer', width: '100%' }}><LogOut size={14} /> <span className="fid-sidebar-label">Cerrar sesión</span></button>
@@ -1869,7 +1869,7 @@ export default function Home() {
           {!negocioActivo && seccionActiva !== 'inicio' && seccionActiva !== 'negocios' && seccionActiva !== 'ajustes' ? (
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: '#999' }}>
               <div style={{ fontSize: 14 }}>Elegí un negocio para ver sus {seccionActiva}</div>
-              <button className="fid-btn-primary" onClick={() => setSeccionActiva('negocios')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer' }}>Ver negocios</button>
+              <button className="fid-btn-primary" onClick={() => setSeccionActiva('negocios')} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#0d9488', color: '#fff', fontSize: 13, cursor: 'pointer' }}>Ver negocios</button>
             </div>
           ) : !negocioActivo && seccionActiva === 'ajustes' ? (
             VistaAjustesAdmin()
@@ -1880,7 +1880,7 @@ export default function Home() {
                 <button className="fid-btn-secondary" onClick={() => setMostrarFormNegocio(true)} style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 13, cursor: 'pointer' }}>+ Nuevo negocio</button>
               </div>
               {mostrarFormNegocio && (
-                <div style={{ margin: '20px 24px 0', background: '#fff', borderRadius: 12, border: '1px solid #6366f1', padding: 20 }}>
+                <div style={{ margin: '20px 24px 0', background: '#fff', borderRadius: 12, border: '1px solid #0d9488', padding: 20 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Nuevo negocio</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 80px 1fr', gap: 12, marginBottom: 12 }}>
                     <div>
@@ -1905,31 +1905,37 @@ export default function Home() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="fid-btn-primary" onClick={crearNegocio} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar negocio</button>
+                    <button className="fid-btn-primary" onClick={crearNegocio} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: '#0d9488', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar negocio</button>
                     <button className="fid-btn-secondary" onClick={() => setMostrarFormNegocio(false)} style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid #eee', background: '#fff', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
                   </div>
                 </div>
               )}
               <div style={{ padding: 24 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
-                  <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-                    <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Negocios activos</div>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: '#1a1a1a' }}>{loading ? <Spinner size={18} color="#6366f1" /> : negocios.filter(n => n.activo).length}</div>
-                  </div>
-                  <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-                    <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Clientes registrados</div>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: '#1a1a1a' }}>{loading ? <Spinner size={18} color="#6366f1" /> : negocios.reduce((acc, n) => acc + (n.clientes?.length || 0), 0)}</div>
-                  </div>
-                  <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid #eee' }}>
-                    <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Puntos en circulación</div>
-                    <div style={{ fontSize: 24, fontWeight: 600, color: '#1a1a1a' }}>{loading ? <Spinner size={18} color="#6366f1" /> : negocios.reduce((acc, n) => acc + (n.clientes?.reduce((a, c) => a + c.puntos, 0) || 0), 0)}</div>
-                  </div>
+                {/* Franja de métricas oscura (en vez de 3 cajas blancas sueltas
+                    como en el panel del negocio) -- a propósito distinta en
+                    formato y no solo en color, para que de un vistazo se note
+                    que no es el mismo panel. */}
+                <div style={{ display: 'flex', background: '#111827', borderRadius: 12, marginBottom: 24, overflow: 'hidden' }}>
+                  {[
+                    ['Negocios activos', negocios.filter(n => n.activo).length],
+                    ['Clientes registrados', negocios.reduce((acc, n) => acc + (n.clientes?.length || 0), 0)],
+                    ['Puntos en circulación', negocios.reduce((acc, n) => acc + (n.clientes?.reduce((a, c) => a + c.puntos, 0) || 0), 0)],
+                  ].map(([etiqueta, valor], i) => (
+                    <div key={etiqueta} style={{ flex: 1, padding: '16px 20px', borderLeft: i > 0 ? '1px solid #1f2937' : 'none' }}>
+                      <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>{etiqueta}</div>
+                      <div style={{ fontSize: 24, fontWeight: 600, color: '#5eead4' }}>{loading ? <Spinner size={18} color="#5eead4" /> : valor}</div>
+                    </div>
+                  ))}
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Mis negocios</div>
-                {loading && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#999' }}><Spinner size={14} color="#6366f1" /> Cargando...</div>}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {loading && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#999' }}><Spinner size={14} color="#0d9488" /> Cargando...</div>}
+                {/* Lista en vez de grilla de tarjetas -- mismo patrón que ya se
+                    usa para clientes/premios del lado del negocio, pero acá
+                    sirve además para que "Mis negocios" no se vea como una
+                    repetición del formato de tarjetas del panel del negocio. */}
+                <div style={{ background: '#fff', border: '1px solid #eee', borderRadius: 12 }}>
                   {negocios.map((neg, i) => (
-                    <div key={neg.id} className="fid-card-hover" style={{ background: '#fff', border: '1px solid #eee', borderRadius: 12, padding: 20 }}>
+                    <div key={neg.id} className={negocioEditandoId === neg.id ? undefined : 'fid-row-hover'} style={{ padding: '16px 20px', borderBottom: i < negocios.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
                       {negocioEditandoId === neg.id ? (
                         <>
                           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Editar negocio</div>
@@ -1980,28 +1986,30 @@ export default function Home() {
                             <input value={formEdicionNegocio.tema.imagenPortada} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, imagenPortada: e.target.value}})} placeholder="https://..." style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, boxSizing: 'border-box' }} />
                           </div>
                           <div style={{ display: 'flex', gap: 8 }}>
-                            <button className="fid-btn-primary" onClick={guardarEdicionNegocio} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', background: '#6366f1', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+                            <button className="fid-btn-primary" onClick={guardarEdicionNegocio} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: 'none', background: '#0d9488', color: '#fff', cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
                             <button className="fid-btn-secondary" onClick={() => setNegocioEditandoId(null)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Cancelar</button>
                           </div>
                         </>
                       ) : (
-                        <>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                            <div style={{ width: 36, height: 36, borderRadius: 8, background: '#FBEAF0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{neg.emoji}</div>
-                            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: neg.activo ? '#dcfce7' : '#f3f4f6', color: neg.activo ? '#16a34a' : '#999', fontWeight: 500 }}>{neg.activo ? 'Activo' : 'Inactivo'}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                          <div style={{ width: 36, height: 36, borderRadius: 8, background: '#FBEAF0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{neg.emoji}</div>
+                          <div style={{ flex: 1, minWidth: 160 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{neg.nombre}</span>
+                              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: neg.activo ? '#dcfce7' : '#f3f4f6', color: neg.activo ? '#16a34a' : '#999', fontWeight: 500 }}>{neg.activo ? 'Activo' : 'Inactivo'}</span>
+                            </div>
+                            <div style={{ fontSize: 12, color: '#999' }}>{neg.tipo} · {neg.ciudad}</div>
                           </div>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{neg.nombre}</div>
-                          <div style={{ fontSize: 12, color: '#999' }}>{neg.tipo} · {neg.ciudad}</div>
-                          <div style={{ display: 'flex', gap: 16, marginTop: 12, paddingTop: 12, borderTop: '1px solid #eee' }}>
+                          <div style={{ display: 'flex', gap: 16 }}>
                             <span style={{ fontSize: 12, color: '#555' }}><strong>{neg.clientes?.length || 0}</strong> clientes</span>
                             <span style={{ fontSize: 12, color: '#555' }}><strong>{neg.premios?.length || 0}</strong> premios</span>
                           </div>
-                          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                            <button className="fid-btn-primary" onClick={() => { setNegocioActivo(neg); setMostrarFormCliente(false); }} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: 'none', background: '#eef2ff', color: '#6366f1', cursor: 'pointer' }}>Ver panel</button>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="fid-btn-primary" onClick={() => { setNegocioActivo(neg); setMostrarFormCliente(false); }} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: 'none', background: '#ccfbf1', color: '#0f766e', cursor: 'pointer' }}>Ver panel</button>
                             <button className="fid-btn-secondary" onClick={() => iniciarEdicionNegocio(neg)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: '#555', cursor: 'pointer' }}>Editar</button>
                             <button className="fid-btn-secondary" onClick={() => toggleNegocioActivo(neg)} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #eee', background: '#fff', color: neg.activo ? '#ef4444' : '#16a34a', cursor: 'pointer' }}>{neg.activo ? 'Desactivar' : 'Reactivar'}</button>
                           </div>
-                        </>
+                        </div>
                       )}
                     </div>
                   ))}
