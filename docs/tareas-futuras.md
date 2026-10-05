@@ -1560,7 +1560,26 @@ cliente real dispare un pago por ahí todavía), pero conviene resolverlo
 (Mercado Pago Marketplace/OAuth, o sacar la tarjeta de "Integraciones"
 hasta que esté listo) antes de prometérselo a un segundo local.
 
-## 59. "Olvidé mi contraseña" para clientes y negocios (2026-10-05)
+## 59. Autogestión de colores de marca por el propio negocio (2026-10-05)
+
+Pendiente anotado en "Otros pendientes menores" (ver más abajo): el
+negocio no podía cambiar sus propios colores, solo el admin desde el
+formulario de "Editar negocio". Genaro pidió habilitarlo — si vende
+Retornar a otro local, ese local tiene que poder elegir y guardar su
+propia paleta sin pedírselo a él cada vez.
+
+Se agregó la misma sección "Colores de marca" (los 8 tokens de color +
+tipografía de títulos + imagen de portada) a Ajustes del panel del
+negocio, con su propio guardado (`guardarTema`, mismo criterio que
+`mensajeRegistro`/`sitioWeb`/`basesCondiciones`). Del lado del backend,
+`PATCH /api/negocios` validaba y guardaba `tema` solo si quien pedía el
+cambio era admin — se sacó esa restricción (la autorización general del
+endpoint ya exige admin o el propio negocio, así que no hacía falta
+duplicar el chequeo). El selector que ya tenía el admin en su propio
+panel se dejó como está, por si le resulta cómodo seguir editando desde
+ahí también.
+
+## 60. "Olvidé mi contraseña" para clientes y negocios (2026-10-05)
 
 Genaro pidió esto como red de seguridad: si una clienta o un negocio se
 olvida la contraseña, hasta ahora no había forma de recuperarla sola/o —
@@ -1590,19 +1609,13 @@ Flujo nuevo, de punta a punta:
   es exactamente quien necesita este flujo) hubiera quedado redirigido a
   `/login` antes de poder usarlas.
 
-## 60. Otros pendientes menores (de sesiones previas, sin resolver)
+## 61. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
-- No hay pantalla de autogestión del tema visual para el propio negocio
-  — sigue cargándolo el admin desde el formulario de "Editar negocio"
-  (que ya tiene su propio selector de colores, no requiere una migración
-  de datos a mano como al principio). Evaluar autogestión por el negocio
-  mismo si hace falta más adelante. **Nota**: esto puede estar resuelto
-  por una PR en paralelo (autogestión de colores por el propio negocio)
-  que todavía no se mergeó al momento de escribir esto — revisar y, si ya
-  está, tachar este punto.
+- ~~No hay pantalla de autogestión del tema visual para el propio
+  negocio~~ — ✅ resuelto, ver ítem 59.
 - ~~Cambiar la contraseña del admin no es auto-gestionable~~ — Genaro
   confirmó que no le hace falta por ahora (su contraseña sigue saliendo
   de `ADMIN_PASSWORD_HASH`). En cambio sí se resolvió la recuperación de
-  contraseña de clientes y negocios, ver ítem 59.
+  contraseña de clientes y negocios, ver ítem 60.
