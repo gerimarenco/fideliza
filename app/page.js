@@ -112,6 +112,8 @@ export default function Home() {
   const [clientesBusquedaDebounced, setClientesBusquedaDebounced] = useState('');
   const [clientesNivelFiltro, setClientesNivelFiltro] = useState('');
   const [clienteExpandidoId, setClienteExpandidoId] = useState(null);
+  const [premioParaCanjear, setPremioParaCanjear] = useState('');
+  const [canjeandoClienteId, setCanjeandoClienteId] = useState(null);
   const [mostrarInfoNiveles, setMostrarInfoNiveles] = useState(false);
   const [canjesPagina, setCanjesPagina] = useState(1);
   const [canjesData, setCanjesData] = useState(null);
@@ -270,8 +272,12 @@ export default function Home() {
   }, [negocioMostrado?.id, canjesPagina, seccionActiva]);
 
   useEffect(() => {
-    if (seccionActiva !== 'premios') return;
-    cargarPremios(negocioMostrado?.id, premiosPagina);
+    if (seccionActiva !== 'premios' && seccionActiva !== 'clientes') return;
+    // En "Clientes" siempre se pide la página 1 (no premiosPagina, que es
+    // la paginación propia de la pantalla "Premios") -- acá los premios
+    // sirven para el selector de "Canjear premio" de cada cliente, no para
+    // mostrarlos paginados.
+    cargarPremios(negocioMostrado?.id, seccionActiva === 'premios' ? premiosPagina : 1);
   }, [negocioMostrado?.id, premiosPagina, seccionActiva]);
 
   useEffect(() => {
@@ -800,6 +806,46 @@ export default function Home() {
     }
   };
 
+  // El negocio canjea un premio a nombre de un cliente (atención
+  // presencial sin que la clienta tenga que usar su propio panel) -- mismo
+  // endpoint que canjearPremio, el backend ya autoriza a un negocio a
+  // canjear premios propios para clientes propios (ver app/api/canjes).
+  const canjearPremioParaCliente = async (cliente) => {
+    const premioId = premioParaCanjear;
+    if (!premioId) return;
+    const premio = (premiosData?.items || []).find(p => p.id === premioId);
+    setCanjeandoClienteId(cliente.id);
+    try {
+      const res = await fetch('/api/canjes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ premioId, clienteId: cliente.id })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        mostrarToast('error', data.error || 'No se pudo canjear el premio');
+        return;
+      }
+      const nombreCliente = cliente.nombre || cliente.email;
+      // Alert bloqueante a propósito, mismo criterio que canjearPremio: si
+      // se generó un cupón de Tiendanube, alguien lo tiene que poder leer
+      // y anotar con calma, no que desaparezca solo como un toast.
+      if (data.tiendanubeCuponCodigo) {
+        alert(`✅ Canjeaste "${premio?.nombre}" para ${nombreCliente}.\n\nCupón de Tiendanube: ${data.tiendanubeCuponCodigo}\n\nEs de un solo uso.`);
+      } else if (data.tiendanubeCuponError) {
+        alert(`✅ Canjeaste "${premio?.nombre}" para ${nombreCliente}. Hubo un problema generando el cupón automáticamente — entregale el descuento a mano.`);
+      } else {
+        alert(`✅ Canjeaste "${premio?.nombre}" para ${nombreCliente}.`);
+      }
+      setPremioParaCanjear('');
+      cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro);
+    } catch (err) {
+      mostrarToast('error', 'Ocurrió un error al canjear el premio.');
+    } finally {
+      setCanjeandoClienteId(null);
+    }
+  };
+
   // Controles de "Anterior / Página X de Y / Siguiente", reutilizados en Clientes y Canjes
   const Paginador = ({ pagina, totalPages, onCambiar }) => {
     if (!totalPages || totalPages <= 1) return null;
@@ -1022,7 +1068,7 @@ export default function Home() {
             <div key={c.id} style={{ borderBottom: `1px solid ${tema.borde}` }}>
               <div
                 className="fid-row-hover"
-                onClick={() => setClienteExpandidoId(expandido ? null : c.id)}
+                onClick={() => { setClienteExpandidoId(expandido ? null : c.id); setPremioParaCanjear(''); }}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', cursor: 'pointer' }}
               >
                 <div style={{ width: 32, height: 32, borderRadius: '50%', background: tema.resaltado, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: tema.texto }}>
@@ -1088,6 +1134,33 @@ export default function Home() {
                   ) : (
                     <div style={{ fontSize: 11, color: tema.textoSecundario }}>Sin celular cargado — no se le puede mandar WhatsApp.</div>
                   )}
+
+                  {/* Canje presencial: la empleada elige el premio y lo
+                      confirma acá mismo, sin que la clienta necesite su
+                      propio celular -- mismo endpoint que usa la clienta
+                      desde su panel (POST /api/canjes), el backend ya
+                      valida puntos suficientes y descuenta automáticamente. */}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <select
+                      value={premioParaCanjear}
+                      onChange={e => setPremioParaCanjear(e.target.value)}
+                      style={{ flex: 1, minWidth: 160, padding: '7px 8px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 12 }}
+                    >
+                      <option value="">Canjear un premio...</option>
+                      {(premiosData?.items || []).filter(p => p.activo).map(p => (
+                        <option key={p.id} value={p.id} disabled={p.puntos > c.puntos}>
+                          {p.nombre} — {p.puntos} pts{p.puntos > c.puntos ? ' (puntos insuficientes)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => canjearPremioParaCliente(c)}
+                      disabled={!premioParaCanjear || canjeandoClienteId === c.id}
+                      style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#22c55e', color: '#fff', fontSize: 12, fontWeight: 600, cursor: (!premioParaCanjear || canjeandoClienteId === c.id) ? 'not-allowed' : 'pointer', opacity: (!premioParaCanjear || canjeandoClienteId === c.id) ? 0.6 : 1 }}
+                    >
+                      {canjeandoClienteId === c.id ? 'Canjeando...' : 'Canjear'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

@@ -1560,7 +1560,32 @@ cliente real dispare un pago por ahí todavía), pero conviene resolverlo
 (Mercado Pago Marketplace/OAuth, o sacar la tarjeta de "Integraciones"
 hasta que esté listo) antes de prometérselo a un segundo local.
 
-## 59. Otros pendientes menores (de sesiones previas, sin resolver)
+## 59. Canjear premio a nombre del cliente desde el panel del negocio (2026-10-05)
+
+Genaro pidió revisar todo el flujo de canjes (cliente → puntos suficientes
+→ premio → canje → descuento de puntos) para confirmar qué ya andaba y
+qué faltaba antes de vender la app. La auditoría encontró que el
+descuento de puntos ya era 100% automático (una sola transacción que
+valida saldo y descuenta junto, protegida contra condiciones de carrera —
+ver `app/api/canjes/route.js`), pero que **no existía ningún botón en el
+panel del negocio para registrar un canje presencial**: la única forma de
+crear un canje era que la propia clienta tocara "Canjear" desde su panel.
+Si llegaba al local sin el celular, o prefería que la atendiera la
+empleada, no había manera de hacerlo desde el lado del negocio — aunque
+el backend ya autorizaba a un negocio a canjear premios propios para
+clientes propios, nunca se había conectado a ninguna pantalla.
+
+Se agregó un selector de premio + botón "Canjear" dentro de la ficha
+desplegable de cada cliente, en Clientes del panel del negocio. Usa el
+mismo endpoint (`POST /api/canjes`) que ya usa la clienta desde su propio
+panel, así que hereda gratis toda la validación que ya existía (puntos
+suficientes, premio activo, negocio activo) y, si el premio está
+vinculado a un producto de Tiendanube, genera el cupón automáticamente
+igual que en el canje online. Los premios de la lista ahora se cargan
+también al entrar a "Clientes" (antes solo se pedían al entrar a
+"Premios"), para tener de qué elegir en el selector.
+
+## 60. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
