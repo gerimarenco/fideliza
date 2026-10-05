@@ -1560,16 +1560,33 @@ cliente real dispare un pago por ahí todavía), pero conviene resolverlo
 (Mercado Pago Marketplace/OAuth, o sacar la tarjeta de "Integraciones"
 hasta que esté listo) antes de prometérselo a un segundo local.
 
-## 59. Otros pendientes menores (de sesiones previas, sin resolver)
+## 59. Autogestión de colores de marca por el propio negocio (2026-10-05)
+
+Pendiente anotado en "Otros pendientes menores" (ver más abajo): el
+negocio no podía cambiar sus propios colores, solo el admin desde el
+formulario de "Editar negocio". Genaro pidió habilitarlo — si vende
+Retornar a otro local, ese local tiene que poder elegir y guardar su
+propia paleta sin pedírselo a él cada vez.
+
+Se agregó la misma sección "Colores de marca" (los 8 tokens de color +
+tipografía de títulos + imagen de portada) a Ajustes del panel del
+negocio, con su propio guardado (`guardarTema`, mismo criterio que
+`mensajeRegistro`/`sitioWeb`/`basesCondiciones`). Del lado del backend,
+`PATCH /api/negocios` validaba y guardaba `tema` solo si quien pedía el
+cambio era admin — se sacó esa restricción (la autorización general del
+endpoint ya exige admin o el propio negocio, así que no hacía falta
+duplicar el chequeo). El selector que ya tenía el admin en su propio
+panel se dejó como está, por si le resulta cómodo seguir editando desde
+ahí también.
+
+## 60. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
-- No hay pantalla de autogestión del tema visual para el propio negocio
-  — sigue cargándolo el admin desde el formulario de "Editar negocio"
-  (que ya tiene su propio selector de colores, no requiere una migración
-  de datos a mano como al principio). Evaluar autogestión por el negocio
-  mismo si hace falta más adelante.
+- ~~No hay pantalla de autogestión del tema visual para el propio
+  negocio~~ — ✅ resuelto, ver ítem 59.
 - Cambiar la contraseña del admin no es auto-gestionable — sale de
   `ADMIN_PASSWORD_HASH` (variable de entorno en Netlify), no de la base.
   Migrarla es una decisión de diseño más grande (afecta el modelo de
-  autenticación), se deja para cuando haya un pedido concreto.
+  autenticación), se deja para cuando haya un pedido concreto. Genaro
+  confirmó que no le hace falta por ahora.
