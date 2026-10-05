@@ -38,6 +38,12 @@ model Negocio {
   // netlify/functions/vencimiento-puntos.mjs). null/0 = desactivado — por
   // ahora solo Peperina lo tiene cargado, en 6.
   vencimientoPuntosMeses Int?
+  // Texto legal del programa de puntos que ve la clienta en "Bases y
+  // condiciones" (menú ⋮ del panel). Antes era una constante fija en el
+  // código con el texto de Peperina hardcodeado — ahora es por negocio,
+  // igual que mensajeRegistro/sitioWeb. Si no está cargado, la pantalla
+  // muestra un aviso de que este negocio todavía no lo completó.
+  basesCondiciones      String?
   // Puntos que ganan tanto quien invita como la persona invitada cuando
   // esta última hace su primera compra (ver lib/referidos.js). null/0 =
   // desactivado, mismo criterio que regaloCumpleanosPuntos.

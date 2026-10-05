@@ -379,11 +379,13 @@ opciones:
 ## Bases y condiciones (menú del cliente)
 
 El menú ⋮ del panel del cliente también tiene "Bases y condiciones", con
-el texto legal oficial de Club Peperina tal cual lo definió Cecilia
-(`BASES_CONDICIONES_PEPERINA` en `app/page.js`). Está hardcodeado a
-propósito porque hoy Peperina es el único negocio real — si se suma un
-segundo negocio con su propio texto, esto debería pasar a ser un campo de
-`Negocio` en vez de una constante fija.
+el texto legal del programa de puntos. Es un campo de texto libre por
+negocio (`Negocio.basesCondiciones`), editable desde Ajustes → Bases y
+condiciones (lo mismo que `mensajeRegistro`/`sitioWeb`) — cada negocio
+carga su propio texto. Si un negocio no lo cargó, la pantalla le avisa a
+la clienta que todavía no está disponible en vez de mostrar nada de otro
+negocio. Peperina tiene cargado el texto legal oficial que definió
+Cecilia (migración `20261005000001_set_bases_condiciones_peperina`).
 
 ## Mis movimientos (historial de puntos del cliente)
 

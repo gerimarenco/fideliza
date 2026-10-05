@@ -1529,14 +1529,46 @@ Con esto, Resend queda completamente andando para clientas reales — el
 plan gratis permite 3.000 mails por mes (tope de 100 por día), de sobra
 para el volumen actual de Peperina.
 
-## 58. Otros pendientes menores (de sesiones previas, sin resolver)
+## 58. "Bases y condiciones" pasa a ser por negocio (2026-10-05)
+
+Genaro preguntó qué le faltaba a la app para poder vendérsela a otro
+local además de Peperina. Repasando el código apareció un bug concreto
+(no solo un pendiente de diseño): el texto de "Bases y condiciones" que
+ve la clienta en el menú ⋮ de su panel estaba hardcodeado en
+`app/page.js` (`BASES_CONDICIONES_PEPERINA`) con el nombre "Club
+Peperina" escrito a mano — si se daba de alta un segundo negocio, sus
+clientas iban a ver las bases y condiciones de Peperina con el nombre de
+Peperina, no las suyas.
+
+Se agregó `Negocio.basesCondiciones` (texto libre, igual criterio que
+`mensajeRegistro`/`sitioWeb`: vacío = sin cargar, no bloquea nada),
+editable desde Ajustes → "Bases y condiciones" de cada negocio. El modal
+del cliente ahora arma el título con el nombre real del negocio y
+muestra el texto que haya cargado (o un aviso de que todavía no lo cargó,
+en vez de mostrar el de otro negocio). Se migró el texto legal real de
+Peperina a este nuevo campo (migración
+`20261005000001_set_bases_condiciones_peperina`) para no perderlo al
+sacar la constante del código.
+
+**Quedó pendiente, aparte (no es código)**: Mercado Pago no está armado
+por negocio — el backend (`app/api/mercadopago/crear-preferencia`) usa
+una sola cuenta global (`MERCADOPAGO_ACCESS_TOKEN`), así que si algún día
+se habilita para un segundo negocio, su plata caería en esa misma cuenta
+única en vez de la del negocio. Hoy no es un problema activo porque
+ningún botón del panel llama a ese endpoint (no hay forma de que un
+cliente real dispare un pago por ahí todavía), pero conviene resolverlo
+(Mercado Pago Marketplace/OAuth, o sacar la tarjeta de "Integraciones"
+hasta que esté listo) antes de prometérselo a un segundo local.
+
+## 59. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
 - No hay pantalla de autogestión del tema visual para el propio negocio
-  (hoy solo lo carga el admin, y para Peperina se cargó a mano vía
-  migraciones de datos porque no había otra forma). Evaluar si hace
-  falta una vez que haya un segundo negocio real usando marca propia.
+  — sigue cargándolo el admin desde el formulario de "Editar negocio"
+  (que ya tiene su propio selector de colores, no requiere una migración
+  de datos a mano como al principio). Evaluar autogestión por el negocio
+  mismo si hace falta más adelante.
 - Cambiar la contraseña del admin no es auto-gestionable — sale de
   `ADMIN_PASSWORD_HASH` (variable de entorno en Netlify), no de la base.
   Migrarla es una decisión de diseño más grande (afecta el modelo de
