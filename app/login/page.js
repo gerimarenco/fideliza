@@ -88,6 +88,11 @@ export default function Login() {
               {showPassword ? 'Ocultar' : 'Mostrar'}
             </button>
           </div>
+          <div style={{ textAlign: 'right', marginTop: 6 }}>
+            <Link href="/olvide-password" style={{ fontSize: 12, color: '#888', textDecoration: 'none' }}>
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
         </div>
 
         {error && <div style={{ fontSize: 13, color: '#ef4444', marginBottom: 16, textAlign: 'center' }}>{error}</div>}

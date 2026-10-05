@@ -491,6 +491,27 @@ invitada) ganan la misma cantidad de puntos.
 - El mail de "sumaste puntos" a quien invitó se manda después de que la
   transacción se confirma, nunca adentro de ella.
 
+## Recuperar contraseña
+
+"¿Olvidaste tu contraseña?" en `/login` lleva a `/olvide-password`, donde
+cliente o negocio pide un link por mail (`POST
+/api/password-reset/solicitar`). El admin queda afuera de este flujo a
+propósito: su contraseña sale de `ADMIN_PASSWORD_HASH` (variable de
+entorno), no de la base de datos.
+
+- La respuesta de `/api/password-reset/solicitar` es siempre la misma
+  (200 OK), exista o no una cuenta con ese email — así nadie puede usar
+  este formulario para averiguar qué emails están registrados.
+- El link que llega por mail (`/restablecer-contrasena?token=...`) vale
+  por **1 hora** y es de un solo uso. El modelo `PasswordResetToken`
+  guarda solo el hash del código (`sha256`, no bcrypt — acá no hace falta
+  lento/salteado como una contraseña, es un código de un solo uso de alta
+  entropía, no algo que alguien pueda intentar adivinar por fuerza
+  bruta), nunca el código en texto plano.
+- `POST /api/password-reset/confirmar` valida el código, actualiza la
+  contraseña (hasheada con `lib/password.js`, igual que el resto) y marca
+  el código usado. Un mismo link no sirve dos veces.
+
 ## Deploy
 
 Pensado para Netlify (`netlify.toml`): build con `prisma generate && npm run

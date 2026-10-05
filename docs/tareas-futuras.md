@@ -1579,14 +1579,43 @@ duplicar el chequeo). El selector que ya tenía el admin en su propio
 panel se dejó como está, por si le resulta cómodo seguir editando desde
 ahí también.
 
-## 60. Otros pendientes menores (de sesiones previas, sin resolver)
+## 60. "Olvidé mi contraseña" para clientes y negocios (2026-10-05)
+
+Genaro pidió esto como red de seguridad: si una clienta o un negocio se
+olvida la contraseña, hasta ahora no había forma de recuperarla sola/o —
+tenía que pedir ayuda. El admin queda afuera a propósito (su contraseña
+sale de `ADMIN_PASSWORD_HASH`, no de la base, y Genaro confirmó que no le
+hace falta resolver eso ahora).
+
+Flujo nuevo, de punta a punta:
+- Link "¿Olvidaste tu contraseña?" en `/login`.
+- `/olvide-password`: pide el email, llama a `POST
+  /api/password-reset/solicitar`. Busca el email en `Negocio` y `Cliente`
+  a la vez (mismo criterio que `authorize()` en `lib/auth.js`) y, si
+  existe, genera un código de un solo uso y manda el mail
+  (`enviarEmailRecuperacionPassword` en `lib/email.js`, mismo diseño que
+  el resto de los mails). La respuesta es siempre la misma exista o no la
+  cuenta, para no poder usar el formulario para averiguar qué emails
+  están registrados.
+- Modelo nuevo `PasswordResetToken`: guarda solo el **hash** del código
+  (`sha256`), nunca el código en texto plano — vence al ahora + 1 hora y
+  se marca usado (no se borra) al confirmarse, así no sirve dos veces.
+- `/restablecer-contrasena?token=...`: pide la contraseña nueva dos veces
+  y llama a `POST /api/password-reset/confirmar`, que valida el código
+  (existe, no vencido, no usado) y actualiza la contraseña hasheada con
+  `lib/password.js`.
+- **Importante**: se agregaron las dos pantallas nuevas a la lista de
+  rutas públicas de `middleware.js` — sin esto, alguien sin sesión (que
+  es exactamente quien necesita este flujo) hubiera quedado redirigido a
+  `/login` antes de poder usarlas.
+
+## 61. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
 - ~~No hay pantalla de autogestión del tema visual para el propio
   negocio~~ — ✅ resuelto, ver ítem 59.
-- Cambiar la contraseña del admin no es auto-gestionable — sale de
-  `ADMIN_PASSWORD_HASH` (variable de entorno en Netlify), no de la base.
-  Migrarla es una decisión de diseño más grande (afecta el modelo de
-  autenticación), se deja para cuando haya un pedido concreto. Genaro
-  confirmó que no le hace falta por ahora.
+- ~~Cambiar la contraseña del admin no es auto-gestionable~~ — Genaro
+  confirmó que no le hace falta por ahora (su contraseña sigue saliendo
+  de `ADMIN_PASSWORD_HASH`). En cambio sí se resolvió la recuperación de
+  contraseña de clientes y negocios, ver ítem 60.
