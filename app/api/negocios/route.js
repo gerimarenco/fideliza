@@ -300,6 +300,17 @@ export async function PATCH(request) {
     data.basesCondiciones = basesCondiciones || null
   }
 
+  // Colores de marca (panel del negocio y de sus clientes) — antes solo lo
+  // cargaba el admin; ahora el negocio también puede elegir su propia
+  // paleta desde su propio panel, mismo criterio que el resto de esta
+  // configuración de cuenta.
+  if (body.tema !== undefined) {
+    if (!validarTema(body.tema)) {
+      return NextResponse.json({ error: 'El tema tiene un formato inválido' }, { status: 400 })
+    }
+    data.tema = body.tema
+  }
+
   // Nombre/tipo/ciudad/emoji/activo son datos administrativos del negocio:
   // solo el admin los edita (el negocio, desde su propio panel, solo carga
   // integraciones). Desactivar es borrado lógico, igual que Premio.activo:
@@ -310,12 +321,6 @@ export async function PATCH(request) {
     if (body.ciudad !== undefined) data.ciudad = body.ciudad
     if (body.emoji !== undefined) data.emoji = body.emoji
     if (body.activo !== undefined) data.activo = !!body.activo
-    if (body.tema !== undefined) {
-      if (!validarTema(body.tema)) {
-        return NextResponse.json({ error: 'El tema tiene un formato inválido' }, { status: 400 })
-      }
-      data.tema = body.tema
-    }
   }
 
   let negocio

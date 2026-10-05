@@ -189,3 +189,24 @@ model MovimientoPuntos {
   @@index([negocioId, createdAt])
   @@index([clienteId, saldoRestante])
 }
+
+// Códigos de un solo uso para "Olvidé mi contraseña" (clientes y negocios
+// -- el admin no tiene fila acá, su contraseña sale de una variable de
+// entorno, ver lib/auth.js). Solo se guarda el hash del código (igual
+// criterio que una contraseña): si se filtrara la base, nadie podría usar
+// estas filas para resetear una cuenta sin tener además el código original
+// que se mandó por mail. usuarioId es denormalizado a propósito (sin FK):
+// apunta a un Cliente o a un Negocio según `tipo`, nunca los dos a la vez.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  tipo      String    // "cliente" | "negocio"
+  usuarioId String
+  expiraEn  DateTime
+  // Se marca en vez de borrar la fila al usarse, para no poder reusar el
+  // mismo código dos veces aunque todavía no haya vencido.
+  usadoEn   DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([usuarioId, tipo])
+}

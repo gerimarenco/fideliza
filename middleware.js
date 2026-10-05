@@ -11,7 +11,12 @@ export function middleware(request) {
   // intermedio antes del formulario de /registro en vez de mandar directo
   // ahí a quien todavía no sabe qué es "Club X".
   const isClubPage = request.nextUrl.pathname.startsWith('/club')
-  const isPublicPage = isLoginPage || isRegistroPage || isClubPage
+  // "Olvidé mi contraseña": las dos pantallas del flujo (pedir el link y
+  // elegir la contraseña nueva) las usa justamente quien no puede loguearse
+  // todavía -- sin esto, el middleware las mandaría derecho a /login antes
+  // de que lleguen a verlas.
+  const isPasswordResetPage = request.nextUrl.pathname.startsWith('/olvide-password') || request.nextUrl.pathname.startsWith('/restablecer-contrasena')
+  const isPublicPage = isLoginPage || isRegistroPage || isClubPage || isPasswordResetPage
   
   if (!token && !isPublicPage) {
     return NextResponse.redirect(new URL('/login', request.url))
