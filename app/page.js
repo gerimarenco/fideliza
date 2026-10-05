@@ -130,6 +130,7 @@ export default function Home() {
   const [formVencimientoPuntos, setFormVencimientoPuntos] = useState('');
   const [formSitioWeb, setFormSitioWeb] = useState('');
   const [formBasesCondiciones, setFormBasesCondiciones] = useState('');
+  const [formTema, setFormTema] = useState({ ...TEMA_DEFAULT });
 
   const isAdmin = session?.user?.role === 'admin';
   const isNegocio = session?.user?.role === 'negocio';
@@ -308,6 +309,7 @@ export default function Home() {
     setFormVencimientoPuntos(negocioMostrado?.vencimientoPuntosMeses ? String(negocioMostrado.vencimientoPuntosMeses) : '');
     setFormSitioWeb(negocioMostrado?.sitioWeb || '');
     setFormBasesCondiciones(negocioMostrado?.basesCondiciones || '');
+    setFormTema({ ...TEMA_DEFAULT, ...(negocioMostrado?.tema || {}) });
     setFormPassword({ actual: '', nueva: '', confirmar: '' });
   }, [negocioMostrado?.id, seccionActiva]);
 
@@ -725,6 +727,24 @@ export default function Home() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: negocioMostrado.id, basesCondiciones: formBasesCondiciones })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
+        return;
+      }
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
+    }
+  };
+
+  const guardarTema = async () => {
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: negocioMostrado.id, tema: formTema })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -1278,6 +1298,37 @@ export default function Home() {
       <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Cuenta</div>
         <div style={{ fontSize: 13, color: tema.textoSecundario }}>Email de acceso: <strong>{session?.user?.email}</strong></div>
+      </div>
+
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Colores de marca</div>
+        <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 10 }}>Así se ve tu panel y el de tus clientas. Elegí los colores que quieras — se guardan apenas tocás &quot;Guardar&quot;.</label>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 12 }}>
+          {[
+            ['fondo', 'Fondo'],
+            ['superficie', 'Tarjetas'],
+            ['borde', 'Bordes'],
+            ['texto', 'Texto'],
+            ['textoSecundario', 'Texto secund.'],
+            ['primario', 'Acento'],
+            ['primarioTexto', 'Texto s/ acento'],
+            ['resaltado', 'Resaltado (chips)'],
+          ].map(([clave, etiqueta]) => (
+            <div key={clave}>
+              <label style={{ fontSize: 10, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>{etiqueta}</label>
+              <input type="color" value={formTema[clave]} onChange={e => setFormTema({...formTema, [clave]: e.target.value})} style={{ width: '100%', height: 28, padding: 0, borderRadius: 6, border: `1px solid ${tema.borde}`, cursor: 'pointer' }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 10, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Tipografía de títulos (ej: Georgia, serif)</label>
+          <input value={formTema.fuenteTitulo} onChange={e => setFormTema({...formTema, fuenteTitulo: e.target.value})} style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 10, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Imagen de portada (URL, tipo muro de Facebook)</label>
+          <input value={formTema.imagenPortada} onChange={e => setFormTema({...formTema, imagenPortada: e.target.value})} placeholder="https://..." style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+        </div>
+        <button className="fid-btn-primary" onClick={guardarTema} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
       </div>
 
       <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
