@@ -23,6 +23,7 @@ const NEGOCIO_SELECT = {
   puntosReferido: true,
   sitioWeb: true,
   vencimientoPuntosMeses: true,
+  basesCondiciones: true,
   tiendanubeStoreId: true,
   tiendanubeAccessToken: true,
   dragonfishBaseDeDatos: true,
@@ -285,6 +286,18 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'El sitio web tiene que ser una URL válida (http:// o https://)' }, { status: 400 })
     }
     data.sitioWeb = sitioWeb || null
+  }
+
+  // Texto legal de "Bases y condiciones" que ve la clienta en su panel —
+  // antes vivía hardcodeado para Peperina en app/page.js, ahora lo carga
+  // cada negocio (mismo criterio que mensajeRegistro: vacío lo desactiva y
+  // la pantalla muestra un aviso en vez de nada).
+  if (body.basesCondiciones !== undefined) {
+    const basesCondiciones = String(body.basesCondiciones).trim()
+    if (basesCondiciones.length > 10000) {
+      return NextResponse.json({ error: 'Las bases y condiciones no pueden superar los 10.000 caracteres' }, { status: 400 })
+    }
+    data.basesCondiciones = basesCondiciones || null
   }
 
   // Nombre/tipo/ciudad/emoji/activo son datos administrativos del negocio:

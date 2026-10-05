@@ -36,68 +36,6 @@ function resolverTema(negocio) {
 // TODO: reemplazar por la casilla real de Retornar cuando Cecilia la cree.
 const EMAIL_SOPORTE = 'soporte@retornar.com.ar';
 
-// Bases y condiciones que mandó Cecilia (texto legal tal cual, no
-// reformulado) para el menú ⋮ del panel del cliente. Hardcodeado acá porque
-// hoy Peperina es el único negocio real -- si se suma un segundo negocio
-// con su propio texto, esto tiene que pasar a ser un campo de Negocio
-// (mismo criterio que mensajeRegistro/sitioWeb) en vez de una constante fija.
-const BASES_CONDICIONES_PEPERINA = [
-  {
-    titulo: '1. ¿Qué es Club Peperina?',
-    parrafos: [
-      'Club Peperina es nuestro programa de beneficios para premiar a quienes nos eligen. Al formar parte del Club, acumulás puntos con tus compras y podés canjearlos por premios y beneficios especiales.',
-    ],
-  },
-  {
-    titulo: '2. ¿Cómo sumo puntos?',
-    parrafos: [
-      'Por cada $100 abonados sumás 1 punto.',
-      'Los puntos se calculan sobre el importe final efectivamente pagado, una vez aplicados los descuentos o promociones correspondientes.',
-      'Podés sumar puntos tanto en nuestro local como en la tienda online, siempre que la compra sea facturada con los datos de la clienta registrada en Club Peperina. La acreditación de los puntos se realiza automáticamente a partir de la facturación.',
-    ],
-  },
-  {
-    titulo: '3. ¿Cuánto duran mis puntos?',
-    parrafos: [
-      'Cada punto tiene una vigencia de 12 meses desde la fecha en que fue obtenido. Cumplido ese plazo, los puntos no utilizados vencen automáticamente.',
-    ],
-  },
-  {
-    titulo: '4. ¿Cómo canjeo mis puntos?',
-    parrafos: [
-      'Cuando alcanzás los puntos necesarios para un premio, podés elegir canjearlos o continuar acumulando.',
-      'Al realizar un canje, se descuentan de tu saldo los puntos correspondientes al premio elegido. Si te quedan puntos disponibles, los conservás y seguís acumulando desde ese saldo.',
-    ],
-  },
-  {
-    titulo: '5. Premios disponibles',
-    parrafos: [
-      'Los premios pueden renovarse a lo largo del año y están sujetos a disponibilidad de stock.',
-      'Peperina podrá incorporar nuevos premios, reemplazar los existentes o modificar la cantidad de puntos necesarios para futuros canjes.',
-    ],
-  },
-  {
-    titulo: '6. Beneficios con descuento',
-    parrafos: [
-      'Cuando un premio consista en un descuento, se aplicarán las condiciones particulares informadas para ese beneficio.',
-      'Actualmente, el beneficio de 50% OFF en una prenda a elección requiere 15.000 puntos, tiene un tope máximo de descuento de $75.000 y no es acumulable con otras promociones, descuentos o beneficios vigentes.',
-    ],
-  },
-  {
-    titulo: '7. Cambios',
-    parrafos: [
-      'Los cambios de prendas se rigen por la política habitual de cambios de Peperina. La generación de puntos está vinculada a la facturación realizada con los datos de la clienta.',
-    ],
-  },
-  {
-    titulo: '8. Condiciones generales',
-    parrafos: [
-      'Los puntos son personales, no tienen valor en dinero, no pueden canjearse por efectivo ni transferirse a otra persona.',
-      'Peperina podrá actualizar las condiciones y los premios del programa. Cualquier modificación relevante será comunicada a los miembros de Club Peperina.',
-    ],
-  },
-];
-
 // "Hoy" / "Ayer" / "Hace N días" para la última actividad de un cliente en
 // VistaClientes — más legible que una fecha pelada para detectar de un
 // vistazo quién dejó de comprar.
@@ -191,6 +129,7 @@ export default function Home() {
   const [formPuntosReferido, setFormPuntosReferido] = useState('');
   const [formVencimientoPuntos, setFormVencimientoPuntos] = useState('');
   const [formSitioWeb, setFormSitioWeb] = useState('');
+  const [formBasesCondiciones, setFormBasesCondiciones] = useState('');
 
   const isAdmin = session?.user?.role === 'admin';
   const isNegocio = session?.user?.role === 'negocio';
@@ -368,6 +307,7 @@ export default function Home() {
     setFormPuntosReferido(negocioMostrado?.puntosReferido ? String(negocioMostrado.puntosReferido) : '');
     setFormVencimientoPuntos(negocioMostrado?.vencimientoPuntosMeses ? String(negocioMostrado.vencimientoPuntosMeses) : '');
     setFormSitioWeb(negocioMostrado?.sitioWeb || '');
+    setFormBasesCondiciones(negocioMostrado?.basesCondiciones || '');
     setFormPassword({ actual: '', nueva: '', confirmar: '' });
   }, [negocioMostrado?.id, seccionActiva]);
 
@@ -767,6 +707,24 @@ export default function Home() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: negocioMostrado.id, sitioWeb: formSitioWeb })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
+        return;
+      }
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
+    }
+  };
+
+  const guardarBasesCondiciones = async () => {
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: negocioMostrado.id, basesCondiciones: formBasesCondiciones })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -1382,6 +1340,13 @@ export default function Home() {
         <input type="url" value={formSitioWeb} onChange={e => setFormSitioWeb(e.target.value)} placeholder="https://tu-tienda.com" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 12 }} />
         <button className="fid-btn-primary" onClick={guardarSitioWeb} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
       </div>
+
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Bases y condiciones</div>
+        <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>El texto legal del programa de puntos que ve tu clienta en &quot;Bases y condiciones&quot; (menú ⋮ de su panel). Dejalo vacío si todavía no lo tenés — se le va a avisar que falta cargarlo.</label>
+        <textarea rows={10} value={formBasesCondiciones} onChange={e => setFormBasesCondiciones(e.target.value)} placeholder="Ej: 1. ¿Qué es el Club?&#10;&#10;Es nuestro programa de beneficios..." style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 12, resize: 'vertical', fontFamily: 'inherit' }} />
+        <button className="fid-btn-primary" onClick={guardarBasesCondiciones} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+      </div>
     </div>
   );
 
@@ -1700,16 +1665,13 @@ export default function Home() {
         {modalCliente === 'bases' && (
           <div onClick={() => setModalCliente(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 20 }}>
             <div onClick={e => e.stopPropagation()} style={{ background: tema.superficie, color: tema.texto, borderRadius: 14, padding: 22, maxWidth: 420, width: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Bases y condiciones — Club Peperina</div>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Bases y condiciones — {nombreClub(negocioDelCliente.nombre)}</div>
               <div style={{ overflowY: 'auto', flex: 1, paddingRight: 4 }}>
-                {BASES_CONDICIONES_PEPERINA.map((seccion, i) => (
-                  <div key={i} style={{ marginBottom: 14 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{seccion.titulo}</div>
-                    {seccion.parrafos.map((parrafo, j) => (
-                      <div key={j} style={{ fontSize: 12, color: tema.textoSecundario, lineHeight: 1.4, marginBottom: 6 }}>{parrafo}</div>
-                    ))}
-                  </div>
-                ))}
+                {negocioDelCliente.basesCondiciones ? (
+                  <div style={{ fontSize: 12, color: tema.textoSecundario, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{negocioDelCliente.basesCondiciones}</div>
+                ) : (
+                  <div style={{ fontSize: 12, color: tema.textoSecundario, lineHeight: 1.5 }}>Este negocio todavía no cargó sus bases y condiciones.</div>
+                )}
               </div>
               <button onClick={() => setModalCliente(null)} className="fid-btn-primary" style={{ marginTop: 8, width: '100%', padding: '10px 0', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500, flexShrink: 0 }}>Cerrar</button>
             </div>
