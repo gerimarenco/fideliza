@@ -1634,7 +1634,37 @@ igual que en el canje online. Los premios de la lista ahora se cargan
 también al entrar a "Clientes" (antes solo se pedían al entrar a
 "Premios"), para tener de qué elegir en el selector.
 
-## 62. Otros pendientes menores (de sesiones previas, sin resolver)
+## 62. Premio de descuento fijo con compra mínima, para topear un % de descuento (2026-10-08)
+
+Genaro quería armar un premio promocional de "50% off en toda la tienda,
+pero con un tope de $70.000 de descuento" para que Peperina lo publique.
+Tiendanube no tiene forma nativa de poner un tope en pesos sobre un
+cupón porcentual (es % sin límite o monto fijo, no hay una tercera
+opción de "lo que sea menor"), y un cupón de monto fijo sin mínimo de
+compra tiene el problema inverso: alguien podría armar un carrito de
+exactamente ese monto y llevárselo gratis, dejando a Peperina sin
+cubrir ni el costo.
+
+Se agregó un tercer tipo de premio vinculado a Tiendanube (los otros dos
+son producto puntual y % de descuento, ver sección "Premios vinculados a
+Tiendanube" en este README): **descuento de monto fijo + compra mínima**
+(`tiendanubeDescuentoMonto` / `tiendanubeDescuentoMontoMinimo`). Con
+compra mínima = 2x el monto del descuento (ej. $70.000 off desde
+$140.000), el negocio nunca se queda con menos del 50% de ninguna compra
+que use el cupón, y en compras más grandes le queda bien más de la
+mitad — a diferencia de un % sin tope, donde una compra enorme se lleva
+proporcionalmente el mismo descuento. Si no se carga una compra mínima,
+se usa el propio monto como piso (mismo criterio que el premio de
+producto puntual: nunca puede darle $0 al negocio).
+
+Nueva función `crearCuponMontoFijo` en `lib/tiendanube.js` (cupón tipo
+`absolute` con `min_price`), usada desde `POST /api/canjes` cuando el
+premio tiene `tiendanubeDescuentoMonto` cargado. Campos nuevos agregados
+al formulario de alta/edición de premios del panel de negocio/admin
+("Descuento fijo ($)" y "Compra mínima ($)"), junto a los de % de
+descuento y producto puntual que ya existían.
+
+## 63. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
