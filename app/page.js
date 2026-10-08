@@ -120,9 +120,9 @@ export default function Home() {
   const [premiosPagina, setPremiosPagina] = useState(1);
   const [premiosData, setPremiosData] = useState(null);
   const [mostrarFormPremio, setMostrarFormPremio] = useState(false);
-  const [nuevoPremio, setNuevoPremio] = useState({ nombre: '', puntos: '', emoji: '', tiendanubeProductoId: '', tiendanubeProductoUrl: '', tiendanubeDescuentoPorcentaje: '' });
+  const [nuevoPremio, setNuevoPremio] = useState({ nombre: '', puntos: '', emoji: '', tiendanubeProductoId: '', tiendanubeProductoUrl: '', tiendanubeDescuentoPorcentaje: '', tiendanubeDescuentoMonto: '', tiendanubeDescuentoMontoMinimo: '' });
   const [premioEditandoId, setPremioEditandoId] = useState(null);
-  const [formEdicionPremio, setFormEdicionPremio] = useState({ nombre: '', puntos: '', emoji: '', tiendanubeProductoId: '', tiendanubeProductoUrl: '', tiendanubeDescuentoPorcentaje: '' });
+  const [formEdicionPremio, setFormEdicionPremio] = useState({ nombre: '', puntos: '', emoji: '', tiendanubeProductoId: '', tiendanubeProductoUrl: '', tiendanubeDescuentoPorcentaje: '', tiendanubeDescuentoMonto: '', tiendanubeDescuentoMontoMinimo: '' });
   const [formIntegraciones, setFormIntegraciones] = useState({ tiendanubeStoreId: '', tiendanubeAccessToken: '', slug: '', dragonfishBaseDeDatos: '' });
   const [formPassword, setFormPassword] = useState({ actual: '', nueva: '', confirmar: '' });
   const [formPuntosXPeso, setFormPuntosXPeso] = useState('');
@@ -479,7 +479,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo crear el premio'}`);
         return;
       }
-      setNuevoPremio({ nombre: '', puntos: '', emoji: '', tiendanubeProductoId: '', tiendanubeProductoUrl: '', tiendanubeDescuentoPorcentaje: '' });
+      setNuevoPremio({ nombre: '', puntos: '', emoji: '', tiendanubeProductoId: '', tiendanubeProductoUrl: '', tiendanubeDescuentoPorcentaje: '', tiendanubeDescuentoMonto: '', tiendanubeDescuentoMontoMinimo: '' });
       setMostrarFormPremio(false);
       cargarPremios(negocio.id, premiosPagina);
       cargarNegocios();
@@ -497,6 +497,8 @@ export default function Home() {
       tiendanubeProductoId: p.tiendanubeProductoId || '',
       tiendanubeProductoUrl: p.tiendanubeProductoUrl || '',
       tiendanubeDescuentoPorcentaje: p.tiendanubeDescuentoPorcentaje || '',
+      tiendanubeDescuentoMonto: p.tiendanubeDescuentoMonto || '',
+      tiendanubeDescuentoMontoMinimo: p.tiendanubeDescuentoMontoMinimo || '',
     });
   };
 
@@ -1211,7 +1213,7 @@ export default function Home() {
             <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Ícono *</label>
             <SelectorIconoPremio value={nuevoPremio.emoji} onChange={clave => setNuevoPremio({...nuevoPremio, emoji: clave})} />
           </div>
-          <div style={{ fontSize: 12, color: tema.textoSecundario, marginBottom: 8 }}>Integración con Tiendanube (opcional) — completá ID de producto para un premio que da un producto puntual, o % de descuento para uno de descuento en toda la tienda. No hace falta cargar ninguno de los dos.</div>
+          <div style={{ fontSize: 12, color: tema.textoSecundario, marginBottom: 8 }}>Integración con Tiendanube (opcional) — completá ID de producto para un premio que da un producto puntual, % de descuento para uno de descuento en toda la tienda, o descuento fijo + compra mínima (ej. $70.000 off en compras desde $140.000). No hace falta cargar ninguno.</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: 12, marginBottom: 12 }}>
             <div>
               <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>ID de producto</label>
@@ -1224,6 +1226,16 @@ export default function Home() {
             <div>
               <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>% de descuento</label>
               <input type="number" value={nuevoPremio.tiendanubeDescuentoPorcentaje} onChange={e => setNuevoPremio({...nuevoPremio, tiendanubeDescuentoPorcentaje: e.target.value})} placeholder="10" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Descuento fijo ($)</label>
+              <input type="number" value={nuevoPremio.tiendanubeDescuentoMonto} onChange={e => setNuevoPremio({...nuevoPremio, tiendanubeDescuentoMonto: e.target.value})} placeholder="70000" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Compra mínima ($)</label>
+              <input type="number" value={nuevoPremio.tiendanubeDescuentoMontoMinimo} onChange={e => setNuevoPremio({...nuevoPremio, tiendanubeDescuentoMontoMinimo: e.target.value})} placeholder="140000" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -1272,6 +1284,16 @@ export default function Home() {
                     <input type="number" value={formEdicionPremio.tiendanubeDescuentoPorcentaje} onChange={e => setFormEdicionPremio({...formEdicionPremio, tiendanubeDescuentoPorcentaje: e.target.value})} placeholder="10" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
                   </div>
                 </div>
+                <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Descuento fijo ($)</label>
+                    <input type="number" value={formEdicionPremio.tiendanubeDescuentoMonto} onChange={e => setFormEdicionPremio({...formEdicionPremio, tiendanubeDescuentoMonto: e.target.value})} placeholder="70000" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Compra mínima ($)</label>
+                    <input type="number" value={formEdicionPremio.tiendanubeDescuentoMontoMinimo} onChange={e => setFormEdicionPremio({...formEdicionPremio, tiendanubeDescuentoMontoMinimo: e.target.value})} placeholder="140000" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
+                  </div>
+                </div>
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1286,6 +1308,9 @@ export default function Home() {
                     )}
                     {p.tiendanubeDescuentoPorcentaje ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}> · <Ticket size={11} /> cupón {p.tiendanubeDescuentoPorcentaje}%</span>
+                    ) : ''}
+                    {p.tiendanubeDescuentoMonto ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}> · <Ticket size={11} /> cupón ${p.tiendanubeDescuentoMonto.toLocaleString('es-AR')}{p.tiendanubeDescuentoMontoMinimo ? ` (compra mín. $${p.tiendanubeDescuentoMontoMinimo.toLocaleString('es-AR')})` : ''}</span>
                     ) : ''}
                   </div>
                 </div>

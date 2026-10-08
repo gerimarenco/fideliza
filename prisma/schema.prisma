@@ -111,6 +111,16 @@ model Premio {
   // premio no debería tener las dos cosas cargadas a la vez, pero no hace
   // falta impedirlo a nivel de base: si pasara, tiendanubeProductoId gana.
   tiendanubeDescuentoPorcentaje Int?
+  // Tercera alternativa: descuento de un monto fijo en pesos (ej. "$70.000
+  // off"), con una compra mínima obligatoria para poder usarlo
+  // (tiendanubeDescuentoMontoMinimo). Esto es lo que permite prometer "hasta
+  // $70.000 de descuento" sin exponer a el negocio a que alguien compre
+  // justo ese monto y se lo lleve gratis — ver crearCuponMontoFijo en
+  // lib/tiendanube.js. Si tiendanubeDescuentoMontoMinimo no se carga, se usa
+  // el propio monto como mínimo (mismo piso que un cupón de producto: nunca
+  // se puede quedar en $0 para el negocio).
+  tiendanubeDescuentoMonto        Int?
+  tiendanubeDescuentoMontoMinimo  Int?
 
   @@index([negocioId])
 }
