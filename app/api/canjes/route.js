@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { obtenerPrecioProducto, crearCuponProductoGratis, crearCuponPorcentaje } from '@/lib/tiendanube'
+import { obtenerPrecioProducto, crearCuponProductoGratis, crearCuponPorcentaje, crearCuponMontoFijo } from '@/lib/tiendanube'
 import { enviarEmailCanje } from '@/lib/email'
 
 // Descuenta `cantidad` puntos de los lotes de MovimientoPuntos más viejos
@@ -157,7 +157,7 @@ export async function POST(request) {
     // webhooks: un problema en el paso externo no le cuesta el canje a la
     // clienta, solo se guarda para que el negocio lo resuelva a mano).
     let cuponCodigo, cuponError
-    if (premio.tiendanubeProductoId || premio.tiendanubeDescuentoPorcentaje) {
+    if (premio.tiendanubeProductoId || premio.tiendanubeDescuentoPorcentaje || premio.tiendanubeDescuentoMonto) {
       try {
         const negocio = await prisma.negocio.findUnique({
           where: { id: premio.negocioId },
@@ -169,6 +169,8 @@ export async function POST(request) {
         } else if (premio.tiendanubeProductoId) {
           const precio = await obtenerPrecioProducto(negocio, premio.tiendanubeProductoId)
           cuponCodigo = await crearCuponProductoGratis(negocio, canje.id, precio)
+        } else if (premio.tiendanubeDescuentoMonto) {
+          cuponCodigo = await crearCuponMontoFijo(negocio, canje.id, premio.tiendanubeDescuentoMonto, premio.tiendanubeDescuentoMontoMinimo)
         } else {
           cuponCodigo = await crearCuponPorcentaje(negocio, canje.id, premio.tiendanubeDescuentoPorcentaje)
         }

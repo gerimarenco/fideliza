@@ -40,6 +40,30 @@ function datosTiendanube(body) {
     }
   }
 
+  if (body.tiendanubeDescuentoMonto !== undefined) {
+    if (body.tiendanubeDescuentoMonto === null || body.tiendanubeDescuentoMonto === '') {
+      data.tiendanubeDescuentoMonto = null
+    } else {
+      const monto = parseInt(body.tiendanubeDescuentoMonto)
+      if (!Number.isInteger(monto) || monto <= 0) {
+        return { error: 'El descuento fijo tiene que ser un número entero mayor a 0 (o vacío para desactivarlo)' }
+      }
+      data.tiendanubeDescuentoMonto = monto
+    }
+  }
+
+  if (body.tiendanubeDescuentoMontoMinimo !== undefined) {
+    if (body.tiendanubeDescuentoMontoMinimo === null || body.tiendanubeDescuentoMontoMinimo === '') {
+      data.tiendanubeDescuentoMontoMinimo = null
+    } else {
+      const montoMinimo = parseInt(body.tiendanubeDescuentoMontoMinimo)
+      if (!Number.isInteger(montoMinimo) || montoMinimo <= 0) {
+        return { error: 'La compra mínima tiene que ser un número entero mayor a 0 (o vacío)' }
+      }
+      data.tiendanubeDescuentoMontoMinimo = montoMinimo
+    }
+  }
+
   return { data }
 }
 
@@ -73,6 +97,7 @@ export async function GET(request) {
       select: {
         id: true, nombre: true, puntos: true, emoji: true, activo: true, negocioId: true,
         tiendanubeProductoId: true, tiendanubeProductoUrl: true, tiendanubeDescuentoPorcentaje: true,
+        tiendanubeDescuentoMonto: true, tiendanubeDescuentoMontoMinimo: true,
       }
     })
   ])

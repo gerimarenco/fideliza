@@ -277,7 +277,7 @@ el widget.
 Un premio (`Premio`, editable desde la sección Premios del panel de
 negocio/admin — es un ítem de menú propio, no está adentro de Ajustes)
 puede vincularse opcionalmente a la tienda Tiendanube del
-negocio de dos formas, mutuamente excluyentes:
+negocio de tres formas, mutuamente excluyentes:
 
 - **Producto puntual** (`tiendanubeProductoId` + `tiendanubeProductoUrl`):
   la clienta puede clickear el premio para ir directo al producto
@@ -289,8 +289,17 @@ negocio de dos formas, mutuamente excluyentes:
 - **Descuento porcentual** (`tiendanubeDescuentoPorcentaje`, ej. `10`): al
   canjearlo se genera un cupón de Tiendanube de un solo uso por ese
   porcentaje sobre toda la compra.
+- **Descuento de monto fijo** (`tiendanubeDescuentoMonto` +
+  `tiendanubeDescuentoMontoMinimo`, ej. `$70.000` off con compra mínima de
+  `$140.000`): para promociones tipo "hasta $X de descuento" sin exponer al
+  negocio a que alguien arme un carrito justo del valor del cupón y se lo
+  lleve gratis — Tiendanube no soporta un "% con tope" nativo, así que esto
+  es la forma de garantizar que el negocio nunca se quede con menos que
+  (compra mínima − monto) de ninguna compra que use el cupón. Si no se
+  carga `tiendanubeDescuentoMontoMinimo`, se usa el propio monto como
+  mínimo.
 
-Ambos casos usan `lib/tiendanube.js` y las mismas credenciales que ya usa el
+Los tres usan `lib/tiendanube.js` y las mismas credenciales que ya usa el
 webhook de acreditación de puntos (`Negocio.tiendanubeStoreId` /
 `tiendanubeAccessToken`, ver tabla de integraciones abajo) — no hace falta
 cargar nada nuevo si el negocio ya tiene Tiendanube conectado para sumar
