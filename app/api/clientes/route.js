@@ -4,6 +4,8 @@ import { hashPassword } from '@/lib/password'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { calcularStatsClientes, calcularNivel } from '@/lib/clienteStats'
+import { normalizarEmail, filtroEmail, normalizarTelefono } from '@/lib/identidad'
+import { randomBytes } from 'crypto'
 
 export async function GET(request) {
   const session = await getServerSession(authOptions)
@@ -90,19 +92,29 @@ export async function POST(request) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  if (!body.email) {
+  const email = normalizarEmail(body.email)
+  if (!email) {
     return NextResponse.json({ error: 'El email es obligatorio' }, { status: 400 })
   }
 
-  const passwordGenerada = Math.random().toString(36).slice(-8)
+  // La restricción única de la base distingue mayúsculas: sin este chequeo
+  // se podía crear "Ana@mail.com" aunque ya existiera "ana@mail.com".
+  const yaExiste = await prisma.cliente.findFirst({ where: { email: filtroEmail(email) }, select: { id: true } })
+  if (yaExiste) {
+    return NextResponse.json({ error: 'Ya existe una cuenta con ese email' }, { status: 409 })
+  }
+
+  // randomBytes en vez de Math.random(): no es un generador pensado para
+  // secretos y su salida se puede predecir.
+  const passwordGenerada = randomBytes(6).toString('base64url')
 
   let clienteCreado
   try {
     clienteCreado = await prisma.cliente.create({
       data: {
         nombre: body.nombre,
-        telefono: body.telefono,
-        email: body.email,
+        telefono: body.telefono ? normalizarTelefono(body.telefono) || null : body.telefono,
+        email,
         password: await hashPassword(passwordGenerada),
         negocioId: body.negocioId,
       }

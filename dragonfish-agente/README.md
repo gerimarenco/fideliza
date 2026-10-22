@@ -103,58 +103,116 @@ npm start
 ```
 
 Al arrancar, el agente hace un chequeo de autenticación contra Dragon Fish
-(`POST /Autenticar`) antes de empezar a hacer polling — si falla, revisa
-`DRAGONFISH_ID_CLIENTE`/`DRAGONFISH_TOKEN` y corta.
+(`POST /Autenticar`) antes de empezar a hacer polling. Si Dragon Fish no
+responde (lo más común: todavía no está abierto), no se cierra: lo vuelve a
+intentar cada minuto y lo anota en `agente.log`. Si el problema persiste
+con Dragon Fish abierto, revisar `DRAGONFISH_ID_CLIENTE`/`DRAGONFISH_TOKEN`.
+
+Cada línea de `agente.log` lleva fecha y hora, y una vez por hora el agente
+deja una línea "Agente funcionando" aunque no haya ventas. Las líneas nunca
+incluyen el email ni el teléfono de las clientas, solo el código de factura.
+
+Una factura que Dragon Fish no encuentra (responde 404) se informa como
+"sin datos" en vez de reintentarse para siempre.
 
 Probarlo así una vez a mano antes de configurar el arranque automático
 (abajo), para confirmar que el `.env` está bien cargado.
 
+## Actualizar el agente en una PC donde ya está instalado
+
+Cuando hay una versión nueva del agente (como la que suma
+`verificar-agente.bat`, fecha y hora en `agente.log` y la espera a que
+Dragon Fish esté abierto):
+
+1. Descargar el proyecto de GitHub (botón verde **Code → Download ZIP**) y
+   descomprimirlo en cualquier lado.
+2. Abrir la carpeta `dragonfish-agente` del ZIP y copiar estos archivos a la
+   carpeta del agente en la PC, reemplazando los que haya:
+   `index.js`, `iniciar-agente.bat`, `verificar-agente.bat`,
+   `package.json`, `package-lock.json`, `README.md`.
+3. **No** copiar ni borrar `.env` (tiene los datos reales del negocio) ni
+   la carpeta `node_modules`.
+4. Si el agente estaba corriendo, reiniciar la PC (o en el Programador de
+   tareas: click derecho en la tarea → **Finalizar** y después
+   **Ejecutar**).
+
+> Por qué importa: en la PC de Peperina se vio (2026-10) un
+> `iniciar-agente.bat` de 487 bytes que mostraba la salida de `npm
+> install`/`npm start` en pantalla — no es el de este repositorio (que
+> escribe todo en `agente.log` y nunca muestra nada). Esa diferencia explica
+> por qué nunca apareció `agente.log`. Reemplazarlo por el de acá es el
+> primer paso.
+
 ## Arranque automático con Windows
 
-Para que el agente arranque solo cuando se prende la PC del negocio (sin
-que nadie tenga que abrir una consola y correr `npm start` a mano todos
-los días):
+Esta es la configuración que se usa en Peperina: el agente arranca solo al
+prender la PC, en segundo plano (sin ninguna ventana que alguien pueda
+cerrar sin querer), y espera solo a que se abra Dragon Fish.
 
 1. Confirmar que `npm install` ya se corrió una vez en esta carpeta y que
    `.env` tiene los valores reales (ver arriba).
-2. Probar `iniciar-agente.bat` (en esta misma carpeta) haciéndole doble
-   clic. Tiene que abrir una ventana negra y, a los pocos segundos, no
-   cerrarse sola — si Dragon Fish ya está andando, en `agente.log` (se
-   crea en esta carpeta) va a ir apareciendo una línea por cada ciclo de
-   polling. Este mismo `.bat` reinicia el agente solo si se llega a
-   cerrar por un error, así no hace falta supervisarlo.
+2. Probar `iniciar-agente.bat` con doble clic. Se abre una ventana negra
+   **vacía** (es normal: todo se escribe en `agente.log`). Esperar 30
+   segundos y hacer doble clic en `verificar-agente.bat`: tiene que decir
+   "El agente esta corriendo" y mostrar líneas de `agente.log` con la hora
+   actual. Cerrar la ventana negra de `iniciar-agente.bat` (eso cierra el
+   agente; en el próximo paso queda configurado para abrirse solo).
 3. Abrir el **Programador de tareas** de Windows (`Win + R` → escribir
    `taskschd.msc` → Enter).
 4. **Acción → Crear tarea básica...** y completar:
    - **Nombre**: `Agente Dragon Fish - Retornar`.
-   - **Desencadenador**: "Al iniciar sesión".
-   - **Acción**: "Iniciar un programa" → buscar `iniciar-agente.bat` en
-     esta carpeta.
-5. Antes de terminar el asistente, tildar **"Abrir las propiedades..."**
-   para dos ajustes más:
-   - Pestaña **General**: tildar "Ejecutar tanto si el usuario inició
-     sesión como si no" únicamente si van a dejar la PC con una sesión
-     de Windows que quede siempre abierta; si no, dejarlo en "Ejecutar
-     solo cuando el usuario haya iniciado sesión" (más simple, no pide
-     guardar la contraseña de Windows).
+   - **Desencadenador**: "Al iniciar el equipo".
+   - **Acción**: "Iniciar un programa" → **Examinar...** y elegir
+     `iniciar-agente.bat` en esta carpeta.
+   - En la misma pantalla, en **"Iniciar en (opcional)"**, pegar la ruta de
+     esta carpeta (la misma que en "Programa o script" pero sin
+     `\iniciar-agente.bat` al final). El `.bat` ya se posiciona solo en su
+     carpeta, pero así queda doblemente asegurado.
+5. Antes de terminar el asistente, tildar **"Abrir el diálogo Propiedades
+   para esta tarea"** y en las propiedades:
+   - Pestaña **General**: elegir **"Ejecutar tanto si el usuario inició
+     sesión como si no"**. Windows pide la contraseña de ese usuario: es la
+     de Windows (con la que se desbloquea la PC). Si alguna vez se cambia
+     esa contraseña, hay que volver a cargarla acá — si no, la tarea deja
+     de arrancar sin avisar.
    - Pestaña **Condiciones**: destildar "Iniciar la tarea solo si el
-     equipo funciona con corriente alterna" (para que no se corte si es
-     una notebook y se desenchufa).
-6. Guardar y, para probarlo sin reiniciar la PC, click derecho sobre la
-   tarea → **Ejecutar**. Confirmar en `agente.log` que arrancó.
+     equipo funciona con corriente alterna".
+   - Pestaña **Configuración**: destildar "Detener la tarea si se ejecuta
+     durante más de..." (el agente tiene que correr todo el día).
+6. Aceptar.
 
-Con esto el agente queda corriendo solo cada vez que se prende la PC y se
-reinicia solo si se cae por algún error de red o de Dragon Fish — no
-hace falta que nadie lo controle a mano.
+Como la tarea corre en segundo plano, **al ejecutarla no se abre ninguna
+ventana** — eso es lo esperado. Para confirmar que funciona se usa
+`verificar-agente.bat` o la sección Integraciones del panel (ver abajo).
+
+### Comprobar el arranque después de reiniciar la PC
+
+1. Reiniciar la PC y entrar a Windows como siempre. Abrir Dragon Fish.
+2. Esperar 2 minutos y hacer doble clic en `verificar-agente.bat`.
+   - "El agente esta corriendo" + líneas con la hora de recién →
+     funciona. Listo.
+   - "Dragon Fish todavía no responde" en la última línea → el agente
+     está andando pero esperando a Dragon Fish: confirmar que Dragon Fish
+     esté abierto y volver a mirar en 2 minutos.
+   - "El agente NO esta corriendo" y ninguna línea nueva → la tarea no se
+     ejecutó. En el Programador de tareas, en la columna "Resultado de la
+     última ejecución" de la tarea: si dice algo distinto de `(0x0)` o
+     `(0x41301)` ("en ejecución"), volver a cargar la contraseña en la
+     pestaña General (paso 5).
+3. También desde el panel de Retornar: **Integraciones → Dragon Fish**
+   muestra "Agente funcionando — último contacto hace X minutos". Si la PC
+   está prendida y eso dice más de una hora, el agente no está corriendo.
+
+Con esto el agente queda corriendo solo cada vez que se prende la PC, se
+reinicia solo si se cae por algún error, y si Dragon Fish todavía no está
+abierto, lo espera.
 
 ## Configurar el webhook en Dragon Fish
 
 En Dragon Fish: **Configuración → Parámetros del sistema → Webhook**
 (disponible desde la versión 12.0004.13576). Crear uno nuevo con:
 
-- **URL de notificación**: `https://retornar.com.ar/api/webhooks/dragonfish` (o
-  la URL real de Netlify mientras el dominio propio no esté apuntado, ver
-  README principal)
+- **URL de notificación**: `https://retornar.com.ar/api/webhooks/dragonfish`
 - **Entidad**: "Factura de venta" (tildar **Ing.**, no hace falta Mod./Elim.)
 - **Base de datos**: la del negocio (tiene que coincidir con
   `Negocio.dragonfishBaseDeDatos` cargado en "Integraciones" de Retornar).

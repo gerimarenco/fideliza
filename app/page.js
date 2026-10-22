@@ -6,11 +6,12 @@ import { nombreClub } from '@/lib/nombreClub';
 import { esCumpleanosHoy, diasHastaProximoCumpleanos } from '@/lib/cumpleanos';
 import { descripcionNiveles, formatearMiles } from '@/lib/clienteStats';
 import { calcularPuntosPorCompra } from '@/lib/puntos';
+import { estadoAgente, textoTiempo } from '@/lib/estadoAgente';
 import { ICONOS_PREMIO, IconoPremio } from '@/lib/premioIconos';
 import {
   Home as HomeIcon, Store, Users, Gift, Star, RefreshCw, Plug, Settings, LogOut, Shield,
   AlertTriangle, MessageCircle, ScrollText, KeyRound, ClipboardList, Cake,
-  ShoppingBag, Hourglass, Link as LinkIcon, Ticket, Info,
+  ShoppingBag, Hourglass, Link as LinkIcon, Ticket, Info, Mail,
 } from 'lucide-react';
 
 // Paleta por defecto (clara) del panel de negocio y del panel de cliente.
@@ -32,9 +33,6 @@ const TEMA_DEFAULT = {
 function resolverTema(negocio) {
   return { ...TEMA_DEFAULT, ...(negocio?.tema || {}) };
 }
-
-// TODO: reemplazar por la casilla real de Retornar cuando Cecilia la cree.
-const EMAIL_SOPORTE = 'soporte@retornar.com.ar';
 
 // "Hoy" / "Ayer" / "Hace N días" para la última actividad de un cliente en
 // VistaClientes — más legible que una fecha pelada para detectar de un
@@ -131,6 +129,7 @@ export default function Home() {
   const [formPuntosReferido, setFormPuntosReferido] = useState('');
   const [formVencimientoPuntos, setFormVencimientoPuntos] = useState('');
   const [formSitioWeb, setFormSitioWeb] = useState('');
+  const [formSoporte, setFormSoporte] = useState({ email: '', whatsapp: '' });
   const [formBasesCondiciones, setFormBasesCondiciones] = useState('');
   const [formTema, setFormTema] = useState({ ...TEMA_DEFAULT });
 
@@ -314,6 +313,7 @@ export default function Home() {
     setFormPuntosReferido(negocioMostrado?.puntosReferido ? String(negocioMostrado.puntosReferido) : '');
     setFormVencimientoPuntos(negocioMostrado?.vencimientoPuntosMeses ? String(negocioMostrado.vencimientoPuntosMeses) : '');
     setFormSitioWeb(negocioMostrado?.sitioWeb || '');
+    setFormSoporte({ email: negocioMostrado?.soporteEmail || '', whatsapp: negocioMostrado?.soporteWhatsapp || '' });
     setFormBasesCondiciones(negocioMostrado?.basesCondiciones || '');
     setFormTema({ ...TEMA_DEFAULT, ...(negocioMostrado?.tema || {}) });
     setFormPassword({ actual: '', nueva: '', confirmar: '' });
@@ -717,6 +717,24 @@ export default function Home() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: negocioMostrado.id, sitioWeb: formSitioWeb })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
+        return;
+      }
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
+    }
+  };
+
+  const guardarSoporte = async () => {
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: negocioMostrado.id, soporteEmail: formSoporte.email, soporteWhatsapp: formSoporte.whatsapp })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -1380,6 +1398,29 @@ export default function Home() {
           <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Base de datos (nombre en Dragon Fish)</label>
           <input value={formIntegraciones.dragonfishBaseDeDatos} onChange={e => setFormIntegraciones({...formIntegraciones, dragonfishBaseDeDatos: e.target.value})} placeholder="PEPERINA" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box' }} />
         </div>
+        {negocioMostrado?.dragonfishConectado && (() => {
+          const { estado, minutos } = estadoAgente(negocioMostrado?.dragonfishUltimoContacto);
+          const colores = { activo: '#16a34a', demorado: '#d97706', sin_conexion: '#dc2626', nunca: tema.textoSecundario };
+          const textos = {
+            activo: `Agente funcionando — último contacto ${textoTiempo(minutos)}.`,
+            demorado: `El agente no se reporta ${textoTiempo(minutos)}. Puede ser un corte de internet momentáneo.`,
+            sin_conexion: `El agente no se reporta ${textoTiempo(minutos)}. Si la PC del local está prendida, revisá que el agente esté corriendo (ver guía).`,
+            nunca: 'El agente todavía no se conectó nunca con este token.',
+          };
+          return (
+            <div role="status" style={{ marginBottom: 12, fontSize: 12, lineHeight: 1.5 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: colores[estado], flexShrink: 0, marginTop: 5 }} />
+                <span style={{ color: tema.texto }}>{textos[estado]}</span>
+              </div>
+              {negocioMostrado?.dragonfishPendientes > 0 && (
+                <div style={{ color: tema.textoSecundario, marginTop: 4, marginLeft: 16 }}>
+                  {negocioMostrado.dragonfishPendientes === 1 ? '1 venta esperando que el agente la procese.' : `${negocioMostrado.dragonfishPendientes} ventas esperando que el agente las procese.`}
+                </div>
+              )}
+            </div>
+          );
+        })()}
         <button className="fid-btn-secondary" onClick={generarTokenDragonfish} type="button" style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>
           {negocioMostrado?.dragonfishConectado ? 'Regenerar token del agente' : 'Generar token del agente'}
         </button>
@@ -1488,6 +1529,16 @@ export default function Home() {
         <label style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Tu tienda online u otro sitio propio — aparece como link en el panel de tus clientes. Dejalo vacío para no mostrar nada.</label>
         <input type="url" value={formSitioWeb} onChange={e => setFormSitioWeb(e.target.value)} placeholder="https://tu-tienda.com" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 12 }} />
         <button className="fid-btn-primary" onClick={guardarSitioWeb} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
+      </div>
+
+      <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Contacto de soporte</div>
+        <div style={{ fontSize: 12, color: tema.textoSecundario, marginBottom: 12 }}>Dónde te escriben tus clientas si tienen una duda (aparece en el menú de su panel). Podés cargar uno, los dos, o ninguno — si no cargás nada, la opción no se muestra.</div>
+        <label htmlFor="soporte-email" style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>Email</label>
+        <input id="soporte-email" type="email" value={formSoporte.email} onChange={e => setFormSoporte({ ...formSoporte, email: e.target.value })} placeholder="hola@tunegocio.com" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 10 }} />
+        <label htmlFor="soporte-whatsapp" style={{ fontSize: 12, color: tema.textoSecundario, display: 'block', marginBottom: 4 }}>WhatsApp (con código de país y área, ej. 5492324123456)</label>
+        <input id="soporte-whatsapp" type="tel" inputMode="numeric" value={formSoporte.whatsapp} onChange={e => setFormSoporte({ ...formSoporte, whatsapp: e.target.value })} placeholder="5492324123456" style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, fontSize: 13, boxSizing: 'border-box', marginBottom: 12 }} />
+        <button className="fid-btn-primary" onClick={guardarSoporte} style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: tema.primario, color: tema.primarioTexto, fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Guardar</button>
       </div>
 
       <div style={{ background: tema.superficie, borderRadius: 12, border: `1px solid ${tema.borde}`, padding: 20 }}>
@@ -1716,7 +1767,12 @@ export default function Home() {
               <div className="fid-row-hover" onClick={() => { setModalCliente('info'); setMostrarMenuCliente(false); }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}><Info size={15} /> Cómo funcionan los puntos</div>
               <div className="fid-row-hover" onClick={() => { setModalCliente('password'); setMostrarMenuCliente(false); }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}><KeyRound size={15} /> Cambiar contraseña</div>
               <div className="fid-row-hover" onClick={() => { setModalCliente('bases'); setMostrarMenuCliente(false); }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', fontSize: 13, cursor: 'pointer', borderBottom: `1px solid ${tema.borde}`, color: tema.texto }}><ClipboardList size={15} /> Bases y condiciones</div>
-              <a href={`mailto:${EMAIL_SOPORTE}`} onClick={() => setMostrarMenuCliente(false)} className="fid-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', fontSize: 13, color: tema.texto, textDecoration: 'none' }}><MessageCircle size={15} /> Contactar soporte</a>
+              {negocioDelCliente.soporteWhatsapp && (
+                <a href={`https://wa.me/${negocioDelCliente.soporteWhatsapp}`} target="_blank" rel="noopener noreferrer" onClick={() => setMostrarMenuCliente(false)} className="fid-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', fontSize: 13, color: tema.texto, textDecoration: 'none', borderBottom: negocioDelCliente.soporteEmail ? `1px solid ${tema.borde}` : 'none' }}><MessageCircle size={15} /> Escribinos por WhatsApp</a>
+              )}
+              {negocioDelCliente.soporteEmail && (
+                <a href={`mailto:${negocioDelCliente.soporteEmail}`} onClick={() => setMostrarMenuCliente(false)} className="fid-row-hover" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', fontSize: 13, color: tema.texto, textDecoration: 'none' }}><Mail size={15} /> Escribinos por mail</a>
+              )}
             </div>
           )}
         </div>

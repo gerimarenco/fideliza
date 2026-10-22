@@ -1664,7 +1664,75 @@ al formulario de alta/edición de premios del panel de negocio/admin
 ("Descuento fijo ($)" y "Compra mínima ($)"), junto a los de % de
 descuento y producto puntual que ya existían.
 
-## 63. Otros pendientes menores (de sesiones previas, sin resolver)
+## 63. Hito 1 del plan de lanzamiento: confiabilidad y datos (2026-10-22)
+
+Primer hito del plan maestro de lanzamiento (seguimiento completo con
+estados en `docs/plan-lanzamiento.md`). Salió de una auditoría de todo el
+proyecto. Todo se probó contra una base PostgreSQL local descartable con
+datos ficticios (`next dev` + pruebas de API + Playwright), nunca contra
+producción.
+
+- **Emails con mayúsculas (bug real)**: el registro guardaba el email tal
+  cual se tipeaba, pero Tiendanube y Dragon Fish lo buscaban en minúsculas
+  con igualdad exacta — una clienta registrada como "Maria.Gomez@..." no
+  sumaba puntos de ninguna de las dos, y Google la rechazaba. Ahora se
+  guarda normalizado (`lib/identidad.js`) y todas las búsquedas (login,
+  Google, Tiendanube, Dragon Fish, recuperación de contraseña, alta
+  manual) son sin distinguir mayúsculas, así siguen funcionando las cuentas
+  viejas sin reescribirlas (una migración podía fallar si hay dos cuentas
+  que solo difieren en mayúsculas). Ya no se puede crear una cuenta
+  duplicada en otras mayúsculas. Dragon Fish además compara el celular
+  solo por dígitos ("2324-123456" encuentra a "2324123456").
+- **Agente de Dragon Fish**: en la PC de Peperina se vio un
+  `iniciar-agente.bat` que no es el de este repositorio (487 bytes, mostraba
+  `npm install`/`npm start` en pantalla) — por eso nunca apareció
+  `agente.log`. Lanzador nuevo (chequea Node y `.env`, rota el log a los
+  5 MB, `.gitattributes` para que llegue con fin de línea de Windows),
+  `verificar-agente.bat` (doble clic para ver si está corriendo), el agente
+  espera a que Dragon Fish esté abierto en vez de cerrarse, fecha y hora en
+  cada línea del log, línea de "sigo funcionando" cada hora. Guía corregida
+  a la configuración real (al iniciar el equipo, en segundo plano) con
+  procedimiento para actualizar los archivos en la PC y comprobar el
+  arranque. Probado con un Dragon Fish simulado que arranca después que el
+  agente.
+- **Cola de facturas que se podía trabar**: el agente pedía siempre las 20
+  facturas pendientes más viejas; una que Dragon Fish no encuentra se
+  reintentaba para siempre y, con 20 así, ninguna venta nueva se procesaba
+  más. Ahora `FacturaPendiente.intentos` reparte de menos a más intentos y
+  el agente marca "sin datos" las que Dragon Fish responde con 404.
+- **Estado del agente en el panel**: `Negocio.dragonfishUltimoContacto` se
+  actualiza en cada consulta del agente (cada 30s, haya o no ventas);
+  Integraciones → Dragon Fish muestra "Agente funcionando — último contacto
+  hace X" y cuántas ventas esperan. El aviso por mail queda pendiente de
+  decidir destinatario y umbral.
+- **Contacto de soporte por negocio**: `soporteEmail` / `soporteWhatsapp`
+  en Ajustes. Reemplaza la constante `soporte@retornar.com.ar` (casilla
+  que no existía, y que hubiera sido la misma para cualquier negocio). Sin
+  nada cargado, la opción no aparece en el menú de la clienta.
+- **"Olvidé mi contraseña"**: máximo 1 mail cada 2 minutos y 5 por hora por
+  cuenta (antes se podía agotar el cupo diario de 100 mails de Resend y
+  dejar a todas las clientas sin sus mails de puntos); el link se reclama
+  de forma atómica (no sirve dos veces ni en simultáneo) y al cambiar la
+  contraseña se anulan los demás links de esa cuenta.
+- **Tareas diarias**: un error con una clienta ya no corta el regalo de
+  cumpleaños ni el vencimiento de las demás; el cumpleaños no se acredita
+  dos veces aunque la función corra dos veces a la vez (lock por cliente
+  dentro de la transacción). El mail de cumpleaños ahora sale con los
+  colores del negocio.
+- **Mails**: links siempre absolutos (si faltaba `NEXT_PUBLIC_BASE_URL`
+  salían relativos y no llevaban a ningún lado); los logs ya no guardan el
+  email completo de las clientas (`ma***@gmail.com`). `lib/email.js`
+  importaba `./db` sin extensión (Netlify lo resolvía al empaquetar, pero
+  fallaba con Node directo).
+- Contraseña generada en el alta manual de clientes con `crypto` en vez de
+  `Math.random()`.
+
+Consulta de solo lectura para identificar las cuentas que Dragon Fish creó
+solas antes del ítem 52: `docs/lanzamiento/cuentas-automaticas.sql`
+(probada contra la base local: distingue esas cuentas de las registradas
+por la propia clienta).
+
+## 64. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.

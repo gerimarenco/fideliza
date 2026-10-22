@@ -1,0 +1,4 @@
+# cmd.exe puede saltear etiquetas (":loop") en archivos .bat con fin de línea
+# Unix; así el .bat llega con fin de línea de Windows aunque se descargue
+# como ZIP desde GitHub.
+*.bat text eol=crlf

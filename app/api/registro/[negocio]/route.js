@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { hashPassword } from '@/lib/password';
 import { nombreClub } from '@/lib/nombreClub';
+import { normalizarEmail, filtroEmail } from '@/lib/identidad';
 
 // CORS abierto porque también la consume el widget embebible (public/widget.js)
 // desde el dominio de la tienda online del negocio (ver README) — no un
@@ -52,7 +53,8 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   try {
     const { negocio } = await params;
-    const { nombre, email, password, fechaNacimiento, dni, sexo, telefono, codigoReferido } = await request.json();
+    const { nombre, email: emailIngresado, password, fechaNacimiento, dni, sexo, telefono, codigoReferido } = await request.json();
+    const email = normalizarEmail(emailIngresado);
 
     if (!nombre?.trim() || !email || !password) {
       return NextResponse.json(
@@ -111,7 +113,7 @@ export async function POST(request, { params }) {
     // sumar esa demora extra a cada registro.
     const [negocioEncontrado, clienteExistente] = await Promise.all([
       prisma.negocio.findUnique({ where: { slug: negocio } }),
-      prisma.cliente.findUnique({ where: { email } }),
+      prisma.cliente.findFirst({ where: { email: filtroEmail(email) } }),
     ]);
 
     if (!negocioEncontrado || !negocioEncontrado.activo) {

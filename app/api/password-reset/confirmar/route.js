@@ -32,6 +32,17 @@ export async function POST(request) {
 
   const passwordHasheada = await hashPassword(passwordNueva)
 
+  // Se reclama el link de forma atómica antes de cambiar nada: si llegan dos
+  // pedidos con el mismo link a la vez (doble click, o alguien que lo
+  // interceptó), solo uno pasa este UPDATE condicional.
+  const { count } = await prisma.passwordResetToken.updateMany({
+    where: { id: registro.id, usadoEn: null, expiraEn: { gt: new Date() } },
+    data: { usadoEn: new Date() },
+  })
+  if (count === 0) {
+    return NextResponse.json({ error: 'Este link no es válido o ya venció. Pedí uno nuevo desde "Olvidé mi contraseña".' }, { status: 400 })
+  }
+
   try {
     if (registro.tipo === 'negocio') {
       await prisma.negocio.update({ where: { id: registro.usuarioId }, data: { password: passwordHasheada } })
@@ -45,9 +56,12 @@ export async function POST(request) {
     throw error
   }
 
-  // Se marca usado recién después de actualizar la contraseña con éxito: si
-  // algo fallara antes, el link sigue sirviendo para reintentar.
-  await prisma.passwordResetToken.update({ where: { id: registro.id }, data: { usadoEn: new Date() } })
+  // Los demás links que esa cuenta haya pedido y todavía no usó dejan de
+  // servir: ya eligió una contraseña nueva.
+  await prisma.passwordResetToken.updateMany({
+    where: { usuarioId: registro.usuarioId, tipo: registro.tipo, usadoEn: null },
+    data: { usadoEn: new Date() },
+  })
 
   return NextResponse.json({ ok: true })
 }

@@ -22,6 +22,10 @@ model Negocio {
   tiendanubeAccessToken String?
   dragonfishBaseDeDatos String?   @unique
   dragonfishAgentToken  String?   @unique
+  // Última vez que el agente local de Dragon Fish consultó pendientes (lo
+  // hace cada 30s haya o no ventas). Sirve para mostrar en el panel si el
+  // agente está andando sin confundir "no hubo ventas" con "se cayó".
+  dragonfishUltimoContacto DateTime?
   tema                  Json?
   // Mensaje/promoción propia que se muestra en la pantalla pública de
   // auto-registro (/registro/[slug]) — ej. "a las 6 hamburguesas, la 7ma
@@ -34,6 +38,13 @@ model Negocio {
   // Sitio propio del negocio (ej. su tienda online) — se muestra como link
   // en el panel del cliente para cruzar tráfico entre los dos. Opcional.
   sitioWeb              String?
+  // Contacto de soporte que ve la clienta en el menú ⋮ de su panel. Antes
+  // apuntaba fijo a soporte@retornar.com.ar (una casilla que no existía, y
+  // que además hubiera sido la misma para cualquier negocio). Cada negocio
+  // carga el suyo; si no carga ninguno, la opción no aparece.
+  soporteEmail          String?
+  // Solo dígitos, con código de país y área (ej. 5492324123456) para wa.me.
+  soporteWhatsapp       String?
   // Meses sin usar un lote de puntos para que venza (ver
   // netlify/functions/vencimiento-puntos.mjs). null/0 = desactivado — por
   // ahora solo Peperina lo tiene cargado, en 6.
@@ -171,6 +182,11 @@ model FacturaPendiente {
   hora      String
   procesado Boolean  @default(false)
   resultado String?  // "acreditado" | "sin_cliente" | "sin_datos" | "duplicado", null mientras está pendiente
+  // Cuántas veces se le entregó al agente sin que la resolviera. Los
+  // pendientes se reparten de menos a más intentos: una factura que el
+  // agente no logra resolver (ej. Dragon Fish no la encuentra) ya no tapa a
+  // las nuevas, que antes podían quedar atrás de las mismas 20 para siempre.
+  intentos  Int      @default(0)
   createdAt DateTime @default(now())
 
   @@unique([negocioId, codigo])
