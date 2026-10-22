@@ -67,6 +67,21 @@ function datosTiendanube(body) {
   return { data }
 }
 
+// Un descuento fijo necesita una compra mínima MAYOR que el descuento: si
+// no, un carrito de exactamente ese valor queda en $0 (ver
+// crearCuponMontoFijo en lib/tiendanube.js). Solo se valida si el pedido
+// toca alguno de los dos campos, para no bloquear, por ejemplo, desactivar
+// un premio viejo.
+function errorMontoFijo(body, datosTn, premioActual = {}) {
+  if (body.tiendanubeDescuentoMonto === undefined && body.tiendanubeDescuentoMontoMinimo === undefined) return null
+  const monto = 'tiendanubeDescuentoMonto' in datosTn ? datosTn.tiendanubeDescuentoMonto : premioActual.tiendanubeDescuentoMonto
+  const minimo = 'tiendanubeDescuentoMontoMinimo' in datosTn ? datosTn.tiendanubeDescuentoMontoMinimo : premioActual.tiendanubeDescuentoMontoMinimo
+  if (monto && !(minimo > monto)) {
+    return 'Con un descuento fijo, la compra mínima es obligatoria y tiene que ser mayor que el descuento (ej. $70.000 de descuento desde $140.000). Si no, una compra de exactamente ese valor saldría gratis.'
+  }
+  return null
+}
+
 export async function GET(request) {
   const session = await getServerSession(authOptions)
   if (!session || session.user.role === 'cliente') {
@@ -129,6 +144,10 @@ export async function POST(request) {
   if (errorTn) {
     return NextResponse.json({ error: errorTn }, { status: 400 })
   }
+  const errorFijo = errorMontoFijo(body, datosTn)
+  if (errorFijo) {
+    return NextResponse.json({ error: errorFijo }, { status: 400 })
+  }
 
   const premio = await prisma.premio.create({
     data: {
@@ -177,6 +196,10 @@ export async function PATCH(request) {
   const { data: datosTn, error: errorTn } = datosTiendanube(body)
   if (errorTn) {
     return NextResponse.json({ error: errorTn }, { status: 400 })
+  }
+  const errorFijo = errorMontoFijo(body, datosTn, premio)
+  if (errorFijo) {
+    return NextResponse.json({ error: errorFijo }, { status: 400 })
   }
   Object.assign(data, datosTn)
 

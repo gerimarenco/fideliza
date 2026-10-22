@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { obtenerPrecioProducto, crearCuponProductoGratis, crearCuponPorcentaje, crearCuponMontoFijo } from '@/lib/tiendanube'
+import { premioGeneraCupon, generarCuponDeCanje } from '@/lib/cuponCanje'
 import { enviarEmailCanje } from '@/lib/email'
 
 // Descuenta `cantidad` puntos de los lotes de MovimientoPuntos más viejos
@@ -157,27 +157,10 @@ export async function POST(request) {
     // webhooks: un problema en el paso externo no le cuesta el canje a la
     // clienta, solo se guarda para que el negocio lo resuelva a mano).
     let cuponCodigo, cuponError
-    if (premio.tiendanubeProductoId || premio.tiendanubeDescuentoPorcentaje || premio.tiendanubeDescuentoMonto) {
-      try {
-        const negocio = await prisma.negocio.findUnique({
-          where: { id: premio.negocioId },
-          select: { tiendanubeStoreId: true, tiendanubeAccessToken: true },
-        })
-
-        if (!negocio?.tiendanubeStoreId || !negocio?.tiendanubeAccessToken) {
-          cuponError = 'El negocio todavía no conectó Tiendanube'
-        } else if (premio.tiendanubeProductoId) {
-          const precio = await obtenerPrecioProducto(negocio, premio.tiendanubeProductoId)
-          cuponCodigo = await crearCuponProductoGratis(negocio, canje.id, precio)
-        } else if (premio.tiendanubeDescuentoMonto) {
-          cuponCodigo = await crearCuponMontoFijo(negocio, canje.id, premio.tiendanubeDescuentoMonto, premio.tiendanubeDescuentoMontoMinimo)
-        } else {
-          cuponCodigo = await crearCuponPorcentaje(negocio, canje.id, premio.tiendanubeDescuentoPorcentaje)
-        }
-      } catch (error) {
-        console.error('Error al crear el cupón de Tiendanube para el canje', canje.id, error)
-        cuponError = 'No se pudo generar el cupón automáticamente'
-      }
+    if (premioGeneraCupon(premio)) {
+      const resultadoCupon = await generarCuponDeCanje(premio, canje.id)
+      cuponCodigo = resultadoCupon.cuponCodigo
+      cuponError = resultadoCupon.cuponError
 
       // Igual que arriba: si esto llegara a fallar (ej. un problema
       // transitorio de conexión justo acá), el canje ya está confirmado y

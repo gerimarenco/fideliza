@@ -114,6 +114,7 @@ export default function Home() {
   const [canjeandoClienteId, setCanjeandoClienteId] = useState(null);
   const [mostrarInfoNiveles, setMostrarInfoNiveles] = useState(false);
   const [canjesPagina, setCanjesPagina] = useState(1);
+  const [reintentandoCuponId, setReintentandoCuponId] = useState(null);
   const [canjesData, setCanjesData] = useState(null);
   const [premiosPagina, setPremiosPagina] = useState(1);
   const [premiosData, setPremiosData] = useState(null);
@@ -994,6 +995,30 @@ export default function Home() {
     );
   };
 
+  // El cupón de Tiendanube de un canje que falló al canjear (los puntos ya
+  // se descontaron en ese momento; esto solo genera el cupón que faltó).
+  const reintentarCupon = async (canjeId) => {
+    setReintentandoCuponId(canjeId);
+    try {
+      const res = await fetch('/api/canjes/reintentar-cupon', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canjeId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        mostrarToast('error', data.error || 'No se pudo generar el cupón');
+      } else {
+        mostrarToast('exito', `Cupón generado: ${data.tiendanubeCuponCodigo}`);
+      }
+      cargarCanjes(negocioMostrado?.id, canjesPagina);
+    } catch (err) {
+      mostrarToast('error', 'Ocurrió un error. Probá de nuevo.');
+    } finally {
+      setReintentandoCuponId(null);
+    }
+  };
+
   // Historial de canjes del negocio completo (pantalla nueva)
   const VistaCanjes = () => (
     <div style={{ padding: 24 }}>
@@ -1008,7 +1033,19 @@ export default function Home() {
               <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.premio.nombre}</div>
               <div style={{ fontSize: 11, color: tema.textoSecundario, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.cliente.nombre || c.cliente.email} · {new Date(c.createdAt).toLocaleDateString('es-AR')}</div>
               {c.tiendanubeCuponCodigo && <div style={{ fontSize: 11, color: '#16a34a', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}><Ticket size={11} /> Cupón: {c.tiendanubeCuponCodigo}</div>}
-              {c.tiendanubeCuponError && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={11} /> {c.tiendanubeCuponError} — entregar el descuento a mano</div>}
+              {c.tiendanubeCuponError && !c.tiendanubeCuponCodigo && (
+                <div style={{ fontSize: 11, color: '#b91c1c', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <AlertTriangle size={11} aria-hidden="true" /> {c.tiendanubeCuponError}
+                  <button
+                    type="button"
+                    onClick={() => reintentarCupon(c.id)}
+                    disabled={reintentandoCuponId === c.id}
+                    style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, border: `1px solid ${tema.borde}`, background: tema.superficie, color: tema.texto, cursor: reintentandoCuponId === c.id ? 'wait' : 'pointer' }}
+                  >
+                    {reintentandoCuponId === c.id ? 'Reintentando...' : 'Reintentar cupón'}
+                  </button>
+                </div>
+              )}
             </div>
             <div style={{ fontSize: 12, fontWeight: 500, background: tema.resaltado, color: tema.texto, padding: '4px 10px', borderRadius: 20, flexShrink: 0 }}>
               {c.premio.puntos} pts

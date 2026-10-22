@@ -1732,7 +1732,36 @@ solas antes del ítem 52: `docs/lanzamiento/cuentas-automaticas.sql`
 (probada contra la base local: distingue esas cuentas de las registradas
 por la propia clienta).
 
-## 64. Otros pendientes menores (de sesiones previas, sin resolver)
+## 64. Hito 2 del plan de lanzamiento: cupones de Tiendanube (2026-10-22)
+
+- **Descuento fijo que podía salir gratis (bug real)**: si un premio de
+  "descuento fijo" se cargaba sin compra mínima, el código usaba el mismo
+  monto como piso — un carrito de exactamente ese valor quedaba en $0 (el
+  comentario del código decía lo contrario). Ahora la compra mínima es
+  obligatoria y tiene que ser mayor que el descuento: se valida al guardar
+  el premio (alta y edición; no bloquea desactivar un premio viejo) y otra
+  vez antes de crear el cupón.
+- **Reintentar cupón**: si Tiendanube falla justo al canjear, los puntos ya
+  se descontaron y el canje quedaba con un error sin forma de resolverlo
+  desde la app. En Canjes aparece "Reintentar cupón" (solo negocio dueño o
+  admin, `POST /api/canjes/reintentar-cupon`). No descuenta puntos de
+  nuevo, y como el código del cupón es siempre el mismo para cada canje
+  (`codigoCuponDeCanje`), reintentar nunca puede crear dos cupones.
+- La generación del cupón se movió a `lib/cuponCanje.js` (la usan el canje
+  y el reintento).
+- Primeros tests de `lib/tiendanube.js` (con `fetch` simulado, nunca contra
+  Tiendanube): forma exacta de cada uno de los tres tipos de cupón, código
+  determinístico, rechazo de compra mínima ≤ descuento, propagación de
+  errores de la API y lectura del precio.
+
+**Lo que ningún test puede confirmar** (depende de Tiendanube y no está
+documentado): si `min_price` se compara contra el subtotal antes o después
+de otras promociones automáticas de la tienda, y si incluye el envío. Eso
+puede hacer que el descuento real supere la mitad de lo que se paga. Queda
+en el protocolo de prueba real (`docs/lanzamiento/`), con autorización de
+Genaro.
+
+## 65. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
   resuelto, ver ítem 31.
