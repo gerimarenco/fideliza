@@ -52,7 +52,7 @@ pruebas reales).
 
 | ID | Tarea | Resp. | Estado | Evidencia / pendiente |
 |---|---|---|---|---|
-| D-01 | Tres propuestas visuales aisladas (admin, negocio, clienta, celular) | Claude | Pendiente de diagnóstico | Se presentan aparte, sin tocar la app real. |
+| D-01 | Tres propuestas visuales aisladas (admin, negocio, clienta, celular) | Claude | Pendiente de decisión | Hechas como prototipo aparte (artifact privado con datos ficticios), sin tocar la app real. Falta que Genaro elija una dirección. |
 | D-02 | Aplicar la dirección elegida | Claude | Bloqueado | Depende de la elección de Genaro. |
 
 ## Documentos de lanzamiento
