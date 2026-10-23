@@ -4,6 +4,8 @@ import { hashPassword } from '@/lib/password'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { randomBytes } from 'crypto'
+import { normalizarEmail } from '@/lib/identidad'
+import { calcularStatsClientes, siguienteNivel } from '@/lib/clienteStats'
 
 // Nunca incluir password/tiendanubeAccessToken tal cual acá: esta respuesta
 // viaja al navegador de negocio y cliente. tiendanubeAccessToken se selecciona
@@ -22,12 +24,18 @@ const NEGOCIO_SELECT = {
   regaloCumpleanosPuntos: true,
   puntosReferido: true,
   sitioWeb: true,
+  soporteEmail: true,
+  soporteWhatsapp: true,
   vencimientoPuntosMeses: true,
   basesCondiciones: true,
   tiendanubeStoreId: true,
   tiendanubeAccessToken: true,
   dragonfishBaseDeDatos: true,
   dragonfishAgentToken: true,
+  dragonfishUltimoContacto: true,
+  // Facturas de Dragon Fish que el agente todavía no resolvió: si crece sin
+  // parar es señal de que el agente no está procesando (ver Integraciones).
+  _count: { select: { facturasPendientes: { where: { procesado: false } } } },
   // `clientes` no va acá adentro: a diferencia de `premios` (mismo `where`
   // fijo para cualquiera que pregunte), acá el `where` tiene que variar
   // según el rol de quien pregunta — ver clientesSelectPara() más abajo. Un
@@ -62,6 +70,8 @@ const TEMA_CLAVES_URL = ['imagenPortada']
 // ignora en silencio, dejando el color anterior o el heredado.
 const COLOR_HEX_VALIDO = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
 const URL_HTTP_VALIDA = /^https?:\/\/.+/
+const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const WHATSAPP_VALIDO = /^\d{10,15}$/
 
 function validarTema(tema) {
   if (tema === null) return true
@@ -109,8 +119,9 @@ export async function GET() {
 
   const select = { ...NEGOCIO_SELECT, clientes: clientesSelectPara(session) }
   const negocios = await prisma.negocio.findMany({ where, select })
-  const negociosSeguros = negocios.map(({ tiendanubeAccessToken, dragonfishAgentToken, ...negocio }) => ({
+  const negociosSeguros = negocios.map(({ tiendanubeAccessToken, dragonfishAgentToken, _count, ...negocio }) => ({
     ...negocio,
+    dragonfishPendientes: _count.facturasPendientes,
     tiendanubeConectado: !!tiendanubeAccessToken,
     // No depende de datos del negocio: es si el servidor tiene la app de
     // Tiendanube registrada (ver app/api/tiendanube/conectar) — controla si
@@ -119,6 +130,24 @@ export async function GET() {
     tiendanubeOAuthDisponible: !!process.env.TIENDANUBE_APP_ID,
     dragonfishConectado: !!dragonfishAgentToken,
   }))
+  // A una clienta no le sirve (ni le corresponde ver) el estado del agente
+  // de la caja del local.
+  if (session.user.role === 'cliente') {
+    for (const negocio of negociosSeguros) {
+      delete negocio.dragonfishUltimoContacto
+      delete negocio.dragonfishPendientes
+      delete negocio.dragonfishBaseDeDatos
+      delete negocio.tiendanubeStoreId
+      // Su nivel (por puntos ganados de por vida, mismo cálculo que ve el
+      // negocio en Clientes) y cuánto le falta para el siguiente, para
+      // mostrarlo en su panel. Solo lectura, y solo de su propio registro.
+      const stats = await calcularStatsClientes(prisma, negocio.clientes)
+      negocio.clientes = negocio.clientes.map((c) => {
+        const s = stats[c.id]
+        return { ...c, nivel: s?.nivel.nombre ?? null, proximoNivel: s ? siguienteNivel(s.puntosTotalesGanados) : null }
+      })
+    }
+  }
   return NextResponse.json(negociosSeguros)
 }
 
@@ -144,7 +173,7 @@ export async function POST(request) {
         tipo: body.tipo,
         ciudad: body.ciudad,
         emoji: body.emoji,
-        email: body.email,
+        email: normalizarEmail(body.email),
         password: await hashPassword(passwordGenerada),
       }
     })
@@ -286,6 +315,23 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'El sitio web tiene que ser una URL válida (http:// o https://)' }, { status: 400 })
     }
     data.sitioWeb = sitioWeb || null
+  }
+
+  // Contacto de soporte para las clientas (menú ⋮ de su panel). Los dos son
+  // opcionales e independientes; vacío lo saca.
+  if (body.soporteEmail !== undefined) {
+    const soporteEmail = normalizarEmail(String(body.soporteEmail ?? ''))
+    if (soporteEmail && (soporteEmail.length > 200 || !EMAIL_VALIDO.test(soporteEmail))) {
+      return NextResponse.json({ error: 'El email de soporte no es válido' }, { status: 400 })
+    }
+    data.soporteEmail = soporteEmail || null
+  }
+  if (body.soporteWhatsapp !== undefined) {
+    const soporteWhatsapp = String(body.soporteWhatsapp ?? '').replace(/\D/g, '')
+    if (soporteWhatsapp && !WHATSAPP_VALIDO.test(soporteWhatsapp)) {
+      return NextResponse.json({ error: 'El WhatsApp de soporte tiene que tener entre 10 y 15 números, con código de país (ej. 5492324123456)' }, { status: 400 })
+    }
+    data.soporteWhatsapp = soporteWhatsapp || null
   }
 
   // Texto legal de "Bases y condiciones" que ve la clienta en su panel —

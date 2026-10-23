@@ -78,51 +78,61 @@ async function vencimientoPuntos() {
     }
 
     for (const [clienteId, loteIds] of lotesPorCliente) {
-      const cliente = await prisma.cliente.findUnique({ where: { id: clienteId }, select: { email: true } })
-      if (!cliente) continue
-
-      // Idempotente por construcción: una vez que un lote queda en
-      // saldoRestante: 0 nunca vuelve a aparecer en el where de arriba, así
-      // que un reintento del mismo día (o un disparo manual de nuevo) no
-      // vence los mismos puntos dos veces.
-      const resultado = await prisma.$transaction(async (tx) => {
-        let total = 0
-        for (const loteId of loteIds) {
-          total += await vencerLoteAtomico(tx, loteId)
-        }
-
-        // Puede dar 0 si un canje consumió justo todos estos lotes entre
-        // que se armó la lista y que se procesó cada uno — no hay nada
-        // real que vencer ni que avisar en ese caso.
-        if (total === 0) return null
-
-        const clienteActualizado = await tx.cliente.update({
-          where: { id: clienteId },
-          data: { puntos: { decrement: total } },
-        })
-        await tx.movimientoPuntos.create({
-          data: { clienteId, negocioId: negocio.id, puntos: -total, origen: 'vencimiento' },
-        })
-        return { clienteActualizado, total }
-      })
-
-      if (!resultado) continue
-
-      await enviarEmailPuntosVencidos({
-        email: cliente.email,
-        puntosVencidos: resultado.total,
-        puntosTotales: resultado.clienteActualizado.puntos,
-        negocioNombre: negocio.nombre,
-        negocioId: negocio.id,
-        meses: negocio.vencimientoPuntosMeses,
-      })
-
-      clientesAfectados++
+      // Un error con una clienta no tiene que frenar el vencimiento de las
+      // demás: se reintenta sola al día siguiente (es idempotente, ver abajo).
+      try {
+        if (await vencerLotesDeCliente(negocio, clienteId, loteIds)) clientesAfectados++
+      } catch (error) {
+        console.error(`Vencimiento de puntos: error con el cliente ${clienteId}`, error.message)
+      }
     }
   }
 
   console.log(`Vencimiento de puntos: ${clientesAfectados} cliente(s) con puntos vencidos`)
   return new Response(JSON.stringify({ clientesAfectados }), { status: 200 })
+}
+
+// Devuelve true si le venció algo a esta clienta.
+async function vencerLotesDeCliente(negocio, clienteId, loteIds) {
+  const cliente = await prisma.cliente.findUnique({ where: { id: clienteId }, select: { email: true } })
+  if (!cliente) return false
+
+  // Idempotente por construcción: una vez que un lote queda en
+  // saldoRestante: 0 nunca vuelve a aparecer en el where de arriba, así que
+  // un reintento del mismo día (o un disparo manual de nuevo) no vence los
+  // mismos puntos dos veces.
+  const resultado = await prisma.$transaction(async (tx) => {
+    let total = 0
+    for (const loteId of loteIds) {
+      total += await vencerLoteAtomico(tx, loteId)
+    }
+
+    // Puede dar 0 si un canje consumió justo todos estos lotes entre que se
+    // armó la lista y que se procesó cada uno — no hay nada real que vencer
+    // ni que avisar en ese caso.
+    if (total === 0) return null
+
+    const clienteActualizado = await tx.cliente.update({
+      where: { id: clienteId },
+      data: { puntos: { decrement: total } },
+    })
+    await tx.movimientoPuntos.create({
+      data: { clienteId, negocioId: negocio.id, puntos: -total, origen: 'vencimiento' },
+    })
+    return { clienteActualizado, total }
+  })
+
+  if (!resultado) return false
+
+  await enviarEmailPuntosVencidos({
+    email: cliente.email,
+    puntosVencidos: resultado.total,
+    puntosTotales: resultado.clienteActualizado.puntos,
+    negocioNombre: negocio.nombre,
+    negocioId: negocio.id,
+    meses: negocio.vencimientoPuntosMeses,
+  })
+  return true
 }
 
 export default vencimientoPuntos

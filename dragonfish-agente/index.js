@@ -39,6 +39,22 @@ const DRAGONFISH_TOKEN = process.env.DRAGONFISH_TOKEN
 const DRAGONFISH_BASE_DE_DATOS = process.env.DRAGONFISH_BASE_DE_DATOS
 
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS || 30000)
+// Cada cuánto se reintenta autenticar si Dragon Fish todavía no responde
+// (típico al prender la PC: el agente arranca antes que Dragon Fish).
+const REINTENTO_AUTENTICACION_MS = 60 * 1000
+// Cada cuánto deja una línea de "sigo funcionando" en agente.log, para poder
+// confirmar mirando el archivo que el agente está vivo aunque no haya ventas.
+const LATIDO_LOG_MS = 60 * 60 * 1000
+
+// Fecha y hora en cada línea: sin esto, mirando agente.log no había forma de
+// saber cuándo había pasado cada cosa.
+function marcaDeTiempo() {
+  return new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })
+}
+for (const nivel of ['log', 'warn', 'error']) {
+  const original = console[nivel].bind(console)
+  console[nivel] = (...args) => original(`[${marcaDeTiempo()}]`, ...args)
+}
 
 if (!FIDELIZA_AGENT_TOKEN) {
   console.error('Falta FIDELIZA_AGENT_TOKEN — generalo desde "Integraciones" > Dragon Fish en el panel del negocio.')
@@ -94,6 +110,13 @@ async function consultarDragonfish(codigo) {
     headers: headersDragonfish(),
   })
 
+  // 404: Dragon Fish no tiene esa factura (anulada, de otra base, o un aviso
+  // que no corresponde a una venta real). No tiene sentido reintentarla para
+  // siempre: se informa como sin datos y deja de ocupar lugar en la cola.
+  if (res.status === 404) {
+    return { noEncontrada: true }
+  }
+
   if (!res.ok) {
     throw new Error(`Dragon Fish respondió ${res.status} al consultar la factura ${codigo}`)
   }
@@ -140,7 +163,13 @@ async function reportarResultado(codigo, datos) {
 
 async function procesarPendiente(pendiente) {
   try {
-    const { monto, email, telefono } = await consultarDragonfish(pendiente.codigo)
+    const { monto, email, telefono, noEncontrada } = await consultarDragonfish(pendiente.codigo)
+    if (noEncontrada) {
+      console.warn(`Factura ${pendiente.codigo}: Dragon Fish no la encuentra, se marca sin datos`)
+      await reportarResultado(pendiente.codigo, { sinDatos: true })
+      procesadasDesdeUltimoLatido++
+      return
+    }
     // Dragon Fish puede devolver Total como número o como string (algunos
     // ERPs viejos serializan los decimales como texto) — se acepta
     // cualquiera de los dos sin que null/''/false cuelen como monto 0 (por
@@ -152,15 +181,26 @@ async function procesarPendiente(pendiente) {
     if (!Number.isFinite(montoNumerico) || (!email && !telefono)) {
       console.warn(`Factura ${pendiente.codigo}: Dragon Fish no trajo monto o identificación de cliente, se marca sin datos`)
       await reportarResultado(pendiente.codigo, { sinDatos: true })
+      procesadasDesdeUltimoLatido++
       return
     }
     const resultado = await reportarResultado(pendiente.codigo, { monto: montoNumerico, email, telefono })
+    procesadasDesdeUltimoLatido++
+    // Sin email/teléfono en el log a propósito: es un archivo que queda en
+    // la PC del local, no tiene por qué guardar datos personales.
     console.log(`Factura ${pendiente.codigo}: ${resultado.resultado}`, resultado.puntosAcreditados ? `(+${resultado.puntosAcreditados} puntos)` : '')
   } catch (error) {
     console.error(`Error procesando factura ${pendiente.codigo}:`, error.message)
     // No se reporta nada a Fideliza: la factura sigue pendiente y se
     // reintenta en el próximo ciclo de polling.
   }
+}
+
+let procesadasDesdeUltimoLatido = 0
+
+function latido() {
+  console.log(`Agente funcionando. Facturas procesadas en la última hora: ${procesadasDesdeUltimoLatido}`)
+  procesadasDesdeUltimoLatido = 0
 }
 
 async function cicloDePolling() {
@@ -174,16 +214,36 @@ async function cicloDePolling() {
   }
 }
 
-async function arrancar() {
-  try {
-    await autenticarDragonfish()
-  } catch (error) {
-    console.error('No se pudo autenticar contra Dragon Fish:', error.message)
-    process.exit(1)
+// Al prender la PC el agente suele arrancar antes que Dragon Fish (cuyo
+// servicio REST solo corre con Dragon Fish abierto). Antes el agente se
+// cerraba acá y dependía de que el .bat lo volviera a abrir; ahora espera
+// solo hasta que Dragon Fish responda, sin importar cómo se lo haya lanzado.
+async function autenticarConReintentos() {
+  let intento = 0
+  for (;;) {
+    try {
+      await autenticarDragonfish()
+      return
+    } catch (error) {
+      // Se avisa en el primer intento y después una vez cada 10 minutos,
+      // para no llenar agente.log con la misma línea mientras nadie abre
+      // Dragon Fish.
+      if (intento % 10 === 0) {
+        console.error(`Dragon Fish todavía no responde (¿está abierto?). Se reintenta cada minuto. Detalle: ${error.message}`)
+      }
+      intento++
+      await new Promise((resolve) => setTimeout(resolve, REINTENTO_AUTENTICACION_MS))
+    }
   }
+}
+
+async function arrancar() {
+  console.log(`Agente Dragon Fish iniciando (Node ${process.version})...`)
+  await autenticarConReintentos()
   console.log(`Agente Dragon Fish arrancado. Polling cada ${POLL_INTERVAL_MS / 1000}s contra ${FIDELIZA_BASE_URL}`)
   cicloDePolling()
   setInterval(cicloDePolling, POLL_INTERVAL_MS)
+  setInterval(latido, LATIDO_LOG_MS)
 }
 
 arrancar()

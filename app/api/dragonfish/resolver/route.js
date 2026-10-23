@@ -4,6 +4,7 @@ import { autenticarAgente } from '@/lib/dragonfishAgente'
 import { enviarEmailPuntosAcreditados } from '@/lib/email'
 import { calcularPuntosPorCompra } from '@/lib/puntos'
 import { acreditarSiEsPrimeraCompraReferida } from '@/lib/referidos'
+import { normalizarEmail, filtroEmail, normalizarTelefono } from '@/lib/identidad'
 
 // El agente local reporta acá el resultado de consultar una factura pendiente
 // contra la API REST de Dragon Fish: monto de la venta y el dato de
@@ -60,8 +61,10 @@ export async function POST(request) {
     return NextResponse.json({ codigo, procesado: true, resultado: factura.resultado })
   }
 
-  const emailNormalizado = email?.trim().toLowerCase()
-  const telefonoNormalizado = telefono?.trim()
+  const emailNormalizado = normalizarEmail(email)
+  // Dragon Fish puede traer el celular con guiones o espacios; el registro
+  // lo guarda solo con dígitos (ver app/api/registro).
+  const telefonoNormalizado = normalizarTelefono(telefono)
 
   // Dragon Fish (vía el agente local) puede mandar el monto como número o
   // como string (algunos ERPs viejos serializan los decimales como texto) —
@@ -83,8 +86,11 @@ export async function POST(request) {
     where: {
       negocioId: negocio.id,
       OR: [
-        ...(emailNormalizado ? [{ email: emailNormalizado }] : []),
+        ...(emailNormalizado ? [{ email: filtroEmail(emailNormalizado) }] : []),
         ...(telefonoNormalizado ? [{ telefono: telefonoNormalizado }] : []),
+        // Clientas cargadas a mano antes de normalizar el celular pueden
+        // tenerlo guardado con guiones/espacios, igual que en Dragon Fish.
+        ...(typeof telefono === 'string' && telefono.trim() && telefono.trim() !== telefonoNormalizado ? [{ telefono: telefono.trim() }] : []),
       ],
     },
   })

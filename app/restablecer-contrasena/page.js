@@ -52,48 +52,48 @@ export default function RestablecerContrasena() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui' }}>
-      <div style={{ background: '#fff', borderRadius: 16, padding: 40, width: 360, border: '1px solid #eee' }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a1a' }}>Retornar</div>
-          <div style={{ fontSize: 14, color: '#999', marginTop: 4 }}>Elegí tu nueva contraseña</div>
+    <div style={{ minHeight: '100vh', background: '#f8f8f5', color: '#17191b', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 16px', boxSizing: 'border-box' }}>
+      <div style={{ width: '100%', maxWidth: 380 }}>
+        <div style={{ marginBottom: 32, borderBottom: '1px solid #17191b', paddingBottom: 18 }}>
+          <div style={{ fontFamily: 'var(--font-titulo), Georgia, serif', fontStyle: 'italic', fontSize: 40, lineHeight: 1 }}>Retornar</div>
+          <div style={{ fontFamily: 'var(--font-titulo), Georgia, serif', fontSize: 22, color: '#17191b', marginTop: 10 }}>Elegí tu nueva contraseña</div>
         </div>
 
         {listo ? (
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 14, color: '#374151', lineHeight: 1.5, marginBottom: 24 }}>
+            <div style={{ fontSize: 14, color: '#17191b', lineHeight: 1.5, marginBottom: 24 }}>
               Listo, ya podés entrar con tu nueva contraseña.
             </div>
-            <button onClick={() => router.push('/login')} style={{ width: '100%', padding: '11px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            <button onClick={() => router.push('/login')} style={{ width: '100%', padding: '11px', borderRadius: 2, border: 'none', background: '#17191b', color: '#f8f8f5', minHeight: 46, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
               Ir al login
             </button>
           </div>
         ) : !token ? (
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 14, color: '#ef4444', lineHeight: 1.5, marginBottom: 24 }}>
+            <div style={{ fontSize: 14, color: '#b91c1c', lineHeight: 1.5, marginBottom: 24 }}>
               Este link no es válido. Pedí uno nuevo desde &quot;Olvidé mi contraseña&quot;.
             </div>
-            <Link href="/olvide-password" style={{ fontSize: 13, color: '#6366f1', fontWeight: 600, textDecoration: 'none' }}>
+            <Link href="/olvide-password" style={{ fontSize: 13, color: '#17191b', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3 }}>
               Pedir un link nuevo
             </Link>
           </div>
         ) : (
           <>
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 13, color: '#555', display: 'block', marginBottom: 6 }}>Nueva contraseña</label>
+              <label style={{ fontSize: 13, color: '#55595e', display: 'block', marginBottom: 6 }}>Nueva contraseña</label>
               <div style={{ position: 'relative' }}>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  style={{ width: '100%', padding: '10px 40px 10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '10px 40px 10px 12px', borderRadius: 2, border: '1px solid #c9cac4', background: '#fff', color: '#17191b', fontSize: 14, boxSizing: 'border-box' }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(s => !s)}
                   aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888', padding: 4 }}
+                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#55595e', padding: 4 }}
                 >
                   {showPassword ? 'Ocultar' : 'Mostrar'}
                 </button>
@@ -101,20 +101,20 @@ export default function RestablecerContrasena() {
             </div>
 
             <div style={{ marginBottom: 24 }}>
-              <label style={{ fontSize: 13, color: '#555', display: 'block', marginBottom: 6 }}>Repetir contraseña</label>
+              <label style={{ fontSize: 13, color: '#55595e', display: 'block', marginBottom: 6 }}>Repetir contraseña</label>
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={confirmar}
                 onChange={e => setConfirmar(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleGuardar()}
                 placeholder="••••••••"
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 2, border: '1px solid #c9cac4', background: '#fff', color: '#17191b', fontSize: 14, boxSizing: 'border-box' }}
               />
             </div>
 
-            {error && <div style={{ fontSize: 13, color: '#ef4444', marginBottom: 16, textAlign: 'center' }}>{error}</div>}
+            {error && <div style={{ fontSize: 13, color: '#b91c1c', marginBottom: 16, textAlign: 'center' }}>{error}</div>}
 
-            <button onClick={handleGuardar} disabled={loading} style={{ width: '100%', padding: '11px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            <button onClick={handleGuardar} disabled={loading} style={{ width: '100%', padding: '11px', borderRadius: 2, border: 'none', background: '#17191b', color: '#f8f8f5', minHeight: 46, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
               {loading ? 'Guardando...' : 'Guardar contraseña'}
             </button>
           </>

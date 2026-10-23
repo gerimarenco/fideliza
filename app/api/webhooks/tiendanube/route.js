@@ -4,6 +4,7 @@ import { enviarEmailPuntosAcreditados } from '@/lib/email'
 import { verificarFirmaTiendanube } from '@/lib/webhookSignature'
 import { calcularPuntosPorCompra } from '@/lib/puntos'
 import { acreditarSiEsPrimeraCompraReferida } from '@/lib/referidos'
+import { normalizarEmail, filtroEmail, ocultarEmail } from '@/lib/identidad'
 
 // Tiendanube manda un payload liviano (store_id, event, id de la orden), no la
 // orden completa. Hay que pedirla a la API con el access_token del negocio.
@@ -74,17 +75,18 @@ export async function POST(request) {
     }
 
     const orden = await obtenerOrden(storeId, orderId, negocio.tiendanubeAccessToken)
-    const email = orden.contact_email?.trim().toLowerCase()
+    const email = normalizarEmail(orden.contact_email)
     const total = parseFloat(orden.total)
 
     if (!email || !Number.isFinite(total)) {
-      console.error('Webhook Tiendanube: la orden no trae email o total válidos', { orderId, email, total: orden.total })
+      console.error('Webhook Tiendanube: la orden no trae email o total válidos', { orderId, email: ocultarEmail(email), total: orden.total })
       return NextResponse.json({ message: 'Datos de la orden incompletos' }, { status: 200 })
     }
 
-    // Buscar el cliente por email
+    // Sin distinguir mayúsculas: hay cuentas viejas guardadas tal cual se
+    // tipearon (ver lib/identidad.js).
     const cliente = await prisma.cliente.findFirst({
-      where: { email, negocioId: negocio.id },
+      where: { email: filtroEmail(email), negocioId: negocio.id },
     })
 
     if (!cliente) {

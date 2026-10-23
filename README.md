@@ -381,9 +381,10 @@ opciones:
   cuántos pesos equivalen a 1 punto (`puntosXPeso`), si tiene regalo de
   cumpleaños y/o vencimiento de puntos activados. Nunca queda
   desactualizado si esos valores cambian desde Ajustes.
-- **Contactar soporte**: abre un `mailto:` a la casilla de soporte
-  (`EMAIL_SOPORTE` en `app/page.js`) — hoy es un placeholder
-  (`soporte@retornar.com.ar`) hasta que se cree esa casilla de verdad.
+- **Escribinos por WhatsApp / por mail**: el contacto de soporte de cada
+  negocio (`Negocio.soporteWhatsapp` / `soporteEmail`, Ajustes → "Contacto
+  de soporte"). Cada opción aparece solo si el negocio la cargó; si no
+  cargó ninguna, no se muestra nada.
 
 ## Bases y condiciones (menú del cliente)
 

@@ -32,48 +32,48 @@ export default function OlvidePassword() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui' }}>
-      <div style={{ background: '#fff', borderRadius: 16, padding: 40, width: 360, border: '1px solid #eee' }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a1a' }}>Retornar</div>
-          <div style={{ fontSize: 14, color: '#999', marginTop: 4 }}>Recuperar contraseña</div>
+    <div style={{ minHeight: '100vh', background: '#f8f8f5', color: '#17191b', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 16px', boxSizing: 'border-box' }}>
+      <div style={{ width: '100%', maxWidth: 380 }}>
+        <div style={{ marginBottom: 32, borderBottom: '1px solid #17191b', paddingBottom: 18 }}>
+          <div style={{ fontFamily: 'var(--font-titulo), Georgia, serif', fontStyle: 'italic', fontSize: 40, lineHeight: 1 }}>Retornar</div>
+          <div style={{ fontFamily: 'var(--font-titulo), Georgia, serif', fontSize: 22, color: '#17191b', marginTop: 10 }}>Recuperar contraseña</div>
         </div>
 
         {enviado ? (
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 14, color: '#374151', lineHeight: 1.5, marginBottom: 24 }}>
+            <div style={{ fontSize: 14, color: '#17191b', lineHeight: 1.5, marginBottom: 24 }}>
               Si <strong>{email.trim()}</strong> tiene una cuenta en Retornar, te mandamos un mail con un link para elegir una contraseña nueva. Revisá también la carpeta de spam.
             </div>
-            <Link href="/login" style={{ fontSize: 13, color: '#6366f1', fontWeight: 600, textDecoration: 'none' }}>
+            <Link href="/login" style={{ fontSize: 13, color: '#17191b', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3 }}>
               Volver al login
             </Link>
           </div>
         ) : (
           <>
-            <div style={{ fontSize: 13, color: '#555', marginBottom: 20, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 13, color: '#55595e', marginBottom: 20, lineHeight: 1.5 }}>
               Escribí el email con el que te registraste y te mandamos un link para elegir una contraseña nueva.
             </div>
 
             <div style={{ marginBottom: 24 }}>
-              <label style={{ fontSize: 13, color: '#555', display: 'block', marginBottom: 6 }}>Email</label>
+              <label style={{ fontSize: 13, color: '#55595e', display: 'block', marginBottom: 6 }}>Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleEnviar()}
                 placeholder="tu@email.com"
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 2, border: '1px solid #c9cac4', background: '#fff', color: '#17191b', fontSize: 14, boxSizing: 'border-box' }}
               />
             </div>
 
-            {error && <div style={{ fontSize: 13, color: '#ef4444', marginBottom: 16, textAlign: 'center' }}>{error}</div>}
+            {error && <div style={{ fontSize: 13, color: '#b91c1c', marginBottom: 16, textAlign: 'center' }}>{error}</div>}
 
-            <button onClick={handleEnviar} disabled={loading || !email.trim()} style={{ width: '100%', padding: '11px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            <button onClick={handleEnviar} disabled={loading || !email.trim()} style={{ width: '100%', padding: '11px', borderRadius: 2, border: 'none', background: '#17191b', color: '#f8f8f5', minHeight: 46, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
               {loading ? 'Enviando...' : 'Mandar link'}
             </button>
 
-            <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#888' }}>
-              <Link href="/login" style={{ color: '#6366f1', fontWeight: 600, textDecoration: 'none' }}>
+            <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#55595e' }}>
+              <Link href="/login" style={{ color: '#17191b', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3 }}>
                 Volver al login
               </Link>
             </div>
