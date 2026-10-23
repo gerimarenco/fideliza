@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { randomBytes } from 'crypto'
 import { normalizarEmail } from '@/lib/identidad'
+import { calcularStatsClientes, siguienteNivel } from '@/lib/clienteStats'
 
 // Nunca incluir password/tiendanubeAccessToken tal cual acá: esta respuesta
 // viaja al navegador de negocio y cliente. tiendanubeAccessToken se selecciona
@@ -137,6 +138,14 @@ export async function GET() {
       delete negocio.dragonfishPendientes
       delete negocio.dragonfishBaseDeDatos
       delete negocio.tiendanubeStoreId
+      // Su nivel (por puntos ganados de por vida, mismo cálculo que ve el
+      // negocio en Clientes) y cuánto le falta para el siguiente, para
+      // mostrarlo en su panel. Solo lectura, y solo de su propio registro.
+      const stats = await calcularStatsClientes(prisma, negocio.clientes)
+      negocio.clientes = negocio.clientes.map((c) => {
+        const s = stats[c.id]
+        return { ...c, nivel: s?.nivel.nombre ?? null, proximoNivel: s ? siguienteNivel(s.puntosTotalesGanados) : null }
+      })
     }
   }
   return NextResponse.json(negociosSeguros)

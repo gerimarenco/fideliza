@@ -47,6 +47,14 @@ export async function GET(request, { params }) {
   negocioPublico.temaPrimario = tema?.primario;
   negocioPublico.temaPrimarioTexto = tema?.primarioTexto;
   negocioPublico.temaImagenPortada = tema?.imagenPortada;
+  // La paleta completa (solo colores y tipografía de la marca, nada
+  // sensible) para que la página del club y la de registro se vean con la
+  // identidad del negocio y no con los colores por defecto.
+  negocioPublico.tema = Object.fromEntries(
+    ['fondo', 'superficie', 'borde', 'texto', 'textoSecundario', 'primario', 'primarioTexto', 'resaltado', 'fuenteTitulo', 'imagenPortada']
+      .filter((clave) => typeof tema?.[clave] === 'string')
+      .map((clave) => [clave, tema[clave]])
+  );
   return NextResponse.json(negocioPublico, { headers: CORS_HEADERS });
 }
 

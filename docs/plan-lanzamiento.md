@@ -52,8 +52,8 @@ pruebas reales).
 
 | ID | Tarea | Resp. | Estado | Evidencia / pendiente |
 |---|---|---|---|---|
-| D-01 | Tres propuestas visuales aisladas (admin, negocio, clienta, celular) | Claude | Pendiente de decisión | Hechas como prototipo aparte (artifact privado con datos ficticios), sin tocar la app real. Falta que Genaro elija una dirección. |
-| D-02 | Aplicar la dirección elegida | Claude | Bloqueado | Depende de la elección de Genaro. |
+| D-01 | Tres propuestas visuales aisladas (admin, negocio, clienta, celular) | Claude | Implementado | Prototipos aparte con datos ficticios. Genaro eligió la 1 (Editorial) el 2026-10-23. |
+| D-02 | Aplicar la dirección elegida | Claude | Probado automáticamente | Aplicada a admin, negocio, clienta, login, recuperación de contraseña, club público y registro (ver tareas-futuras.md, ítem 66). Falta: verificarla en el deploy preview con la cuenta real de Peperina (Genaro) y confirmar que le gusta el bloque de puntos con el rosa de la marca. |
 
 ## Documentos de lanzamiento
 

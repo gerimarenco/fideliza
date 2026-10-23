@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import { resolverTema, FUENTE_TEXTO } from '@/lib/tema';
 
 export default function RegistroPage() {
   const params = useParams();
@@ -75,209 +76,80 @@ export default function RegistroPage() {
     }
   }
 
+  // Colores de la marca del negocio (ver /api/registro): hasta que llegan,
+  // la paleta por defecto.
+  const t = resolverTema(datosNegocio ? { primario: datosNegocio.temaPrimario, primarioTexto: datosNegocio.temaPrimarioTexto, ...(datosNegocio.tema || {}) } : null);
+  const estiloLabel = { display: 'block', marginBottom: 6, fontSize: 14, color: t.textoSecundario };
+  const estiloInput = { width: '100%', padding: '11px 12px', borderRadius: 2, border: `1px solid ${t.bordeCampo}`, background: t.superficie, color: t.texto, fontSize: 16, boxSizing: 'border-box' };
+  const campo = { marginBottom: 16 };
+
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#f3f4f6',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        padding: '20px',
-      }}
-    >
-      <div
-        style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '32px',
-          width: '100%',
-          maxWidth: '380px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-        }}
-      >
-        <h1
-          style={{
-            fontSize: '22px',
-            fontWeight: 'bold',
-            marginBottom: '4px',
-            color: '#111827',
-          }}
-        >
-          {datosNegocio ? `${datosNegocio.nombre} ${datosNegocio.emoji || ''}`.trim() : (
+    <div style={{ minHeight: '100vh', background: t.fondo, color: t.texto, fontFamily: FUENTE_TEXTO, display: 'flex', justifyContent: 'center', padding: '40px 20px', boxSizing: 'border-box' }}>
+      <div style={{ width: '100%', maxWidth: 400 }}>
+        <h1 style={{ fontFamily: t.fuenteTitulo, fontWeight: 400, fontSize: 36, lineHeight: 1.1, letterSpacing: '-0.01em', margin: '0 0 8px' }}>
+          {datosNegocio ? datosNegocio.nombre : (
             <span style={{ textTransform: 'capitalize' }}>{negocio}</span>
           )}
         </h1>
-        <p style={{ color: '#6b7280', marginBottom: '24px', fontSize: '14px' }}>
-          {datosNegocio?.mensajeRegistro || 'Creá tu cuenta para empezar a sumar puntos'}
+        <p style={{ color: t.textoSecundario, margin: '0 0 24px', fontSize: 15, lineHeight: 1.5, paddingBottom: 20, borderBottom: `1px solid ${t.texto}` }}>
+          {datosNegocio?.mensajeRegistro || 'Creá tu cuenta para empezar a sumar puntos.'}
         </p>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '6px',
-                fontSize: '14px',
-                color: '#374151',
-                fontWeight: '500',
-              }}
-            >
-              Nombre
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <label style={campo}>
+              <span style={estiloLabel}>Nombre</span>
+              <input type="text" autoComplete="given-name" value={nombre} onChange={(e) => setNombre(e.target.value)} required style={estiloInput} />
             </label>
-            <input
-              type="text"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
+            <label style={campo}>
+              <span style={estiloLabel}>Apellido</span>
+              <input type="text" autoComplete="family-name" value={apellido} onChange={(e) => setApellido(e.target.value)} required style={estiloInput} />
+            </label>
           </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '6px',
-                fontSize: '14px',
-                color: '#374151',
-                fontWeight: '500',
-              }}
-            >
-              Apellido
-            </label>
-            <input
-              type="text"
-              value={apellido}
-              onChange={(e) => setApellido(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
+          <label style={{ ...campo, display: 'block' }}>
+            <span style={estiloLabel}>Email</span>
+            <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={estiloInput} />
+          </label>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '6px',
-                fontSize: '14px',
-                color: '#374151',
-                fontWeight: '500',
-              }}
-            >
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '6px',
-                fontSize: '14px',
-                color: '#374151',
-                fontWeight: '500',
-              }}
-            >
-              Contraseña
-            </label>
+          <div style={campo}>
+            <label htmlFor="registro-password" style={estiloLabel}>Contraseña</label>
             <div style={{ position: 'relative' }}>
               <input
+                id="registro-password"
                 type={mostrarPassword ? 'text' : 'password'}
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                style={{
-                  width: '100%',
-                  padding: '10px 40px 10px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '14px',
-                  boxSizing: 'border-box',
-                }}
+                style={{ ...estiloInput, paddingRight: 76 }}
               />
               <button
                 type="button"
                 onClick={() => setMostrarPassword((s) => !s)}
                 aria-label={mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: '#888', padding: 4 }}
+                style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: t.textoSecundario, padding: '8px 6px' }}
               >
                 {mostrarPassword ? 'Ocultar' : 'Mostrar'}
               </button>
             </div>
           </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '6px',
-                fontSize: '14px',
-                color: '#374151',
-                fontWeight: '500',
-              }}
-            >
-              Fecha de nacimiento
-            </label>
+          <label style={{ ...campo, display: 'block' }}>
+            <span style={estiloLabel}>Fecha de nacimiento</span>
             <input
               type="date"
               value={fechaNacimiento}
               onChange={(e) => setFechaNacimiento(e.target.value)}
               required
               max={new Date().toISOString().split('T')[0]}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
+              style={estiloInput}
             />
-          </div>
+          </label>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '6px',
-                fontSize: '14px',
-                color: '#374151',
-                fontWeight: '500',
-              }}
-            >
-              DNI
-            </label>
+          <label style={{ ...campo, display: 'block' }}>
+            <span style={estiloLabel}>DNI</span>
             <input
               type="text"
               inputMode="numeric"
@@ -287,82 +159,36 @@ export default function RegistroPage() {
               minLength={7}
               maxLength={8}
               placeholder="Sin puntos"
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
+              style={estiloInput}
             />
-          </div>
+          </label>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '6px',
-                fontSize: '14px',
-                color: '#374151',
-                fontWeight: '500',
-              }}
-            >
-              Celular (WhatsApp)
-            </label>
+          <label style={{ ...campo, display: 'block' }}>
+            <span style={estiloLabel}>Celular (WhatsApp)</span>
             <input
               type="tel"
               inputMode="tel"
+              autoComplete="tel"
               value={telefono}
               onChange={(e) => setTelefono(e.target.value)}
               required
               placeholder="11 2345 6789"
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
+              style={estiloInput}
             />
-          </div>
+          </label>
 
-          <div style={{ marginBottom: '20px' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '6px',
-                fontSize: '14px',
-                color: '#374151',
-                fontWeight: '500',
-              }}
-            >
-              Género
-            </label>
-            <select
-              value={sexo}
-              onChange={(e) => setSexo(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid #d1d5db',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-                backgroundColor: 'white',
-              }}
-            >
+          <label style={{ marginBottom: 22, display: 'block' }}>
+            <span style={estiloLabel}>Género</span>
+            <select value={sexo} onChange={(e) => setSexo(e.target.value)} required style={estiloInput}>
               <option value="" disabled>Seleccioná una opción</option>
               <option value="femenino">Femenino</option>
               <option value="masculino">Masculino</option>
               <option value="otro">Otro</option>
             </select>
-          </div>
+          </label>
 
           {error && (
-            <p style={{ color: '#dc2626', fontSize: '13px', marginBottom: '16px' }}>
+            <p role="alert" style={{ color: '#b91c1c', fontSize: 14, margin: '0 0 16px' }}>
               {error}
             </p>
           )}
@@ -370,22 +196,16 @@ export default function RegistroPage() {
           <button
             type="submit"
             disabled={loading}
-            style={{
-              width: '100%',
-              padding: '12px',
-              borderRadius: '8px',
-              border: 'none',
-              backgroundColor: '#6366f1',
-              color: 'white',
-              fontSize: '15px',
-              fontWeight: '600',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.7 : 1,
-            }}
+            className="fid-btn-primary"
+            style={{ width: '100%', minHeight: 50, borderRadius: 2, border: 'none', backgroundColor: t.primario, color: t.primarioTexto, fontSize: 16, fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
           >
             {loading ? 'Creando cuenta...' : 'Registrarme'}
           </button>
         </form>
+
+        <p style={{ textAlign: 'center', marginTop: 18, fontSize: 14, color: t.textoSecundario }}>
+          ¿Ya tenés cuenta? <a href="/login" className="fid-link" style={{ color: t.texto }}>Iniciá sesión</a>
+        </p>
       </div>
     </div>
   );

@@ -1761,6 +1761,36 @@ puede hacer que el descuento real supere la mitad de lo que se paga. Queda
 en el protocolo de prueba real (`docs/lanzamiento/`), con autorización de
 Genaro.
 
+## 66. Rediseño "Editorial" (propuesta 1) aplicado a la app (2026-10-23)
+
+Genaro eligió la dirección 1 de las tres propuestas (ver docs/plan-lanzamiento.md, D-01/D-02) y pidió aplicarla a admin, negocio y clienta, sumando en la clienta la barra hacia el próximo premio y su nivel. Solo presentación: no cambia ninguna regla de puntos, canjes, niveles ni permisos.
+
+**Qué cambió**
+- Tipografías: Newsreader (títulos y números grandes) y Hanken Grotesk (texto), vía `next/font` en `app/layout.js`. Un negocio puede seguir usando su propia tipografía de títulos (`tema.fuenteTitulo`; Peperina tiene Georgia).
+- `lib/tema.js` (nuevo): paleta por defecto "papel, tinta y verde" y `resolverTema()`, compartidos por el panel y las páginas públicas. Ajusta al mostrar (sin tocar lo guardado) los colores de marca que no se leen bien, con `lib/colores.js` (nuevo): el gris secundario de Peperina (#A99886, 2.6:1 sobre su crema) se oscurece hasta 4.5:1, el texto de los botones pasa de crema a blanco sobre su topo, y el borde de los campos se refuerza a 3:1.
+- Panel de la clienta: número de puntos grande en serif sobre el color "resaltado" de la marca (el rosa de Peperina), nivel en itálica con cuántos puntos faltan para el siguiente, frase y barra hacia el próximo premio, premios en lista con línea fina, menú con todas las opciones (incluido Cerrar sesión) y ventanas sin emojis.
+- Panel del negocio: barra lateral con el nombre en serif, títulos grandes por sección, métricas sin tarjetas, listas con líneas finas, estado de la caja y la tienda online al pie de Inicio. Ajustes reordenado (puntos primero, contraseña al final).
+- Admin: claro, con la marca "Retornar" en itálica y navegación arriba (se distingue del negocio por la estructura, no por un color que compita con la marca de cada negocio). La tabla de negocios suma una columna con el estado de la caja.
+- Login, recuperación de contraseña, página pública del club y registro: misma dirección. El club y el registro ahora usan la paleta completa del negocio (antes el registro mostraba el violeta por defecto incluso para Peperina).
+
+**Backend (solo lectura)**
+- `GET /api/negocios` para una clienta suma `nivel` y `proximoNivel` de su propio registro (mismo cálculo por puntos ganados de por vida que ya usaba Clientes; `siguienteNivel()` nuevo en `lib/clienteStats.js`).
+- `GET /api/registro/[negocio]` (pública) suma `tema` con los colores y la tipografía de la marca. Los campos `temaPrimario`/`temaPrimarioTexto`/`temaImagenPortada` siguen igual para el widget embebible.
+
+**Arreglos de paso**
+- El mensaje de WhatsApp que arma el negocio para una clienta pegaba la clave interna del ícono ("gift") como si fuera un emoji: se sacó.
+- Las reglas de puntos, el cartel de cumpleaños, Exportar y el WhatsApp del panel usaban emojis: ahora íconos.
+- Botones de la barra lateral y de la navegación del admin con `aria-label` (en el celular solo se ve el ícono y quedaban sin nombre para lectores de pantalla), foco visible con teclado y sin `outline: none` en los formularios de acceso.
+
+**Pruebas ejecutadas**
+- `npm test`: 65/65 (nuevos: `lib/colores.test.js`, `lib/tema.test.js`, `siguienteNivel`).
+- `next build`: OK. ESLint: 22 avisos, los mismos que `main` (mismas reglas por archivo).
+- Prueba de punta a punta contra una base local descartable con datos ficticios y la paleta de Peperina: 16/16 (club, registro con el color de la marca, nivel y barra de la clienta, menú y reglas sin emojis, Inicio del negocio, reintentar cupón, tipear en Ajustes sin perder el foco, sin scroll horizontal en celular, admin y admin viendo un negocio, sin errores en consola), con capturas revisadas a mano.
+
+**Pendiente**
+- Verificación manual de Genaro en el deploy preview (con su cuenta real) antes de mergear.
+- Si se prefiere Newsreader en vez de Georgia para Peperina, se cambia desde Ajustes → Colores de marca → Tipografía de títulos (valor: `var(--font-titulo), Georgia, serif`).
+
 ## 65. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅

@@ -37,16 +37,16 @@ export default function Login() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui' }}>
-      <div style={{ background: '#fff', borderRadius: 16, padding: 40, width: 360, border: '1px solid #eee' }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a1a' }}>Retornar</div>
-          <div style={{ fontSize: 14, color: '#999', marginTop: 4 }}>Ingresá a tu cuenta</div>
+    <div style={{ minHeight: '100vh', background: '#f8f8f5', color: '#17191b', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 16px', boxSizing: 'border-box' }}>
+      <div style={{ width: '100%', maxWidth: 380 }}>
+        <div style={{ marginBottom: 32, borderBottom: '1px solid #17191b', paddingBottom: 18 }}>
+          <div style={{ fontFamily: 'var(--font-titulo), Georgia, serif', fontStyle: 'italic', fontSize: 40, lineHeight: 1 }}>Retornar</div>
+          <div style={{ fontFamily: 'var(--font-titulo), Georgia, serif', fontSize: 22, color: '#17191b', marginTop: 10 }}>Ingresá a tu cuenta</div>
         </div>
 
         <button
           onClick={() => signIn('google', { callbackUrl: '/' })}
-          style={{ width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#333', fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 20 }}
+          style={{ width: '100%', padding: '10px', borderRadius: 2, border: '1px solid #c9cac4', background: '#fff', color: '#17191b', background: '#fff', color: '#333', fontSize: 14, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 20 }}
         >
           <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
             <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62Z" />
@@ -58,18 +58,18 @@ export default function Login() {
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-          <div style={{ flex: 1, height: 1, background: '#eee' }} />
-          <div style={{ fontSize: 12, color: '#aaa' }}>o</div>
-          <div style={{ flex: 1, height: 1, background: '#eee' }} />
+          <div style={{ flex: 1, height: 1, background: '#dadbd6' }} />
+          <div style={{ fontSize: 12, color: '#55595e' }}>o</div>
+          <div style={{ flex: 1, height: 1, background: '#dadbd6' }} />
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 13, color: '#555', display: 'block', marginBottom: 6 }}>Email</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none' }} />
+          <label style={{ fontSize: 13, color: '#55595e', display: 'block', marginBottom: 6 }}>Email</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@email.com" style={{ width: '100%', padding: '10px 12px', borderRadius: 2, border: '1px solid #c9cac4', background: '#fff', color: '#17191b', fontSize: 14 }} />
         </div>
 
         <div style={{ marginBottom: 24 }}>
-          <label style={{ fontSize: 13, color: '#555', display: 'block', marginBottom: 6 }}>Contraseña</label>
+          <label style={{ fontSize: 13, color: '#55595e', display: 'block', marginBottom: 6 }}>Contraseña</label>
           <div style={{ position: 'relative' }}>
             <input
               type={showPassword ? 'text' : 'password'}
@@ -77,27 +77,27 @@ export default function Login() {
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
               onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              style={{ width: '100%', padding: '10px 40px 10px 12px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+              style={{ width: '100%', padding: '10px 40px 10px 12px', borderRadius: 2, border: '1px solid #c9cac4', background: '#fff', color: '#17191b', fontSize: 14, boxSizing: 'border-box' }}
             />
             <button
               type="button"
               onClick={() => setShowPassword(s => !s)}
               aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-              style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#888', padding: 4 }}
+              style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#55595e', padding: 4 }}
             >
               {showPassword ? 'Ocultar' : 'Mostrar'}
             </button>
           </div>
           <div style={{ textAlign: 'right', marginTop: 6 }}>
-            <Link href="/olvide-password" style={{ fontSize: 12, color: '#888', textDecoration: 'none' }}>
+            <Link href="/olvide-password" style={{ fontSize: 12, color: '#55595e', textDecoration: 'underline', textUnderlineOffset: 3 }}>
               ¿Olvidaste tu contraseña?
             </Link>
           </div>
         </div>
 
-        {error && <div style={{ fontSize: 13, color: '#ef4444', marginBottom: 16, textAlign: 'center' }}>{error}</div>}
+        {error && <div style={{ fontSize: 13, color: '#b91c1c', marginBottom: 16, textAlign: 'center' }}>{error}</div>}
 
-        <button onClick={handleLogin} disabled={loading} style={{ width: '100%', padding: '11px', borderRadius: 8, border: 'none', background: '#6366f1', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+        <button onClick={handleLogin} disabled={loading} style={{ width: '100%', padding: '11px', borderRadius: 2, border: 'none', background: '#17191b', color: '#f8f8f5', minHeight: 46, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
           {loading ? 'Ingresando...' : 'Ingresar'}
         </button>
 
@@ -106,9 +106,9 @@ export default function Login() {
             "genérica" en Retornar). Cuando exista un segundo negocio real,
             esto va a necesitar resolverse de otra forma (ej. un selector,
             o un subdominio propio por negocio) en vez de un link fijo. */}
-        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#888' }}>
+        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#55595e' }}>
           ¿No tenés cuenta?{' '}
-          <Link href="/registro/peperina" style={{ color: '#6366f1', fontWeight: 600, textDecoration: 'none' }}>
+          <Link href="/registro/peperina" style={{ color: '#17191b', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3 }}>
             Registrate
           </Link>
         </div>
