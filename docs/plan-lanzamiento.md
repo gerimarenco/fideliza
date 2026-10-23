@@ -19,7 +19,7 @@ pruebas reales).
 
 | ID | Tarea | Resp. | Estado | Depende de | Evidencia / pendiente |
 |---|---|---|---|---|---|
-| L-01 | Emails con mayúsculas: clientas que no sumaban puntos (Tiendanube, Dragon Fish), login con Google rechazado, cuentas duplicadas | Claude | Probado automáticamente | — | Registro guarda en minúsculas; login, Google, Tiendanube, Dragon Fish y "Olvidé mi contraseña" buscan sin distinguir mayúsculas. E2E: cuenta vieja "Maria.Gomez@Gmail.com" entra con "maria.gomez@gmail.com" y acredita por Dragon Fish; duplicado en otras mayúsculas → 409. **Falta**: mergear y confirmar en producción. |
+| L-01 | Emails con mayúsculas: clientas que no sumaban puntos (Tiendanube, Dragon Fish), login con Google rechazado, cuentas duplicadas | Claude | Probado automáticamente | — | Registro guarda en minúsculas; login, Google, Tiendanube, Dragon Fish y "Olvidé mi contraseña" buscan sin distinguir mayúsculas. E2E: cuenta vieja "Maria.Gomez@Gmail.com" entra con "maria.gomez@gmail.com" y acredita por Dragon Fish; duplicado en otras mayúsculas → 409. Mergeado (PR #114). **Falta**: confirmarlo con la cuenta de prueba en producción (`lanzamiento/visita-al-local.md`, 2.1). |
 | L-02 | El `iniciar-agente.bat` de la PC de Peperina no es el del repositorio (487 bytes vs. el del repo; mostraba `npm install/start` en pantalla y nunca escribía `agente.log`) | Claude + Genaro | Probado automáticamente · Pendiente de intervención manual | — | Lanzador nuevo (chequea Node y `.env`, rota el log, reintenta), `verificar-agente.bat`, guía corregida. Agente probado con Dragon Fish simulado. **Falta**: Genaro copia los archivos nuevos a la PC (ver `dragonfish-agente/README.md`, "Actualizar el agente"). |
 | L-03 | Confirmar arranque automático del agente al prender la PC | Genaro | Pendiente de intervención manual | L-02 | Procedimiento en `dragonfish-agente/README.md`, "Comprobar el arranque después de reiniciar la PC". |
 | L-04 | Saber si el agente está funcionando (sin confundirlo con "no hubo ventas") | Claude | Probado automáticamente | — | Integraciones → Dragon Fish muestra "Agente funcionando — último contacto hace X" y cuántas ventas esperan. Verificado en navegador local. |
@@ -33,6 +33,13 @@ pruebas reales).
 | L-11 | Copias de seguridad de la base | Genaro | Pendiente de diagnóstico | Saber el proveedor de PostgreSQL | Procedimiento en `docs/lanzamiento/backups.md`: cómo identificar el proveedor, copia propia con `pg_dump` y restauración de prueba en una base aparte. |
 | L-12 | "Olvidé mi contraseña" sin límite: se podía agotar el cupo diario de mails (100/día) y dejar a todas sin sus mails de puntos | Claude | Probado automáticamente | — | Máx. 1 mail cada 2 min y 5 por hora por cuenta; el link no se puede usar dos veces ni en simultáneo; al cambiar la contraseña se anulan los demás links. E2E + prueba de concurrencia. |
 | L-13 | Emails completos de clientas en los logs de Netlify | Claude | Implementado | — | Ahora se registran enmascarados (`ma***@gmail.com`). |
+| L-29 | Una venta que no llega a 1 punto (cambio en $0, monto menor a $100) acreditaba 0 puntos, mandaba el mail "sumaste 0 puntos" y pagaba el bono de referidos | Claude | Probado automáticamente | — | Caja, tienda online, Mercado Pago y carga manual ya no acreditan ni mandan mail; en la caja queda como `sin_puntos`. E2E: venta de $50 y cambio en $0 → `sin_puntos` sin movimiento; carga manual de $50 → error claro. **Falta**: confirmarlo en la caja real (visita, 2.5). |
+| L-30 | El webhook de Tiendanube acreditaba cualquier orden avisada como "pagada" sin confirmarlo | Claude | Probado automáticamente | — | Ahora solo acredita si la orden pedida a la API figura `payment_status: paid` (tests de todos los estados). No probado contra Tiendanube real: **falta** la compra de prueba (visita, 3). |
+| L-31 | El Excel exportado podía ejecutar fórmulas escritas en el nombre de una clienta | Claude | Probado automáticamente | — | Celdas que empiezan con = + - @ van como texto; fechas dd/mm/aaaa sin depender del idioma del servidor. Tests + E2E. |
+| L-32 | Inicio del negocio: "compraron este mes" mostraba el total de clientas; el mes se cortaba en hora UTC | Claude | Probado automáticamente | — | Cuenta clientas distintas con una compra real en el mes, en hora argentina. E2E: 5 de 7. |
+| L-33 | Validaciones: canje sin premio daba error 500; el admin podía canjear un premio de otro negocio; emails sin forma de email; contraseña de negocio nuevo con `Math.random` y email duplicado en otras mayúsculas | Claude | Probado automáticamente | — | E2E de cada caso. |
+| L-34 | Puntos de la tienda online calculados sobre el total **con envío** | Genaro | Pendiente de decisión | — | Hoy se usa el total de la orden. ¿Se calculan sin el envío (subtotal)? Cambio chico una vez decidido. |
+| L-35 | Guía para la visita al local (agente, ventas reales, compra online, cupones, backup) | Claude + Genaro | Pendiente de intervención manual | Publicar el hito 3 | `lanzamiento/visita-al-local.md`. |
 
 ## P1 — Fiabilidad y operación
 
@@ -42,11 +49,13 @@ pruebas reales).
 | L-21 | Tareas diarias (cumpleaños, vencimiento): una clienta con error ya no corta a las demás; cumpleaños no se duplica aunque corra dos veces a la vez | Claude | Probado automáticamente | — | Prueba con dos corridas simultáneas: +500 una sola vez. |
 | L-22 | Mails con links relativos si faltaba una variable; mail de cumpleaños sin los colores del negocio | Claude | Implementado | — | Links siempre absolutos (`https://retornar.com.ar` por defecto). |
 | L-23 | Programa de referidos | Genaro | Pendiente de decisión | — | Lógica revisada: se paga una sola vez, en la primera compra, dentro de la misma transacción. Activarlo depende de Genaro (monto). |
-| L-24 | Seguridad: sin límite de intentos de login; webhook de Dragon Fish sin firma; sesiones siguen abiertas después de cambiar la contraseña | Claude | Pendiente de decisión | — | Propuestas en el informe del hito; ninguna rompe nada hoy. |
+| L-24 | Seguridad: sin límite de intentos de login; webhook de Dragon Fish sin firma; sesiones siguen abiertas después de cambiar la contraseña | Claude | Probado automáticamente (login) · Pendiente de decisión (resto) | — | **Login**: 10 intentos fallidos por cuenta cada 15 minutos (se guarda un hash del email, no el email); E2E incluido el aviso en pantalla. **Webhook de Dragon Fish**: sin firma, pero solo crea pendientes que el agente verifica contra Dragon Fish real, así que no permite inventar puntos (riesgo: llenar la cola). **Sesiones**: quedan para la segunda etapa (ver `privacidad.md`, 5.1). |
 | L-25 | Prueba integral de punta a punta | Claude + Genaro | Pendiente de intervención manual | PR #114 mergeado | `docs/lanzamiento/checklist-lanzamiento.md`, secciones B y C (separa lo ya probado automáticamente de lo que requiere una operación real). |
 | L-26 | Si el cupón de Tiendanube falla al canjear, no había forma de reintentarlo desde el panel | Claude | Probado automáticamente | — | Botón "Reintentar cupón" en Canjes; no descuenta puntos de nuevo y nunca crea dos cupones (código fijo por canje). E2E local: error mostrado, reintento sin descuento extra, sin sesión → 403. |
 | L-28 | Los cupones de premios no vencen nunca | Genaro | Pendiente de decisión | — | Tiendanube permite fecha de vencimiento por cupón. ¿Querés que venzan (ej. 60 días después del canje)? |
 | L-27 | Una compra anulada/devuelta en Tiendanube o Dragon Fish no descuenta los puntos | Genaro | Pendiente de decisión | — | Regla de negocio: ¿se descuentan? |
+| L-36 | "Nuevo cliente": el negocio puede crear una cuenta a mano (la persona no pasó por el registro) | Genaro | Pendiente de decisión | — | No es automático, pero choca con "la clienta se registra sola" y con el aviso de privacidad. ¿Se mantiene, se saca, o se deja solo para el admin? |
+| L-37 | "Cargar una compra" lista a todas las clientas en un desplegable | Claude | Pendiente de diagnóstico | — | Con cientos de clientas es incómodo y carga todos los datos en cada pantalla. Mejora propuesta: buscador. P2: las ventas normales llegan solas por la caja y la tienda. |
 
 ## Diseño
 
@@ -58,6 +67,7 @@ pruebas reales).
 ## Documentos de lanzamiento
 
 - `docs/lanzamiento/checklist-lanzamiento.md` — checklist con responsables y evidencia, prueba integral, prueba real de cupones, borradores de comunicación.
+- `docs/lanzamiento/visita-al-local.md` — guion de la visita a Peperina: agente, ventas reales, compra online, cupones y backup.
 - `docs/lanzamiento/capacitacion-vendedoras.md` — hoja para la caja.
 - `docs/lanzamiento/privacidad.md` — plan de cumplimiento y borradores (para revisión legal).
 - `docs/lanzamiento/backups.md` — copias de seguridad y restauración de prueba.

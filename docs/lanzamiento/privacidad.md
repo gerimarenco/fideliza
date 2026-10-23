@@ -139,6 +139,38 @@ incidente, y los devuelve o borra al terminar el servicio.
   (2026-10-22), y el agente de Dragon Fish no escribe emails ni teléfonos
   en su log.
 - Ninguna cuenta se crea sin que la persona se registre (desde 2026-09-22).
+- Límite de intentos de login (2026-10-24): para contar los intentos se
+  guarda un hash del email, nunca el email, y se borra al día siguiente.
+- El Excel exportado ya no puede ejecutar fórmulas escritas en el nombre de
+  una clienta (2026-10-24).
+- Las páginas públicas (club y registro) solo exponen el nombre del club,
+  sus colores y su mensaje; nunca datos de clientas.
+
+### 5.1 Riesgos conocidos que quedan (no bloquean, conviene saberlos)
+
+- **Cuentas que crea el negocio a mano** ("Nuevo cliente"): la persona no
+  pasó por el registro ni vio ningún aviso. Si se mantiene esa función, el
+  aviso de privacidad tiene que llegarle de otra forma (decisión de Genaro).
+- **Sesiones abiertas**: cambiar la contraseña no cierra las sesiones ya
+  abiertas en otros dispositivos (duran hasta 30 días). Solucionarlo implica
+  consultar la base en cada pedido; queda para la segunda etapa salvo que
+  la revisión lo pida.
+- **Exportación**: el Excel incluye DNI y fecha de nacimiento. Si se decide
+  dejar de pedir el DNI (3.1), también sale del Excel.
+
+## 5.2 Qué tiene que revisar un profesional (lista para llevar)
+
+1. Si Peperina (y cada comercio) debe inscribir su base en el Registro
+   Nacional de Bases de Datos de la AAIP, y quién figura como responsable.
+2. El texto de información al registrarse (4.1) y la política (4.2):
+   finalidades, plazo de conservación, cómo ejercer derechos.
+3. Si hace falta un consentimiento separado para comunicaciones
+   promocionales (WhatsApp y mail masivo desde el Excel).
+4. El acuerdo Retornar ↔ negocio como encargado del tratamiento (4.3).
+5. Transferencia internacional: la base, los mails (Resend) y el hosting
+   (Netlify) pueden estar fuera de Argentina.
+6. Si pedir DNI y género es proporcional a la finalidad (3.1).
+7. Qué hacer ante un incidente de seguridad (a quién avisar y en qué plazo).
 
 ## 6. Pendiente
 
@@ -149,3 +181,4 @@ incidente, y los devuelve o borra al terminar el servicio.
 | Inscripción de la base ante la AAIP, si corresponde | Peperina (responsable) | Pendiente de decisión |
 | Implementar aviso, política y "Mis datos" (3.2, 3.3) | Claude | Bloqueado hasta tener textos revisados |
 | Confirmar país de los servidores de la base de datos | Genaro | Pendiente de diagnóstico |
+| Decidir si se mantiene "Nuevo cliente" (alta manual por el negocio) | Genaro | Pendiente de decisión |

@@ -67,6 +67,10 @@ export async function POST(request) {
 
     const puntosXPeso = negocio?.puntosXPeso || 1000;
     const puntosASumar = calcularPuntosPorCompra(Number(monto), puntosXPeso);
+    // Mismo criterio que el resto de las acreditaciones: sin puntos, nada.
+    if (puntosASumar <= 0) {
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
 
     // Se necesita el cliente completo (no solo su id) para saber si fue
     // referido por alguien -- acreditarSiEsPrimeraCompraReferida lo

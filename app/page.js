@@ -958,6 +958,19 @@ export default function Home() {
     toastTimeoutRef.current = setTimeout(() => setToast(null), tipo === 'error' ? 4000 : 2500);
   };
 
+  // Escape cierra el menú y las ventanas que estén abiertas (el teclado no
+  // tenía forma de salir de una ventana sin llegar hasta su botón).
+  useEffect(() => {
+    const alApretar = (e) => {
+      if (e.key !== 'Escape') return;
+      setModalCliente(null);
+      setMostrarMenuCliente(false);
+      setMostrarInfoNiveles(false);
+    };
+    window.addEventListener('keydown', alApretar);
+    return () => window.removeEventListener('keydown', alApretar);
+  }, []);
+
   // Resultado del OAuth2 de Tiendanube (ver app/api/tiendanube/callback,
   // que redirige de vuelta acá con esto en la URL) — se muestra una vez
   // como toast y se limpia de la URL para que no reaparezca en un refresh.
@@ -1588,7 +1601,7 @@ export default function Home() {
           <div>
             <div className="fid-kpis" style={{ borderTop: `1px solid ${tema.texto}`, borderBottom: `1px solid ${tema.borde}`, marginBottom: 40 }}>
               {[
-                ['Clientes', formatearMiles(negocio.clientes?.length || 0), estadisticas ? `${formatearMiles(estadisticas.clientesActivos)} compraron este mes` : null],
+                ['Clientes', formatearMiles(negocio.clientes?.length || 0), estadisticas?.clientesConCompraEsteMes != null ? `${formatearMiles(estadisticas.clientesConCompraEsteMes)} compraron este mes` : null],
                 ['Puntos de este mes', estadisticas ? formatearMiles(estadisticas.puntosOtorgadosEsteMes) : null, 'otorgados'],
                 ['Canjes de este mes', estadisticas ? formatearMiles(estadisticas.canjesEsteMes) : null, `${negocio.premios?.length || 0} premios activos`],
                 ['Puntos en circulación', formatearMiles(negocio.clientes?.reduce((a, c) => a + c.puntos, 0) || 0), 'saldo de todas las clientas'],

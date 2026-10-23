@@ -236,3 +236,14 @@ model PasswordResetToken {
 
   @@index([usuarioId, tipo])
 }
+// Intentos de login fallidos con usuario y contraseña, para frenar a quien
+// prueba contraseñas una tras otra (ver lib/limiteLogin.js). Se guarda un
+// hash del email normalizado, no el email: alcanza para contar intentos sin
+// sumar otra copia de un dato personal.
+model IntentoLogin {
+  id        String   @id @default(cuid())
+  emailHash String
+  createdAt DateTime @default(now())
+
+  @@index([emailHash, createdAt])
+}

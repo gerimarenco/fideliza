@@ -1791,6 +1791,29 @@ Genaro eligió la dirección 1 de las tres propuestas (ver docs/plan-lanzamiento
 - Verificación manual de Genaro en el deploy preview (con su cuenta real) antes de mergear.
 - Si se prefiere Newsreader en vez de Georgia para Peperina, se cambia desde Ajustes → Colores de marca → Tipografía de títulos (valor: `var(--font-titulo), Georgia, serif`).
 
+## 67. Hito 3: auditoría de funciones críticas (2026-10-24)
+
+Revisión del código de registro, login, acreditación (caja, tienda online, Mercado Pago, carga manual), canjes, cupones, mails, tareas diarias y aislamiento entre negocios. Estado de cada punto en `docs/plan-lanzamiento.md` (L-24, L-29 a L-37).
+
+**Errores corregidos**
+- Ventas que no llegan a 1 punto: ya no acreditan 0, no mandan el mail de "0 puntos" ni pagan el bono de referidos (`sin_puntos` en la caja; error claro en la carga manual).
+- Tiendanube: solo se acreditan órdenes que la API devuelve como pagadas (`datosOrdenAcreditable` en `lib/tiendanube.js`).
+- Excel exportado: fórmulas neutralizadas y fechas sin depender del idioma del servidor (`lib/csv.js`).
+- Inicio del negocio: "compraron este mes" ahora es real; el mes se corta en hora argentina (`lib/periodo.js`).
+- Canjes: sin premio → 400 (antes 500); el admin no puede canjear un premio de otro negocio.
+- Alta de negocio: contraseña con `randomBytes`, email validado y duplicado en otras mayúsculas → 409. Registro y alta manual validan la forma del email (`emailValido`).
+- Mails: el texto sobre el color de la marca se ajusta para que se lea (mismo `resolverTema` que el panel).
+
+**Seguridad**
+- Límite de login: 10 intentos fallidos por cuenta cada 15 minutos (`lib/limiteLogin.js`, tabla nueva `IntentoLogin` con hash del email). Si la tabla no respondiera, el login sigue funcionando sin límite.
+- Accesibilidad: los errores de login/recuperación se anuncian a lectores de pantalla; Escape cierra el menú y las ventanas del panel.
+
+**Migración**: `20261024120000_intentos_login` (solo crea una tabla; no toca datos).
+
+**Pruebas**: `npm test` 77/77; E2E del hito 20/20; se repitieron las de hitos anteriores (API 12/12, cupones 10/10, concurrencia 4/4, rediseño 16/16); `next build` OK; ESLint igual que `main` (22); `prisma migrate diff` sin diferencias.
+
+**No probado contra servicios reales** (requiere la visita, `docs/lanzamiento/visita-al-local.md`): la caja real con `sin_puntos`, la orden pagada/pendiente de Tiendanube real.
+
 ## 65. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅

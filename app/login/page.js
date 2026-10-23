@@ -28,7 +28,9 @@ export default function Login() {
     const result = await signIn('credentials', {
       email, password, redirect: false
     });
-    if (result?.error) {
+    if (result?.error === 'DEMASIADOS_INTENTOS') {
+      setError('Demasiados intentos fallidos. Esperá 15 minutos o recuperá tu contraseña.');
+    } else if (result?.error) {
       setError('Email o contraseña incorrectos');
     } else {
       router.push('/');
@@ -95,7 +97,7 @@ export default function Login() {
           </div>
         </div>
 
-        {error && <div style={{ fontSize: 13, color: '#b91c1c', marginBottom: 16, textAlign: 'center' }}>{error}</div>}
+        {error && <div role="alert" style={{ fontSize: 13, color: '#b91c1c', marginBottom: 16, textAlign: 'center' }}>{error}</div>}
 
         <button onClick={handleLogin} disabled={loading} style={{ width: '100%', padding: '11px', borderRadius: 2, border: 'none', background: '#17191b', color: '#f8f8f5', minHeight: 46, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
           {loading ? 'Ingresando...' : 'Ingresar'}

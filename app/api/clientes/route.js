@@ -4,7 +4,7 @@ import { hashPassword } from '@/lib/password'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { calcularStatsClientes, calcularNivel } from '@/lib/clienteStats'
-import { normalizarEmail, filtroEmail, normalizarTelefono } from '@/lib/identidad'
+import { normalizarEmail, filtroEmail, normalizarTelefono, emailValido } from '@/lib/identidad'
 import { randomBytes } from 'crypto'
 
 export async function GET(request) {
@@ -93,8 +93,11 @@ export async function POST(request) {
   }
 
   const email = normalizarEmail(body.email)
-  if (!email) {
-    return NextResponse.json({ error: 'El email es obligatorio' }, { status: 400 })
+  if (!emailValido(email)) {
+    return NextResponse.json({ error: 'El email es obligatorio y tiene que ser válido' }, { status: 400 })
+  }
+  if (!body.negocioId) {
+    return NextResponse.json({ error: 'negocioId es obligatorio' }, { status: 400 })
   }
 
   // La restricción única de la base distingue mayúsculas: sin este chequeo

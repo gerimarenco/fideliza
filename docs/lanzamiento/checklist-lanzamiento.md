@@ -7,7 +7,8 @@ Cada punto se marca recién con evidencia (captura, línea de log, número).
 
 | # | Qué | Responsable | Cómo se confirma (evidencia) | Hecho |
 |---|---|---|---|---|
-| A1 | Mergear y publicar el hito 1 y 2 (PR #114) | Genaro | Netlify muestra el deploy publicado; en Integraciones aparece "Agente funcionando" o "no se reporta" | [ ] |
+| A1 | Mergear y publicar el hito 1 y 2 (PR #114) | Genaro | Publicado (Genaro confirmó el nuevo diseño en retornar.com.ar) | [x] |
+| A1b | Publicar el hito 3 (validaciones, límite de login) | Genaro | Netlify publicado; Inicio del negocio muestra "N compraron este mes" | [ ] |
 | A2 | Ajustes de Peperina: puntos por peso = 100, vencimiento = 12 meses, regalo de cumpleaños = 500 (o los valores que se confirmen) | Genaro | Captura de Ajustes | [ ] |
 | A3 | Contacto de soporte cargado (Ajustes → Contacto de soporte) | Genaro | En el menú ⋮ de una cuenta de prueba aparece "Escribinos..." y abre el contacto correcto | [ ] |
 | A4 | Actualizar los archivos del agente en la PC del local | Genaro | `dragonfish-agente/README.md`, "Actualizar el agente": `verificar-agente.bat` existe en la carpeta | [ ] |
@@ -38,6 +39,7 @@ del todo.
 | B9 | Repetir el reporte de una misma venta [auto]; doble clic rápido en Canjear (manual) | Mixto | La venta no suma dos veces; el doble clic genera un solo canje (el botón se deshabilita al primer clic) | [ ] |
 | B10 | Desde la cuenta de prueba, intentar ver datos de otra clienta | [auto] | Imposible (probado en el código: cada consulta filtra por la cuenta) | [ ] |
 | B11 | Todo lo anterior desde el celular | Manual | Se lee bien, sin scroll de costado | [ ] |
+| B13 | Venta en la caja de $0 (cambio) o menor a $100 con el email de prueba | Manual (real) [auto] | Log del agente: `sin_puntos`; **no** llega mail | [ ] |
 | B12 | Día siguiente: Netlify → Functions → `regalo-cumpleanos` y `vencimiento-puntos` | Manual | Las dos corrieron sin error (línea "Regalo de cumpleaños: N cliente(s)...") | [ ] |
 
 ## C. Prueba real de cupones de Tiendanube (requiere autorización de Genaro)

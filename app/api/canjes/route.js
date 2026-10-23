@@ -86,8 +86,8 @@ export async function POST(request) {
   // Un cliente solo puede canjear para sí mismo, nunca en nombre de otro.
   const clienteId = session.user.role === 'cliente' ? session.user.id : body.clienteId
 
-  if (!clienteId) {
-    return NextResponse.json({ error: 'clienteId es obligatorio' }, { status: 400 })
+  if (!clienteId || !premioId || typeof premioId !== 'string') {
+    return NextResponse.json({ error: 'premioId y clienteId son obligatorios' }, { status: 400 })
   }
 
   const premio = await prisma.premio.findUnique({
@@ -123,7 +123,15 @@ export async function POST(request) {
     if (!clientePropio || clientePropio.negocioId !== premio.negocioId) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
-  } else if (session.user.role !== 'admin') {
+  } else if (session.user.role === 'admin') {
+    // El admin puede canjear en nombre de cualquiera, pero siempre un premio
+    // del mismo negocio que la clienta: si no, el canje (y el cupón) quedaba
+    // registrado contra un negocio con el que ella no tiene relación.
+    const cliente = await prisma.cliente.findUnique({ where: { id: clienteId }, select: { negocioId: true } })
+    if (!cliente || cliente.negocioId !== premio.negocioId) {
+      return NextResponse.json({ error: 'La clienta no pertenece al negocio de este premio' }, { status: 400 })
+    }
+  } else {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 

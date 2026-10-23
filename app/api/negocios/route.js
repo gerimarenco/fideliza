@@ -4,7 +4,7 @@ import { hashPassword } from '@/lib/password'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { randomBytes } from 'crypto'
-import { normalizarEmail } from '@/lib/identidad'
+import { normalizarEmail, filtroEmail, emailValido } from '@/lib/identidad'
 import { calcularStatsClientes, siguienteNivel } from '@/lib/clienteStats'
 
 // Nunca incluir password/tiendanubeAccessToken tal cual acá: esta respuesta
@@ -163,7 +163,19 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Nombre, tipo, ciudad, emoji y email son obligatorios' }, { status: 400 })
   }
 
-  const passwordGenerada = Math.random().toString(36).slice(-8)
+  const email = normalizarEmail(body.email)
+  if (!emailValido(email)) {
+    return NextResponse.json({ error: 'El email no es válido' }, { status: 400 })
+  }
+  // La restricción única de la base distingue mayúsculas.
+  const yaExiste = await prisma.negocio.findFirst({ where: { email: filtroEmail(email) }, select: { id: true } })
+  if (yaExiste) {
+    return NextResponse.json({ error: 'Ya existe un negocio con ese email' }, { status: 409 })
+  }
+
+  // randomBytes en vez de Math.random(): no es un generador pensado para
+  // secretos y su salida se puede predecir.
+  const passwordGenerada = randomBytes(6).toString('base64url')
 
   let negocioCreado
   try {
@@ -173,7 +185,7 @@ export async function POST(request) {
         tipo: body.tipo,
         ciudad: body.ciudad,
         emoji: body.emoji,
-        email: normalizarEmail(body.email),
+        email,
         password: await hashPassword(passwordGenerada),
       }
     })

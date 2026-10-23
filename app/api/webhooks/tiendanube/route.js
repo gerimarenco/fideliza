@@ -4,7 +4,8 @@ import { enviarEmailPuntosAcreditados } from '@/lib/email'
 import { verificarFirmaTiendanube } from '@/lib/webhookSignature'
 import { calcularPuntosPorCompra } from '@/lib/puntos'
 import { acreditarSiEsPrimeraCompraReferida } from '@/lib/referidos'
-import { normalizarEmail, filtroEmail, ocultarEmail } from '@/lib/identidad'
+import { filtroEmail, ocultarEmail } from '@/lib/identidad'
+import { datosOrdenAcreditable } from '@/lib/tiendanube'
 
 // Tiendanube manda un payload liviano (store_id, event, id de la orden), no la
 // orden completa. Hay que pedirla a la API con el access_token del negocio.
@@ -75,13 +76,18 @@ export async function POST(request) {
     }
 
     const orden = await obtenerOrden(storeId, orderId, negocio.tiendanubeAccessToken)
-    const email = normalizarEmail(orden.contact_email)
-    const total = parseFloat(orden.total)
 
-    if (!email || !Number.isFinite(total)) {
-      console.error('Webhook Tiendanube: la orden no trae email o total válidos', { orderId, email: ocultarEmail(email), total: orden.total })
+    // Se confirma contra la orden real (pedida a la API, no lo que dice el
+    // webhook) que esté pagada y traiga email y total (ver lib/tiendanube.js).
+    const datos = datosOrdenAcreditable(orden)
+    if (datos.motivo === 'no_pagada') {
+      return NextResponse.json({ message: 'La orden no figura como pagada' }, { status: 200 })
+    }
+    if (datos.motivo) {
+      console.error('Webhook Tiendanube: la orden no trae email o total válidos', { orderId, email: ocultarEmail(orden.contact_email), total: orden.total })
       return NextResponse.json({ message: 'Datos de la orden incompletos' }, { status: 200 })
     }
+    const { email, total } = datos
 
     // Sin distinguir mayúsculas: hay cuentas viejas guardadas tal cual se
     // tipearon (ver lib/identidad.js).
@@ -95,6 +101,12 @@ export async function POST(request) {
 
     // Calcular y sumar los puntos
     const puntos = calcularPuntosPorCompra(total, negocio.puntosXPeso)
+
+    // Una compra que no llega a 1 punto no acredita nada (ni manda el mail
+    // de "sumaste 0 puntos", ni cuenta como primera compra para referidos).
+    if (puntos <= 0) {
+      return NextResponse.json({ message: 'La compra no alcanza para sumar puntos' }, { status: 200 })
+    }
 
     // Misma protección de idempotencia que Mercado Pago: si Tiendanube
     // reenvía el mismo webhook, la restricción única de WebhookEvento hace
