@@ -42,7 +42,7 @@ export async function GET(request) {
   const clientes = await prisma.cliente.findMany({
     where,
     orderBy: { createdAt: 'desc' },
-    select: { id: true, nombre: true, telefono: true, email: true, puntos: true, createdAt: true, dni: true, fechaNacimiento: true },
+    select: { id: true, nombre: true, telefono: true, email: true, puntos: true, createdAt: true, fechaNacimiento: true },
   })
 
   // El nivel no vive en la base (se calcula de los puntos ganados de por
@@ -54,14 +54,13 @@ export async function GET(request) {
     ? clientes.filter((c) => stats[c.id]?.nivel?.nombre.toLowerCase() === nivelFiltro)
     : clientes
 
-  const encabezados = ['Nombre', 'Email', 'Teléfono', 'DNI', 'Fecha de nacimiento', 'Puntos actuales', 'Nivel', 'Compras registradas', 'Cliente desde', 'Última actividad']
+  const encabezados = ['Nombre', 'Email', 'Teléfono', 'Fecha de nacimiento', 'Puntos actuales', 'Nivel', 'Compras registradas', 'Cliente desde', 'Última actividad']
   const filas = clientesFiltrados.map((c) => {
     const s = stats[c.id] || {}
     return [
       celdaCsv(c.nombre || ''),
       celdaCsv(c.email),
       celdaCsv(c.telefono || ''),
-      celdaCsv(c.dni || ''),
       // En UTC a propósito: fechaNacimiento se guarda como medianoche UTC
       // (mismo criterio que lib/cumpleanos.js), leerla en hora argentina la
       // correría un día para atrás.

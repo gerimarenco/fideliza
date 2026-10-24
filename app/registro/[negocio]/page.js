@@ -21,7 +21,6 @@ export default function RegistroPage() {
   const [password, setPassword] = useState('');
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [fechaNacimiento, setFechaNacimiento] = useState('');
-  const [dni, setDni] = useState('');
   const [sexo, setSexo] = useState('');
   const [telefono, setTelefono] = useState('');
   const [loading, setLoading] = useState(false);
@@ -44,7 +43,7 @@ export default function RegistroPage() {
       const res = await fetch(`/api/registro/${negocio}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: `${nombre.trim()} ${apellido.trim()}`.trim(), email, password, fechaNacimiento, dni, sexo, telefono, codigoReferido }),
+        body: JSON.stringify({ nombre: `${nombre.trim()} ${apellido.trim()}`.trim(), email, password, fechaNacimiento, sexo, telefono, codigoReferido }),
       });
 
       const data = await res.json();
@@ -144,21 +143,6 @@ export default function RegistroPage() {
               onChange={(e) => setFechaNacimiento(e.target.value)}
               required
               max={new Date().toISOString().split('T')[0]}
-              style={estiloInput}
-            />
-          </label>
-
-          <label style={{ ...campo, display: 'block' }}>
-            <span style={estiloLabel}>DNI</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={dni}
-              onChange={(e) => setDni(e.target.value.replace(/\D/g, ''))}
-              required
-              minLength={7}
-              maxLength={8}
-              placeholder="Sin puntos"
               style={estiloInput}
             />
           </label>
