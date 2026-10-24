@@ -3,17 +3,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { calcularStatsClientes } from '@/lib/clienteStats'
-
-// Igual que un valor no puede contener el separador ";" ni comillas sin
-// escapar (formato CSV estándar, RFC 4180): si aparecen, todo el campo va
-// entre comillas dobles, duplicando las que ya tuviera adentro.
-function celdaCsv(valor) {
-  const texto = valor === null || valor === undefined ? '' : String(valor)
-  if (/[";\n]/.test(texto)) {
-    return `"${texto.replace(/"/g, '""')}"`
-  }
-  return texto
-}
+import { celdaCsv, fechaCorta } from '@/lib/csv'
 
 // Exporta el mismo listado de "Mis clientes" (con los mismos filtros de
 // búsqueda/nivel si se pasan) a un CSV para que el negocio pueda usarlo
@@ -72,16 +62,15 @@ export async function GET(request) {
       celdaCsv(c.email),
       celdaCsv(c.telefono || ''),
       celdaCsv(c.dni || ''),
-      // timeZone: 'UTC' a propósito: fechaNacimiento se guarda como
-      // medianoche UTC (mismo criterio que lib/cumpleanos.js), formatearla
-      // con la zona horaria del servidor podría correrla un día para
-      // atrás según dónde corra el deploy.
-      celdaCsv(c.fechaNacimiento ? c.fechaNacimiento.toLocaleDateString('es-AR', { timeZone: 'UTC' }) : ''),
+      // En UTC a propósito: fechaNacimiento se guarda como medianoche UTC
+      // (mismo criterio que lib/cumpleanos.js), leerla en hora argentina la
+      // correría un día para atrás.
+      celdaCsv(fechaCorta(c.fechaNacimiento, { utc: true })),
       celdaCsv(c.puntos),
       celdaCsv(s.nivel?.nombre || ''),
       celdaCsv(s.comprasRegistradas ?? 0),
-      celdaCsv(c.createdAt.toLocaleDateString('es-AR')),
-      celdaCsv(s.ultimaActividad ? new Date(s.ultimaActividad).toLocaleDateString('es-AR') : ''),
+      celdaCsv(fechaCorta(c.createdAt)),
+      celdaCsv(fechaCorta(s.ultimaActividad)),
     ].join(';')
   })
 

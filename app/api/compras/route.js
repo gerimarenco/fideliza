@@ -48,6 +48,12 @@ export async function POST(request) {
 
   const puntosASumar = calcularPuntosPorCompra(montoNumerico, negocio.puntosXPeso)
 
+  // Sin esto se registraba una "compra" de 0 puntos, con su mail y, si era
+  // la primera de una clienta referida, el bono de referidos.
+  if (puntosASumar <= 0) {
+    return NextResponse.json({ error: `El monto no alcanza para sumar puntos (1 punto cada $${negocio.puntosXPeso}).` }, { status: 400 })
+  }
+
   const [clienteActualizado, referido] = await prisma.$transaction(async (tx) => {
     const actualizado = await tx.cliente.update({
       where: { id: clienteId },

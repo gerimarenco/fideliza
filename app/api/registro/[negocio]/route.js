@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { hashPassword } from '@/lib/password';
 import { nombreClub } from '@/lib/nombreClub';
-import { normalizarEmail, filtroEmail } from '@/lib/identidad';
+import { normalizarEmail, filtroEmail, emailValido } from '@/lib/identidad';
 
 // CORS abierto porque también la consume el widget embebible (public/widget.js)
 // desde el dominio de la tienda online del negocio (ver README) — no un
@@ -67,6 +67,13 @@ export async function POST(request, { params }) {
     if (!nombre?.trim() || !email || !password) {
       return NextResponse.json(
         { error: 'Nombre, email y contraseña son obligatorios.' },
+        { status: 400 }
+      );
+    }
+
+    if (!emailValido(email)) {
+      return NextResponse.json(
+        { error: 'El email no es válido.' },
         { status: 400 }
       );
     }

@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { createHash } from 'crypto'
 import { hashPassword } from '@/lib/password'
+import { hashEmailLogin } from '@/lib/limiteLogin'
 
 function hashearToken(token) {
   return createHash('sha256').update(token).digest('hex')
@@ -43,11 +44,12 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Este link no es válido o ya venció. Pedí uno nuevo desde "Olvidé mi contraseña".' }, { status: 400 })
   }
 
+  let cuenta
   try {
     if (registro.tipo === 'negocio') {
-      await prisma.negocio.update({ where: { id: registro.usuarioId }, data: { password: passwordHasheada } })
+      cuenta = await prisma.negocio.update({ where: { id: registro.usuarioId }, data: { password: passwordHasheada } })
     } else {
-      await prisma.cliente.update({ where: { id: registro.usuarioId }, data: { password: passwordHasheada } })
+      cuenta = await prisma.cliente.update({ where: { id: registro.usuarioId }, data: { password: passwordHasheada } })
     }
   } catch (error) {
     if (error.code === 'P2025') {
@@ -62,6 +64,15 @@ export async function POST(request) {
     where: { usuarioId: registro.usuarioId, tipo: registro.tipo, usadoEn: null },
     data: { usadoEn: new Date() },
   })
+
+  // Si estaba bloqueada por intentos fallidos (ver lib/limiteLogin.js),
+  // recuperar la contraseña la desbloquea: es lo que le sugiere la pantalla
+  // de login.
+  try {
+    await prisma.intentoLogin.deleteMany({ where: { emailHash: hashEmailLogin(cuenta.email) } })
+  } catch (error) {
+    console.error('No se pudieron limpiar los intentos de login', error.message)
+  }
 
   return NextResponse.json({ ok: true })
 }

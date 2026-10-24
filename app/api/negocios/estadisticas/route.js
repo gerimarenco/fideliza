@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { mesArgentina } from '@/lib/periodo'
+import { ORIGENES_COMPRA } from '@/lib/clienteStats'
 
 export async function GET(request) {
   const session = await getServerSession(authOptions)
@@ -20,11 +22,12 @@ export async function GET(request) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  const ahora = new Date()
-  const inicioMes = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), 1))
-  const inicioMesSiguiente = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth() + 1, 1))
+  // Mes calendario en hora de Argentina, no en UTC.
+  const { inicio: inicioMes, fin: inicioMesSiguiente } = mesArgentina()
 
-  const [clientesActivos, canjesEsteMes, movimientos] = await Promise.all([
+  const [clientesActivos, canjesEsteMes, movimientos, clientesConCompra] = await Promise.all([
+    // Total de clientes registrados (el nombre quedó de antes; no son solo
+    // los que compraron -- para eso está clientesConCompraEsteMes).
     prisma.cliente.count({ where: { negocioId } }),
 
     prisma.canje.count({
@@ -42,11 +45,19 @@ export async function GET(request) {
       where: { negocioId, createdAt: { gte: inicioMes, lt: inicioMesSiguiente }, puntos: { gt: 0 } },
       _sum: { puntos: true },
     }),
+
+    // Clientes distintos con al menos una compra real este mes (no cuentan
+    // regalos de cumpleaños ni bonos de referidos).
+    prisma.movimientoPuntos.groupBy({
+      by: ['clienteId'],
+      where: { negocioId, createdAt: { gte: inicioMes, lt: inicioMesSiguiente }, puntos: { gt: 0 }, origen: { in: ORIGENES_COMPRA } },
+    }),
   ])
 
   return NextResponse.json({
     clientesActivos,
     puntosOtorgadosEsteMes: movimientos._sum.puntos || 0,
     canjesEsteMes,
+    clientesConCompraEsteMes: clientesConCompra.length,
   })
 }

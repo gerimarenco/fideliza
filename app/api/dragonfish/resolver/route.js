@@ -107,6 +107,14 @@ export async function POST(request) {
 
   const puntos = calcularPuntosPorCompra(montoNumerico, negocio.puntosXPeso)
 
+  // Una venta que no llega a 1 punto (ej. un cambio de prenda facturado en
+  // $0, o un monto menor a puntosXPeso) no acredita nada: sin esto se
+  // mandaba un mail de "sumaste 0 puntos" y, si era la primera compra de una
+  // clienta referida, se pagaba el bono de referidos por una venta sin valor.
+  if (puntos <= 0) {
+    return marcarFactura(factura.id, codigo, 'sin_puntos')
+  }
+
   // Mismo patrón de idempotencia que Mercado Pago/Tiendanube: WebhookEvento +
   // Cliente.update + MovimientoPuntos.create en una sola transacción, más el
   // FacturaPendiente.procesado de arriba como segunda barrera si el agente

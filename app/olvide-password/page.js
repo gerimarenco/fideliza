@@ -66,7 +66,7 @@ export default function OlvidePassword() {
               />
             </div>
 
-            {error && <div style={{ fontSize: 13, color: '#b91c1c', marginBottom: 16, textAlign: 'center' }}>{error}</div>}
+            {error && <div role="alert" style={{ fontSize: 13, color: '#b91c1c', marginBottom: 16, textAlign: 'center' }}>{error}</div>}
 
             <button onClick={handleEnviar} disabled={loading || !email.trim()} style={{ width: '100%', padding: '11px', borderRadius: 2, border: 'none', background: '#17191b', color: '#f8f8f5', minHeight: 46, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
               {loading ? 'Enviando...' : 'Mandar link'}
