@@ -9,7 +9,7 @@ Cada punto se marca recién con evidencia (captura, línea de log, número).
 |---|---|---|---|---|
 | A1 | Mergear y publicar el hito 1 y 2 (PR #114) | Genaro | Publicado (Genaro confirmó el nuevo diseño en retornar.com.ar) | [x] |
 | A1b | Publicar el hito 3 (validaciones, límite de login) | Genaro | Netlify publicado; Inicio del negocio muestra "N compraron este mes" | [ ] |
-| A2 | Ajustes de Peperina: puntos por peso = 100, vencimiento = 12 meses, regalo de cumpleaños = 500 (o los valores que se confirmen) | Genaro | Captura de Ajustes | [ ] |
+| A2 | Ajustes de Peperina: puntos por peso = 100, vencimiento = 9 o 12 meses (a confirmar), regalo de cumpleaños = 350 (decidido por Genaro: ~5% del promedio de los premios) | Genaro | Captura de Ajustes | [ ] |
 | A3 | Contacto de soporte cargado (Ajustes → Contacto de soporte) | Genaro | En el menú ⋮ de una cuenta de prueba aparece "Escribinos..." y abre el contacto correcto | [ ] |
 | A4 | Actualizar los archivos del agente en la PC del local | Genaro | `dragonfish-agente/README.md`, "Actualizar el agente": `verificar-agente.bat` existe en la carpeta | [ ] |
 | A5 | Arranque automático: reiniciar la PC, abrir Dragon Fish, esperar 2 min | Genaro | `verificar-agente.bat` dice "El agente esta corriendo" y la última línea tiene la hora de hoy; Integraciones dice "Agente funcionando" | [ ] |
