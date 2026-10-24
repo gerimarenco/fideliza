@@ -40,7 +40,7 @@ del todo.
 | B10 | Desde la cuenta de prueba, intentar ver datos de otra clienta | [auto] | Imposible (probado en el código: cada consulta filtra por la cuenta) | [ ] |
 | B11 | Todo lo anterior desde el celular | Manual | Se lee bien, sin scroll de costado | [ ] |
 | B13 | Venta en la caja de $0 (cambio) o menor a $100 con el email de prueba | Manual (real) [auto] | Log del agente: `sin_puntos`; **no** llega mail | [ ] |
-| B12 | Día siguiente: Netlify → Functions → `regalo-cumpleanos` y `vencimiento-puntos` | Manual | Las dos corrieron sin error (línea "Regalo de cumpleaños: N cliente(s)...") | [ ] |
+| B12 | Día siguiente: Netlify → Functions → `regalo-cumpleanos` y `vencimiento-puntos` | Manual | Las dos corrieron sin error (línea "Regalo de cumpleaños: N cliente(s)..." y "Vencimiento de puntos: ... avisada(s) de puntos por vencer") | [ ] |
 
 ## C. Prueba real de cupones de Tiendanube (requiere autorización de Genaro)
 

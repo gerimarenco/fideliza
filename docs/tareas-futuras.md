@@ -1815,6 +1815,28 @@ Revisión del código de registro, login, acreditación (caja, tienda online, Me
 
 **No probado contra servicios reales** (requiere la visita, `docs/lanzamiento/visita-al-local.md`): la caja real con `sin_puntos`, la orden pagada/pendiente de Tiendanube real.
 
+## 68. Aviso "tus puntos vencen pronto" (2026-10-24)
+
+Mejora nº 2 de `docs/investigacion-competidores.md`. Con el vencimiento de Peperina en 9 meses, hasta ahora la clienta se enteraba recién cuando los puntos ya habían vencido.
+
+**Qué hace**
+- La tarea diaria `vencimiento-puntos` (13:00 UTC), después de vencer lo de hoy, manda un mail a cada clienta con puntos que vencen en los próximos **30 días**: cuántos, desde qué fecha, cuánto tiene y cómo va con cada premio. Si ya le alcanza para un premio la invita a canjear; si no, le dice que todavía puede llegar.
+- Un solo mail por clienta aunque tenga varios lotes por vencer, y **cada lote se avisa una sola vez** (columna nueva `MovimientoPuntos.avisoVencimientoEn`). Entre un aviso y el siguiente pasan al menos 14 días, así una clienta que compra seguido no recibe un mail por cada compra; todo lote igual se avisa al menos 16 días antes de vencer.
+- Panel de la clienta: en el bloque de puntos, "350 puntos vencen el 04/11" cuando tiene algo que vence en los próximos 30 días. "Cómo funcionan los puntos" ahora dice que se avisa por mail antes.
+- La fecha que se informa es exactamente el día en que la tarea vence el lote (`lib/vencimientoPuntos.js`, probado contra la tarea real día por día, con fines de mes y bisiestos).
+
+**Cuidados**
+- No toca saldos: solo marca y manda.
+- Se marca antes de mandar, con un lock por clienta: dos corridas a la vez no duplican el aviso. Si Resend rechaza el envío, se desmarca y sale al día siguiente (Resend no tira excepción: se revisa su `error`).
+- Máximo 25 avisos por corrida con 0,6 s entre uno y otro (límite de envíos de Resend y ~30 s de una Scheduled Function); lo que no entra sale al día siguiente, primero quien vence antes.
+- Los lotes viejos sin seguimiento (`saldoRestante` null) no vencen ni se avisan, igual que antes.
+
+**Migración**: `20261025120000_aviso_vencimiento` (agrega una columna opcional; no toca datos).
+
+**Pruebas**: `npm test` 84/84 (5 nuevas); E2E contra la base local con Resend simulado 23/23 (aviso agrupado, ya vencido, ya canjeado, lote viejo, pausa de 14 días, Resend rechaza y se reintenta, negocio sin vencimiento, corridas repetidas y simultáneas, panel y API solo con sus datos) y tope de 25 por corrida 6/6; se repitieron rediseño 16/16 y hito 3 20/20.
+
+**No probado contra servicios reales**: el envío real por Resend. Primera verificación en producción: el día siguiente al merge, Netlify → Functions → `vencimiento-puntos` debe mostrar "N avisada(s) de puntos por vencer".
+
 ## 65. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅

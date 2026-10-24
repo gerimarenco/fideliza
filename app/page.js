@@ -5,6 +5,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { nombreClub } from '@/lib/nombreClub';
 import { esCumpleanosHoy, diasHastaProximoCumpleanos } from '@/lib/cumpleanos';
 import { descripcionNiveles, formatearMiles } from '@/lib/clienteStats';
+import { fechaCorta } from '@/lib/csv';
 import { calcularPuntosPorCompra } from '@/lib/puntos';
 import { estadoAgente, textoTiempo } from '@/lib/estadoAgente';
 import { ICONOS_PREMIO, IconoPremio } from '@/lib/premioIconos';
@@ -61,7 +62,7 @@ function reglasDePuntos(negocio, club) {
     reglas.push({ Icono: Cake, texto: `El día de tu cumpleaños te regalamos ${negocio.regaloCumpleanosPuntos} puntos.` });
   }
   if (negocio.vencimientoPuntosMeses) {
-    reglas.push({ Icono: Hourglass, texto: `Cada compra suma puntos que valen por ${negocio.vencimientoPuntosMeses} meses desde que los ganaste: si no los usás a tiempo, esos puntos vencen (siempre se gastan primero los más viejos).` });
+    reglas.push({ Icono: Hourglass, texto: `Cada compra suma puntos que valen por ${negocio.vencimientoPuntosMeses} meses desde que los ganaste: si no los usás a tiempo, esos puntos vencen (siempre se gastan primero los más viejos). Te avisamos por mail antes de que venzan.` });
   }
   reglas.push({ Icono: Gift, texto: 'Cuando llegás al puntaje de un premio, ya lo podés canjear desde esta misma pantalla.' });
   return reglas;
@@ -1902,6 +1903,12 @@ export default function Home() {
                     <span style={{ fontSize: 13, color: tema.textoSecundario }}>· {formatearMiles(clientePropio.proximoNivel.faltan)} puntos más para {clientePropio.proximoNivel.nombre}</span>
                   )}
                 </div>
+              )}
+              {clientePropio.puntosPorVencer && (
+                <p style={{ margin: '12px 0 0', fontSize: 14, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <Hourglass size={16} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2, color: tema.primarioLegible }} />
+                  <span><strong>{formatearMiles(clientePropio.puntosPorVencer.puntos)} puntos</strong> vencen el {fechaCorta(clientePropio.puntosPorVencer.fecha).slice(0, 5)}. {premiosDisponibles.length > 0 ? 'Canjealos por un premio antes de esa fecha para no perderlos.' : 'Si llegás a un premio antes de esa fecha, podés usarlos.'}</span>
+                </p>
               )}
               {proximoPremio ? (
                 <>

@@ -56,6 +56,7 @@ pruebas reales).
 | L-27 | Una compra anulada/devuelta en Tiendanube o Dragon Fish no descuenta los puntos | Genaro | Pendiente de decisión | — | Regla de negocio: ¿se descuentan? |
 | L-36 | "Nuevo cliente": el negocio puede crear una cuenta a mano (la persona no pasó por el registro) | Genaro | Pendiente de decisión | — | No es automático, pero choca con "la clienta se registra sola" y con el aviso de privacidad. ¿Se mantiene, se saca, o se deja solo para el admin? |
 | L-37 | "Cargar una compra" lista a todas las clientas en un desplegable | Claude | Pendiente de diagnóstico | — | Con cientos de clientas es incómodo y carga todos los datos en cada pantalla. Mejora propuesta: buscador. P2: las ventas normales llegan solas por la caja y la tienda. |
+| L-38 | La clienta se enteraba de que le vencían puntos recién después de vencidos | Claude | Hecho (PR pendiente de merge) | `docs/tareas-futuras.md` ítem 68 | Mail 30 días antes, una vez por lote, y aviso en el panel. Verificar en producción el día siguiente al merge (B12). |
 
 ## Diseño
 

@@ -211,6 +211,10 @@ model MovimientoPuntos {
   // puntos (canjes no generan movimiento propio; vencimiento sí, con
   // `origen: "vencimiento"`) queda en null, no aplica.
   saldoRestante Int?
+  // Cuándo se le avisó a la clienta que este lote estaba por vencer (ver
+  // netlify/functions/vencimiento-puntos.mjs y lib/vencimientoPuntos.js).
+  // null = todavía no se avisó; cada lote se avisa una sola vez.
+  avisoVencimientoEn DateTime?
 
   @@index([negocioId, createdAt])
   @@index([clienteId, saldoRestante])
