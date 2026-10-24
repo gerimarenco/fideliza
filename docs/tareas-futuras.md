@@ -1837,6 +1837,12 @@ Mejora nº 2 de `docs/investigacion-competidores.md`. Con el vencimiento de Pepe
 
 **No probado contra servicios reales**: el envío real por Resend. Primera verificación en producción: el día siguiente al merge, Netlify → Functions → `vencimiento-puntos` debe mostrar "N avisada(s) de puntos por vencer".
 
+## 69. Mensaje de bienvenida visible en el club y confirmación al guardar Ajustes (2026-10-24)
+
+Genaro cargó el mensaje de bienvenida y no lo veía en ningún lado: solo aparecía en `/registro/[negocio]` (la pantalla del formulario, después de tocar "Sumarme al club"), no en `/club/[negocio]`, que es la página del QR y del link. Ahora se muestra también ahí, debajo del título; vacío no deja hueco. Además, los "Guardar" de Ajustes no daban ninguna señal de que habían guardado: ahora muestran "Guardado". El cierre automático del aviso pasó de un ref a un efecto (mismo comportamiento; ESLint baja de 22 a 21).
+
+Pruebas: E2E 5/5 (guardar con confirmación, mensaje en club y registro, vacío vuelve al texto genérico); se repitieron rediseño 16/16 y aviso de vencimiento 23/23.
+
 ## 65. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { nombreClub } from '@/lib/nombreClub';
 import { esCumpleanosHoy, diasHastaProximoCumpleanos } from '@/lib/cumpleanos';
@@ -94,7 +94,6 @@ export default function Home() {
   const [canjeandoId, setCanjeandoId] = useState(null);
   const [saludoCumpleCerrado, setSaludoCumpleCerrado] = useState(false);
   const [toast, setToast] = useState(null);
-  const toastTimeoutRef = useRef(null);
   const [estadisticas, setEstadisticas] = useState(null);
   const [seccionActiva, setSeccionActiva] = useState('inicio');
   const [clientesPagina, setClientesPagina] = useState(1);
@@ -632,6 +631,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -654,6 +654,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -676,6 +677,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -698,6 +700,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -716,6 +719,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -734,6 +738,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -752,6 +757,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -770,6 +776,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -788,6 +795,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -953,11 +961,14 @@ export default function Home() {
   // generada al crear cliente/negocio, comprobante de canje) — esos siguen
   // siendo un alert() bloqueante a propósito, en vez de este toast que
   // desaparece solo.
-  const mostrarToast = (tipo, mensaje) => {
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    setToast({ tipo, mensaje });
-    toastTimeoutRef.current = setTimeout(() => setToast(null), tipo === 'error' ? 4000 : 2500);
-  };
+  // El cierre automático va en un efecto (no en un ref): cada toast nuevo es
+  // un objeto nuevo, así que reinicia el plazo igual que antes.
+  const mostrarToast = (tipo, mensaje) => setToast({ tipo, mensaje });
+  useEffect(() => {
+    if (!toast) return;
+    const plazo = setTimeout(() => setToast(null), toast.tipo === 'error' ? 4000 : 2500);
+    return () => clearTimeout(plazo);
+  }, [toast]);
 
   // Escape cierra el menú y las ventanas que estén abiertas (el teclado no
   // tenía forma de salir de una ventana sin llegar hasta su botón).
@@ -1496,7 +1507,7 @@ export default function Home() {
         <button type="button" className="fid-btn-primary" onClick={guardarTema} style={ui.botonPrimario}>Guardar</button>
       </section>
 
-      {bloqueAjuste('Mensaje de bienvenida', 'Se muestra en la pantalla donde tus clientes se registran solos. Dejalo vacío para usar el texto genérico.', (
+      {bloqueAjuste('Mensaje de bienvenida', 'Se muestra en la página del club (la del QR y el link para sumarse) y en la pantalla de registro. Dejalo vacío para usar el texto genérico.', (
         <textarea maxLength={300} rows={3} aria-label="Mensaje de bienvenida" value={formMensajeRegistro} onChange={e => setFormMensajeRegistro(e.target.value)} placeholder="Ej: ¡Sumate y a las 6 hamburguesas la 7ma es gratis!" style={{ ...ui.input, resize: 'vertical' }} />
       ), guardarMensajeRegistro)}
 
