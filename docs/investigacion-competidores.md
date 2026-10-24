@@ -180,9 +180,9 @@ de LoyaltyLion.
   lote), con cuántos puntos vencen y qué premio le alcanza.
 - Ventaja: convierte el vencimiento en un motivo para volver, en vez de una mala
   noticia. Sin esto, el vencimiento solo genera enojo.
-- Nota: con vencimiento a 12 meses, los primeros vencimientos de Peperina son
-  dentro de un año (salvo puntos anteriores al lanzamiento). Importante, no
-  urgente.
+- Nota: con vencimiento a 9 meses (decidido el 2026-10-24; antes se suponía 12), los primeros vencimientos de Peperina son
+  dentro de 9 meses (salvo puntos anteriores al lanzamiento). Conviene tenerlo
+  listo antes de esa fecha.
 - Esfuerzo: 4–6 h. Riesgo: bajo (no toca puntos). Costo: más mails (ver costos).
 
 **3. Recordatorio "ya te alcanza para un premio"** — LoyaltyLion, Square.
