@@ -86,9 +86,9 @@ export async function POST(request, { params }) {
       );
     }
 
-    if (!fechaNacimiento || !sexo || !telefono) {
+    if (!fechaNacimiento || !telefono) {
       return NextResponse.json(
-        { error: 'Fecha de nacimiento, género y celular son obligatorios.' },
+        { error: 'Fecha de nacimiento y celular son obligatorios.' },
         { status: 400 }
       );
     }
@@ -109,7 +109,11 @@ export async function POST(request, { params }) {
       );
     }
 
-    if (!SEXO_VALIDO.includes(sexo)) {
+    // El género es opcional (decisión de Genaro, 2026-10-24): se guarda si la
+    // clienta lo elige, para campañas futuras del negocio, y queda vacío si
+    // no. Si viene, tiene que ser uno de los valores del formulario.
+    const sexoElegido = typeof sexo === 'string' && sexo.trim() !== '' ? sexo.trim() : null;
+    if (sexoElegido && !SEXO_VALIDO.includes(sexoElegido)) {
       return NextResponse.json(
         { error: 'Género inválido.' },
         { status: 400 }
@@ -161,7 +165,7 @@ export async function POST(request, { params }) {
         negocioId: negocioEncontrado.id,
         puntos: 0,
         fechaNacimiento: fechaNacimientoDate,
-        sexo,
+        sexo: sexoElegido,
         telefono: telefonoLimpio,
         referidoPorId,
       },

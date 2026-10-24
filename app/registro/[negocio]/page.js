@@ -162,9 +162,9 @@ export default function RegistroPage() {
           </label>
 
           <label style={{ marginBottom: 22, display: 'block' }}>
-            <span style={estiloLabel}>Género</span>
-            <select value={sexo} onChange={(e) => setSexo(e.target.value)} required style={estiloInput}>
-              <option value="" disabled>Seleccioná una opción</option>
+            <span style={estiloLabel}>Género (opcional)</span>
+            <select value={sexo} onChange={(e) => setSexo(e.target.value)} style={estiloInput}>
+              <option value="">Prefiero no decirlo</option>
               <option value="femenino">Femenino</option>
               <option value="masculino">Masculino</option>
               <option value="otro">Otro</option>
