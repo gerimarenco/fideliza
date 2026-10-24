@@ -80,8 +80,16 @@ export async function POST(request) {
     // Se confirma contra la orden real (pedida a la API, no lo que dice el
     // webhook) que esté pagada y traiga email y total (ver lib/tiendanube.js).
     const datos = datosOrdenAcreditable(orden)
+    // Si el aviso dice "pagada" pero la API todavía no (puede tardar unos
+    // segundos en reflejarlo), se responde con error para que Tiendanube lo
+    // reenvíe más tarde en vez de perder los puntos de esa compra: los
+    // reenvíos no duplican nada (ver WebhookEvento más abajo). Una orden
+    // cancelada, en cambio, es definitiva.
     if (datos.motivo === 'no_pagada') {
-      return NextResponse.json({ message: 'La orden no figura como pagada' }, { status: 200 })
+      return NextResponse.json({ message: 'La orden todavía no figura como pagada' }, { status: 409 })
+    }
+    if (datos.motivo === 'cancelada') {
+      return NextResponse.json({ message: 'La orden está cancelada' }, { status: 200 })
     }
     if (datos.motivo) {
       console.error('Webhook Tiendanube: la orden no trae email o total válidos', { orderId, email: ocultarEmail(orden.contact_email), total: orden.total })

@@ -1805,12 +1805,13 @@ Revisión del código de registro, login, acreditación (caja, tienda online, Me
 - Mails: el texto sobre el color de la marca se ajusta para que se lea (mismo `resolverTema` que el panel).
 
 **Seguridad**
-- Límite de login: 10 intentos fallidos por cuenta cada 15 minutos (`lib/limiteLogin.js`, tabla nueva `IntentoLogin` con hash del email). Si la tabla no respondiera, el login sigue funcionando sin límite.
+- Límite de login (`lib/limiteLogin.js`, tabla nueva `IntentoLogin`): máx. 10 contraseñas probadas por cuenta + conexión cada 15 minutos y 30 por conexión. Se registra el intento antes de probar la contraseña (pedidos simultáneos no lo eluden), cuenta por cuenta **y** conexión (nadie puede bloquear la cuenta de otra persona desde afuera), recuperar la contraseña desbloquea, y se guardan HMAC de email e IP. Si la tabla no respondiera, el login sigue funcionando sin límite.
+- Revisión final antes del merge (2026-10-24): la primera versión del límite contaba antes de registrar (se eludía con pedidos simultáneos) y bloqueaba por cuenta sola (se podía bloquear a terceros); corregido. Tiendanube: órdenes canceladas no suman, y si la API todavía no muestra la orden como pagada se responde 409 para que Tiendanube la reenvíe.
 - Accesibilidad: los errores de login/recuperación se anuncian a lectores de pantalla; Escape cierra el menú y las ventanas del panel.
 
 **Migración**: `20261024120000_intentos_login` (solo crea una tabla; no toca datos).
 
-**Pruebas**: `npm test` 77/77; E2E del hito 20/20; se repitieron las de hitos anteriores (API 12/12, cupones 10/10, concurrencia 4/4, rediseño 16/16); `next build` OK; ESLint igual que `main` (22); `prisma migrate diff` sin diferencias.
+**Pruebas**: `npm test` 79/79; E2E del hito 20/20 y de la revisión final 28/28 (con la API de Tiendanube simulada); se repitieron las de hitos anteriores (API 12/12, cupones 10/10, concurrencia 4/4, rediseño 16/16); `next build` OK; ESLint igual que `main` (22); `prisma migrate diff` sin diferencias.
 
 **No probado contra servicios reales** (requiere la visita, `docs/lanzamiento/visita-al-local.md`): la caja real con `sin_puntos`, la orden pagada/pendiente de Tiendanube real.
 

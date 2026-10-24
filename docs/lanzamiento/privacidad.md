@@ -140,7 +140,8 @@ incidente, y los devuelve o borra al terminar el servicio.
   en su log.
 - Ninguna cuenta se crea sin que la persona se registre (desde 2026-09-22).
 - Límite de intentos de login (2026-10-24): para contar los intentos se
-  guarda un hash del email, nunca el email, y se borra al día siguiente.
+  guarda un HMAC del email y de la IP (con la clave secreta del servidor),
+  nunca los datos en sí, y se borran al día siguiente.
 - El Excel exportado ya no puede ejecutar fórmulas escritas en el nombre de
   una clienta (2026-10-24).
 - Las páginas públicas (club y registro) solo exponen el nombre del club,
