@@ -18,8 +18,8 @@
 | Email | Registro | Cuenta, login, mails de puntos, identificar compras online (Tiendanube) y del local (Dragon Fish) | Sí |
 | Celular | Registro | Identificar compras del local (Dragon Fish), botón de WhatsApp del negocio | Sí (para el local) |
 | Fecha de nacimiento | Registro | Regalo de cumpleaños | Sí, si el negocio usa el regalo |
-| **DNI** | Registro (obligatorio) | **Ninguno**: solo aparece en el Excel exportado | **Revisar** — ver 3.1 |
-| Género | Registro (obligatorio) | Ninguno funcional (solo se guarda) | **Revisar** — ver 3.1 |
+| DNI | **Ya no se pide** (2026-10-24) | — | No. Quedan los DNI de las cuentas anteriores: ver 3.1 |
+| Género | Registro (**opcional** desde 2026-10-24) | Campañas futuras del negocio (segmentar comunicaciones) | Sí, si se informa esa finalidad — ver 3.1 |
 | Contraseña | Registro | Login | Sí (se guarda cifrada) |
 | Compras (monto convertido a puntos), canjes, movimientos | Tiendanube, Dragon Fish, carga manual | Puntos, historial, niveles, estadísticas | Sí |
 
@@ -65,14 +65,18 @@ Tiendanube (ya tiene los datos de las compras online).
 
 ### 3.1 Datos que conviene dejar de pedir como obligatorios — decisión de Genaro
 
-- **DNI**: no se usa para nada. Opciones: (a) dejar de pedirlo, (b) pedirlo
-  como opcional, (c) mantenerlo si hay un uso concreto previsto (por
-  ejemplo, buscar a la clienta por DNI en Dragon Fish) y decirlo en la
-  información del registro.
-- **Género**: tampoco se usa. Mismas opciones.
+**Decidido por Genaro (2026-10-24):**
 
-No se tocó nada de esto: es una decisión de producto y no se borra ningún
-dato ya guardado.
+- **DNI**: se dejó de pedir en el registro y salió del Excel exportado.
+  Los DNI de las cuentas creadas antes **siguen guardados** en la base (no
+  se borra ningún dato real sin autorización). Para borrarlos, después de
+  una copia de seguridad verificada y con autorización de Genaro:
+  `UPDATE "Cliente" SET "dni" = NULL WHERE "dni" IS NOT NULL;`
+  (antes, para saber cuántos son: `SELECT COUNT(*) FROM "Cliente" WHERE "dni" IS NOT NULL;`).
+- **Género**: se mantiene, para campañas futuras de Peperina, y es
+  **opcional** ("Prefiero no decirlo" es la opción por defecto). La
+  información del registro (4.1) y la política (4.2) tienen que decir esa
+  finalidad. Las cuentas anteriores conservan el género que ya tenían.
 
 ### 3.2 Aviso y aceptación en el registro — se implementa cuando los textos estén revisados
 
@@ -102,8 +106,10 @@ guardalo en un lugar seguro y no lo compartas").
 
 > Tus datos los usa {Negocio} para tu cuenta del {Club}: sumar los puntos
 > de tus compras en el local y en la tienda online, avisarte por mail cuando
-> sumás o canjeás, y tu regalo de cumpleaños. Son obligatorios nombre,
-> email, celular y fecha de nacimiento. Podés pedir ver, corregir o borrar
+> sumás o canjeás, y tu regalo de cumpleaños. Si nos decís tu género
+> (es opcional), lo usamos para armar promociones y comunicaciones del
+> club. Son obligatorios nombre, email, celular y fecha de nacimiento.
+> Podés pedir ver, corregir o borrar
 > tus datos escribiendo a {contacto de soporte}. Más detalle en la
 > [Política de privacidad].
 
@@ -178,7 +184,8 @@ incidente, y los devuelve o borra al terminar el servicio.
 | Acción | Responsable | Estado |
 |---|---|---|
 | Revisión legal de este documento | Genaro + profesional | Pendiente de intervención manual |
-| Decidir DNI y género (3.1) | Genaro | Pendiente de decisión |
+| Decidir DNI y género (3.1) | Genaro | Decidido: DNI se dejó de pedir; género opcional, para campañas |
+| Borrar los DNI ya guardados (3.1) | Genaro | Pendiente de decisión (requiere backup previo) |
 | Inscripción de la base ante la AAIP, si corresponde | Peperina (responsable) | Pendiente de decisión |
 | Implementar aviso, política y "Mis datos" (3.2, 3.3) | Claude | Bloqueado hasta tener textos revisados |
 | Confirmar país de los servidores de la base de datos | Genaro | Pendiente de diagnóstico |

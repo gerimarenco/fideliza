@@ -11,8 +11,6 @@ import { normalizarEmail, filtroEmail, emailValido } from '@/lib/identidad';
 const CORS_HEADERS = { 'Access-Control-Allow-Origin': '*' };
 
 const SEXO_VALIDO = ['femenino', 'masculino', 'otro'];
-// DNI argentino: 7 u 8 dígitos, sin puntos ni espacios.
-const DNI_VALIDO = /^\d{7,8}$/;
 // Sin validar formato de país/área a propósito (varía mucho cómo la gente
 // escribe su celular) — solo que tenga una cantidad de dígitos razonable,
 // una vez sacados espacios/guiones/paréntesis. Se guarda tal cual lo separa
@@ -61,7 +59,10 @@ export async function GET(request, { params }) {
 export async function POST(request, { params }) {
   try {
     const { negocio } = await params;
-    const { nombre, email: emailIngresado, password, fechaNacimiento, dni, sexo, telefono, codigoReferido } = await request.json();
+    // El DNI ya no se pide (decisión de Genaro, 2026-10-24: no se usaba para
+    // nada y es un dato personal más para cuidar). Si un formulario viejo
+    // todavía lo manda, se ignora: no se guarda.
+    const { nombre, email: emailIngresado, password, fechaNacimiento, sexo, telefono, codigoReferido } = await request.json();
     const email = normalizarEmail(emailIngresado);
 
     if (!nombre?.trim() || !email || !password) {
@@ -85,9 +86,9 @@ export async function POST(request, { params }) {
       );
     }
 
-    if (!fechaNacimiento || !dni || !sexo || !telefono) {
+    if (!fechaNacimiento || !telefono) {
       return NextResponse.json(
-        { error: 'Fecha de nacimiento, DNI, sexo y celular son obligatorios.' },
+        { error: 'Fecha de nacimiento y celular son obligatorios.' },
         { status: 400 }
       );
     }
@@ -108,16 +109,13 @@ export async function POST(request, { params }) {
       );
     }
 
-    if (!DNI_VALIDO.test(dni)) {
+    // El género es opcional (decisión de Genaro, 2026-10-24): se guarda si la
+    // clienta lo elige, para campañas futuras del negocio, y queda vacío si
+    // no. Si viene, tiene que ser uno de los valores del formulario.
+    const sexoElegido = typeof sexo === 'string' && sexo.trim() !== '' ? sexo.trim() : null;
+    if (sexoElegido && !SEXO_VALIDO.includes(sexoElegido)) {
       return NextResponse.json(
-        { error: 'El DNI tiene que tener 7 u 8 números, sin puntos.' },
-        { status: 400 }
-      );
-    }
-
-    if (!SEXO_VALIDO.includes(sexo)) {
-      return NextResponse.json(
-        { error: 'Sexo inválido.' },
+        { error: 'Género inválido.' },
         { status: 400 }
       );
     }
@@ -167,8 +165,7 @@ export async function POST(request, { params }) {
         negocioId: negocioEncontrado.id,
         puntos: 0,
         fechaNacimiento: fechaNacimientoDate,
-        dni,
-        sexo,
+        sexo: sexoElegido,
         telefono: telefonoLimpio,
         referidoPorId,
       },
