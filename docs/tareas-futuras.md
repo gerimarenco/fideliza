@@ -1815,6 +1815,45 @@ Revisión del código de registro, login, acreditación (caja, tienda online, Me
 
 **No probado contra servicios reales** (requiere la visita, `docs/lanzamiento/visita-al-local.md`): la caja real con `sin_puntos`, la orden pagada/pendiente de Tiendanube real.
 
+## 68. Aviso "tus puntos vencen pronto" (2026-10-24)
+
+Mejora nº 2 de `docs/investigacion-competidores.md`. Con el vencimiento de Peperina en 9 meses, hasta ahora la clienta se enteraba recién cuando los puntos ya habían vencido.
+
+**Qué hace**
+- La tarea diaria `vencimiento-puntos` (13:00 UTC), después de vencer lo de hoy, manda un mail a cada clienta con puntos que vencen en los próximos **30 días**: cuántos, desde qué fecha, cuánto tiene y cómo va con cada premio. Si ya le alcanza para un premio la invita a canjear; si no, le dice que todavía puede llegar.
+- Un solo mail por clienta aunque tenga varios lotes por vencer, y **cada lote se avisa una sola vez** (columna nueva `MovimientoPuntos.avisoVencimientoEn`). Entre un aviso y el siguiente pasan al menos 14 días, así una clienta que compra seguido no recibe un mail por cada compra; todo lote igual se avisa al menos 16 días antes de vencer.
+- Panel de la clienta: en el bloque de puntos, "350 puntos vencen el 04/11" cuando tiene algo que vence en los próximos 30 días. "Cómo funcionan los puntos" ahora dice que se avisa por mail antes.
+- La fecha que se informa es exactamente el día en que la tarea vence el lote (`lib/vencimientoPuntos.js`, probado contra la tarea real día por día, con fines de mes y bisiestos).
+
+**Cuidados**
+- No toca saldos: solo marca y manda.
+- Se marca antes de mandar, con un lock por clienta: dos corridas a la vez no duplican el aviso. Si Resend rechaza el envío, se desmarca y sale al día siguiente (Resend no tira excepción: se revisa su `error`).
+- Máximo 25 avisos por corrida con 0,6 s entre uno y otro (límite de envíos de Resend y ~30 s de una Scheduled Function); lo que no entra sale al día siguiente, primero quien vence antes.
+- Los lotes viejos sin seguimiento (`saldoRestante` null) no vencen ni se avisan, igual que antes.
+
+**Migración**: `20261025120000_aviso_vencimiento` (agrega una columna opcional; no toca datos).
+
+**Pruebas**: `npm test` 84/84 (5 nuevas); E2E contra la base local con Resend simulado 23/23 (aviso agrupado, ya vencido, ya canjeado, lote viejo, pausa de 14 días, Resend rechaza y se reintenta, negocio sin vencimiento, corridas repetidas y simultáneas, panel y API solo con sus datos) y tope de 25 por corrida 6/6; se repitieron rediseño 16/16 y hito 3 20/20.
+
+**No probado contra servicios reales**: el envío real por Resend. Primera verificación en producción: el día siguiente al merge, Netlify → Functions → `vencimiento-puntos` debe mostrar "N avisada(s) de puntos por vencer".
+
+## 69. Mensaje de bienvenida visible en el club y confirmación al guardar Ajustes (2026-10-24)
+
+Genaro cargó el mensaje de bienvenida y no lo veía en ningún lado: solo aparecía en `/registro/[negocio]` (la pantalla del formulario, después de tocar "Sumarme al club"), no en `/club/[negocio]`, que es la página del QR y del link. Ahora se muestra también ahí, debajo del título; vacío no deja hueco. Además, los "Guardar" de Ajustes no daban ninguna señal de que habían guardado: ahora muestran "Guardado". El cierre automático del aviso pasó de un ref a un efecto (mismo comportamiento; ESLint baja de 22 a 21).
+
+Pruebas: E2E 5/5 (guardar con confirmación, mensaje en club y registro, vacío vuelve al texto genérico); se repitieron rediseño 16/16 y aviso de vencimiento 23/23.
+
+## 70. Mail "Sumaste puntos": ícono de la bolsa en vez del emoji 🎉 (2026-10-27)
+
+Pedido de Genaro, solo estético. La banda del mail "Sumaste puntos" (`enviarEmailPuntosAcreditados` en `lib/email.js`) ahora muestra la bolsa de compras (`ShoppingBag` de lucide), el mismo ícono que la app usa para sumar puntos con cada compra (club, "Cómo funcionan los puntos", "Mis movimientos"). Textos, colores, puntos, premios y barras quedan igual.
+
+- Gmail y Outlook no muestran SVG: el ícono va como PNG (64 px, mostrado a 32 px) en `public/email/icono-compra-{claro,oscuro}.png`, con `width`/`height` fijos y `alt=""` (decorativo: si el cliente bloquea imágenes, no aparece texto suelto). Se usa la versión clara u oscura según el color del texto de la banda que ya calcula `resolverTema`.
+- Se generaron con un script fuera del repo (lucide-react renderizado a SVG y capturado con Chromium); para regenerarlos, el mismo ícono a 64 px con `strokeWidth` 1,75 en `#ffffff` y `#17191b`.
+- `armarEmailHtml` (compartida por los 5 mails) acepta un `iconoHeaderUrl` opcional; los otros mails no lo pasan y salen idénticos (comparado el HTML antes/después).
+- `middleware.js`: `/email/` queda fuera del matcher. Sin eso el cliente de correo, que no tiene sesión, recibía un redirect a `/login` en vez de la imagen.
+
+Pruebas: compra manual de $90.000 en la base local con Resend simulado → +900 puntos, un mail, ícono descargado sin sesión (200 image/png) 10/10; versión oscura con una marca de color claro; `next start` sirve los PNG sin sesión y sigue protegiendo el panel; `npm test` 84/84; rediseño 16/16, hito 3 20/20, mensaje de bienvenida 5/5, aviso de vencimiento 23/23; `next build` OK; ESLint 21.
+
 ## 65. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅

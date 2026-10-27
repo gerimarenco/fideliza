@@ -65,6 +65,11 @@ export default function ClubLandingPage() {
           Tus compras ahora también tienen recompensa
         </h1>
 
+        {/* El mensaje de bienvenida que el negocio carga en Ajustes. */}
+        {datosNegocio.mensajeRegistro && (
+          <p style={{ fontSize: 17, lineHeight: 1.5, margin: '0 0 12px', whiteSpace: 'pre-line' }}>{datosNegocio.mensajeRegistro}</p>
+        )}
+
         <p style={{ color: t.textoSecundario, fontSize: 16, lineHeight: 1.55, margin: '0 0 28px' }}>
           Sumá 1 punto por cada ${formatearMiles(datosNegocio.puntosXPeso ?? 100)} de compra en el local y en nuestra tienda online.
         </p>

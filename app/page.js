@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { nombreClub } from '@/lib/nombreClub';
 import { esCumpleanosHoy, diasHastaProximoCumpleanos } from '@/lib/cumpleanos';
 import { descripcionNiveles, formatearMiles } from '@/lib/clienteStats';
+import { fechaCorta } from '@/lib/csv';
 import { calcularPuntosPorCompra } from '@/lib/puntos';
 import { estadoAgente, textoTiempo } from '@/lib/estadoAgente';
 import { ICONOS_PREMIO, IconoPremio } from '@/lib/premioIconos';
@@ -61,7 +62,7 @@ function reglasDePuntos(negocio, club) {
     reglas.push({ Icono: Cake, texto: `El día de tu cumpleaños te regalamos ${negocio.regaloCumpleanosPuntos} puntos.` });
   }
   if (negocio.vencimientoPuntosMeses) {
-    reglas.push({ Icono: Hourglass, texto: `Cada compra suma puntos que valen por ${negocio.vencimientoPuntosMeses} meses desde que los ganaste: si no los usás a tiempo, esos puntos vencen (siempre se gastan primero los más viejos).` });
+    reglas.push({ Icono: Hourglass, texto: `Cada compra suma puntos que valen por ${negocio.vencimientoPuntosMeses} meses desde que los ganaste: si no los usás a tiempo, esos puntos vencen (siempre se gastan primero los más viejos). Te avisamos por mail antes de que venzan.` });
   }
   reglas.push({ Icono: Gift, texto: 'Cuando llegás al puntaje de un premio, ya lo podés canjear desde esta misma pantalla.' });
   return reglas;
@@ -93,7 +94,6 @@ export default function Home() {
   const [canjeandoId, setCanjeandoId] = useState(null);
   const [saludoCumpleCerrado, setSaludoCumpleCerrado] = useState(false);
   const [toast, setToast] = useState(null);
-  const toastTimeoutRef = useRef(null);
   const [estadisticas, setEstadisticas] = useState(null);
   const [seccionActiva, setSeccionActiva] = useState('inicio');
   const [clientesPagina, setClientesPagina] = useState(1);
@@ -631,6 +631,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -653,6 +654,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -675,6 +677,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -697,6 +700,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -715,6 +719,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -733,6 +738,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -751,6 +757,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -769,6 +776,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -787,6 +795,7 @@ export default function Home() {
         alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
         return;
       }
+      mostrarToast('exito', 'Guardado');
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
@@ -952,11 +961,14 @@ export default function Home() {
   // generada al crear cliente/negocio, comprobante de canje) — esos siguen
   // siendo un alert() bloqueante a propósito, en vez de este toast que
   // desaparece solo.
-  const mostrarToast = (tipo, mensaje) => {
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    setToast({ tipo, mensaje });
-    toastTimeoutRef.current = setTimeout(() => setToast(null), tipo === 'error' ? 4000 : 2500);
-  };
+  // El cierre automático va en un efecto (no en un ref): cada toast nuevo es
+  // un objeto nuevo, así que reinicia el plazo igual que antes.
+  const mostrarToast = (tipo, mensaje) => setToast({ tipo, mensaje });
+  useEffect(() => {
+    if (!toast) return;
+    const plazo = setTimeout(() => setToast(null), toast.tipo === 'error' ? 4000 : 2500);
+    return () => clearTimeout(plazo);
+  }, [toast]);
 
   // Escape cierra el menú y las ventanas que estén abiertas (el teclado no
   // tenía forma de salir de una ventana sin llegar hasta su botón).
@@ -1495,7 +1507,7 @@ export default function Home() {
         <button type="button" className="fid-btn-primary" onClick={guardarTema} style={ui.botonPrimario}>Guardar</button>
       </section>
 
-      {bloqueAjuste('Mensaje de bienvenida', 'Se muestra en la pantalla donde tus clientes se registran solos. Dejalo vacío para usar el texto genérico.', (
+      {bloqueAjuste('Mensaje de bienvenida', 'Se muestra en la página del club (la del QR y el link para sumarse) y en la pantalla de registro. Dejalo vacío para usar el texto genérico.', (
         <textarea maxLength={300} rows={3} aria-label="Mensaje de bienvenida" value={formMensajeRegistro} onChange={e => setFormMensajeRegistro(e.target.value)} placeholder="Ej: ¡Sumate y a las 6 hamburguesas la 7ma es gratis!" style={{ ...ui.input, resize: 'vertical' }} />
       ), guardarMensajeRegistro)}
 
@@ -1902,6 +1914,12 @@ export default function Home() {
                     <span style={{ fontSize: 13, color: tema.textoSecundario }}>· {formatearMiles(clientePropio.proximoNivel.faltan)} puntos más para {clientePropio.proximoNivel.nombre}</span>
                   )}
                 </div>
+              )}
+              {clientePropio.puntosPorVencer && (
+                <p style={{ margin: '12px 0 0', fontSize: 14, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <Hourglass size={16} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2, color: tema.primarioLegible }} />
+                  <span><strong>{formatearMiles(clientePropio.puntosPorVencer.puntos)} puntos</strong> vencen el {fechaCorta(clientePropio.puntosPorVencer.fecha).slice(0, 5)}. {premiosDisponibles.length > 0 ? 'Canjealos por un premio antes de esa fecha para no perderlos.' : 'Si llegás a un premio antes de esa fecha, podés usarlos.'}</span>
+                </p>
               )}
               {proximoPremio ? (
                 <>

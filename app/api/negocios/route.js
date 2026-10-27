@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { randomBytes } from 'crypto'
 import { normalizarEmail, filtroEmail, emailValido } from '@/lib/identidad'
 import { calcularStatsClientes, siguienteNivel } from '@/lib/clienteStats'
+import { ventanaAviso, resumenPorVencer } from '@/lib/vencimientoPuntos'
 
 // Nunca incluir password/tiendanubeAccessToken tal cual acá: esta respuesta
 // viaja al navegador de negocio y cliente. tiendanubeAccessToken se selecciona
@@ -146,6 +147,18 @@ export async function GET() {
         const s = stats[c.id]
         return { ...c, nivel: s?.nivel.nombre ?? null, proximoNivel: s ? siguienteNivel(s.puntosTotalesGanados) : null }
       })
+      // Puntos que vencen en los próximos 30 días (mismo cálculo que el
+      // mail de aviso, ver lib/vencimientoPuntos.js), para mostrarlo en el
+      // bloque de puntos. Solo sus propios lotes.
+      const propio = negocio.clientes[0]
+      if (propio && negocio.vencimientoPuntosMeses) {
+        const { desde, hasta } = ventanaAviso(new Date(), negocio.vencimientoPuntosMeses)
+        const lotes = await prisma.movimientoPuntos.findMany({
+          where: { clienteId: propio.id, negocioId: negocio.id, puntos: { gt: 0 }, saldoRestante: { gt: 0 }, createdAt: { gt: desde, lte: hasta } },
+          select: { createdAt: true, saldoRestante: true },
+        })
+        propio.puntosPorVencer = resumenPorVencer(lotes, negocio.vencimientoPuntosMeses, propio.puntos)
+      }
     }
   }
   return NextResponse.json(negociosSeguros)
