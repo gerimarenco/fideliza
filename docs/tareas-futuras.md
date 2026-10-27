@@ -1843,6 +1843,17 @@ Genaro cargó el mensaje de bienvenida y no lo veía en ningún lado: solo apare
 
 Pruebas: E2E 5/5 (guardar con confirmación, mensaje en club y registro, vacío vuelve al texto genérico); se repitieron rediseño 16/16 y aviso de vencimiento 23/23.
 
+## 70. Mail "Sumaste puntos": ícono de la bolsa en vez del emoji 🎉 (2026-10-27)
+
+Pedido de Genaro, solo estético. La banda del mail "Sumaste puntos" (`enviarEmailPuntosAcreditados` en `lib/email.js`) ahora muestra la bolsa de compras (`ShoppingBag` de lucide), el mismo ícono que la app usa para sumar puntos con cada compra (club, "Cómo funcionan los puntos", "Mis movimientos"). Textos, colores, puntos, premios y barras quedan igual.
+
+- Gmail y Outlook no muestran SVG: el ícono va como PNG (64 px, mostrado a 32 px) en `public/email/icono-compra-{claro,oscuro}.png`, con `width`/`height` fijos y `alt=""` (decorativo: si el cliente bloquea imágenes, no aparece texto suelto). Se usa la versión clara u oscura según el color del texto de la banda que ya calcula `resolverTema`.
+- Se generaron con un script fuera del repo (lucide-react renderizado a SVG y capturado con Chromium); para regenerarlos, el mismo ícono a 64 px con `strokeWidth` 1,75 en `#ffffff` y `#17191b`.
+- `armarEmailHtml` (compartida por los 5 mails) acepta un `iconoHeaderUrl` opcional; los otros mails no lo pasan y salen idénticos (comparado el HTML antes/después).
+- `middleware.js`: `/email/` queda fuera del matcher. Sin eso el cliente de correo, que no tiene sesión, recibía un redirect a `/login` en vez de la imagen.
+
+Pruebas: compra manual de $90.000 en la base local con Resend simulado → +900 puntos, un mail, ícono descargado sin sesión (200 image/png) 10/10; versión oscura con una marca de color claro; `next start` sirve los PNG sin sesión y sigue protegiendo el panel; `npm test` 84/84; rediseño 16/16, hito 3 20/20, mensaje de bienvenida 5/5, aviso de vencimiento 23/23; `next build` OK; ESLint 21.
+
 ## 65. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅

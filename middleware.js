@@ -29,6 +29,9 @@ export function middleware(request) {
   return NextResponse.next()
 }
 
+// email/: íconos de los mails (public/email). Los pide el cliente de correo,
+// que no tiene sesión: sin esta excepción recibiría un redirect a /login en
+// vez de la imagen.
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)']
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|email/).*)']
 }
