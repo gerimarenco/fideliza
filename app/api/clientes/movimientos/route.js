@@ -40,7 +40,16 @@ export async function GET(request) {
     }),
     prisma.canje.findMany({
       where: { clienteId: session.user.id },
-      select: { id: true, createdAt: true, premio: { select: { nombre: true, puntos: true, emoji: true } } },
+      // El código del cupón (si el premio lo genera) para poder volver a
+      // verlo y copiarlo desde "Mis movimientos". Solo canjes propios: el id
+      // sale de la sesión.
+      select: {
+        id: true,
+        createdAt: true,
+        tiendanubeCuponCodigo: true,
+        tiendanubeCuponError: true,
+        premio: { select: { nombre: true, puntos: true, emoji: true, tiendanubeProductoUrl: true, tiendanubeProductoId: true, tiendanubeDescuentoPorcentaje: true, tiendanubeDescuentoMonto: true, tiendanubeDescuentoMontoMinimo: true } },
+      },
     }),
   ])
 
@@ -62,6 +71,11 @@ export async function GET(request) {
       tipo: 'canje',
       descripcion: `Canjeaste "${c.premio.nombre}"`,
       premioIcono: c.premio.emoji,
+      // codigo: el cupón listo para usar; pendiente: el premio genera cupón
+      // pero todavía no se pudo crear (el negocio lo reintenta desde Canjes).
+      cupon: c.tiendanubeCuponCodigo
+        ? { codigo: c.tiendanubeCuponCodigo, premio: c.premio }
+        : c.tiendanubeCuponError ? { pendiente: true } : null,
     })),
   ].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 
