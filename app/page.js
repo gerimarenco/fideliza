@@ -6,6 +6,7 @@ import { nombreClub } from '@/lib/nombreClub';
 import { esCumpleanosHoy, diasHastaProximoCumpleanos } from '@/lib/cumpleanos';
 import { descripcionNiveles, formatearMiles } from '@/lib/clienteStats';
 import { fechaCorta } from '@/lib/csv';
+import { guiaCupon } from '@/lib/guiaCupon';
 import { calcularPuntosPorCompra } from '@/lib/puntos';
 import { estadoAgente, textoTiempo } from '@/lib/estadoAgente';
 import { ICONOS_PREMIO, IconoPremio } from '@/lib/premioIconos';
@@ -14,7 +15,7 @@ import {
   Home as HomeIcon, Store, Users, Gift, Star, RefreshCw, Plug, Settings, LogOut, Shield,
   AlertTriangle, MessageCircle, ScrollText, KeyRound, ClipboardList, Cake,
   ShoppingBag, Hourglass, Link as LinkIcon, Ticket, Info, Mail, Menu, Download,
-  ArrowRight, Check, X,
+  ArrowRight, Check, X, Copy, ExternalLink, CircleCheck,
 } from 'lucide-react';
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -91,6 +92,10 @@ export default function Home() {
   const [movimientosClienteData, setMovimientosClienteData] = useState(null);
   const [referidosData, setReferidosData] = useState(null);
   const [referidoCopiado, setReferidoCopiado] = useState(false);
+  // Ventana del canje de la clienta ({ premio, codigo, error, nuevo }) y el
+  // estado del botón "Copiar código" ('' | 'ok' | 'manual').
+  const [cuponMostrado, setCuponMostrado] = useState(null);
+  const [copiaCupon, setCopiaCupon] = useState('');
   const [canjeandoId, setCanjeandoId] = useState(null);
   const [saludoCumpleCerrado, setSaludoCumpleCerrado] = useState(false);
   const [toast, setToast] = useState(null);
@@ -846,17 +851,12 @@ export default function Home() {
         mostrarToast('error', data.error || 'No se pudo canjear el premio');
         return;
       }
-      // Alert bloqueante a propósito (no toast): funciona como comprobante,
-      // la clienta lo tiene que poder mostrar en el negocio o anotarse el
-      // código del cupón, no que desaparezca solo.
-      if (data.tiendanubeCuponCodigo) {
-        const linkProducto = data.tiendanubeProductoUrl ? `\n\nProducto: ${data.tiendanubeProductoUrl}` : '';
-        alert(`✅ ¡Canjeaste "${premio.nombre}"!\n\nTu cupón de Tiendanube: ${data.tiendanubeCuponCodigo}\n\nUsalo en el checkout de la tienda — es de un solo uso.${linkProducto}`);
-      } else if (data.tiendanubeCuponError) {
-        alert(`✅ ¡Canjeaste "${premio.nombre}"! Hubo un problema generando el cupón automáticamente. Contactá al negocio para que te lo entregue.`);
-      } else {
-        alert(`✅ ¡Canjeaste "${premio.nombre}"! Mostrale esto al negocio para retirarlo.`);
-      }
+      // Ventana propia (no un toast): queda abierta hasta que la clienta la
+      // cierre, para copiar el código o mostrarla en el local. Cerrarla no
+      // toca el canje, y el código se puede volver a ver en Mis movimientos.
+      setCuponMostrado({ premio, codigo: data.tiendanubeCuponCodigo || null, error: !data.tiendanubeCuponCodigo && !!data.tiendanubeCuponError, nuevo: true });
+      setCopiaCupon('');
+      setModalCliente('cupon');
       cargarNegocios();
     } catch (err) {
       mostrarToast('error', 'Ocurrió un error al canjear el premio.');
@@ -1725,7 +1725,7 @@ export default function Home() {
     const abrirModal = (cual) => { setModalCliente(cual); setMostrarMenuCliente(false); };
 
     // Ventana modal del panel de la clienta (movimientos, reglas, etc.)
-    const modal = (titulo, contenido, { ancho = 420, textoBoton = 'Cerrar', onBoton = () => setModalCliente(null) } = {}) => (
+    const modal = (titulo, contenido, { ancho = 420, textoBoton = 'Cerrar', onBoton = () => setModalCliente(null), pie = null } = {}) => (
       <div onClick={() => setModalCliente(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(23,25,27,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }}>
         <div role="dialog" aria-modal="true" aria-label={titulo} onClick={e => e.stopPropagation()} style={{ background: tema.superficie, color: tema.texto, borderRadius: 2, padding: '24px 22px 20px', maxWidth: ancho, width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', fontFamily: FUENTE_TEXTO }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 14 }}>
@@ -1733,7 +1733,7 @@ export default function Home() {
             <button type="button" aria-label="Cerrar" onClick={() => setModalCliente(null)} style={{ ...ui.botonTexto, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><X size={18} /></button>
           </div>
           <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>{contenido}</div>
-          <button type="button" onClick={onBoton} className="fid-btn-primary" style={{ ...ui.botonPrimario, width: '100%', marginTop: 16, flexShrink: 0, minHeight: 46 }}>{textoBoton}</button>
+          {pie || <button type="button" onClick={onBoton} className="fid-btn-primary" style={{ ...ui.botonPrimario, width: '100%', marginTop: 16, flexShrink: 0, minHeight: 46 }}>{textoBoton}</button>}
         </div>
       </div>
     );
@@ -1824,6 +1824,89 @@ export default function Home() {
             ), { ancho: 400 });
           })()}
 
+          {modalCliente === 'cupon' && cuponMostrado && (() => {
+            const { premio, codigo, error, nuevo } = cuponMostrado;
+            const guia = guiaCupon(premio, { sitioWeb: negocioDelCliente.sitioWeb, negocioNombre: negocioDelCliente.nombre });
+            const titulo = !nuevo ? 'Tu cupón' : error ? 'Canje confirmado' : '¡Tu premio está listo!';
+            const copiar = async () => {
+              try {
+                if (!navigator.clipboard?.writeText) throw new Error('sin portapapeles');
+                await navigator.clipboard.writeText(codigo);
+                setCopiaCupon('ok');
+              } catch {
+                // Sin permiso para el portapapeles: se deja el código
+                // seleccionado para copiarlo a mano.
+                const nodo = document.getElementById('codigo-cupon');
+                if (nodo) {
+                  const rango = document.createRange();
+                  rango.selectNodeContents(nodo);
+                  const seleccion = window.getSelection();
+                  seleccion.removeAllRanges();
+                  seleccion.addRange(rango);
+                }
+                setCopiaCupon('manual');
+              }
+            };
+            const pie = codigo ? (
+              <div style={{ display: 'grid', gap: 10, marginTop: 16, flexShrink: 0 }}>
+                <button type="button" onClick={copiar} className="fid-btn-primary" style={{ ...ui.botonPrimario, minHeight: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  {copiaCupon === 'ok' ? <><Check size={16} aria-hidden="true" /> ¡Código copiado!</> : <><Copy size={16} aria-hidden="true" /> Copiar código</>}
+                </button>
+                {guia.linkTienda && (
+                  <a href={guia.linkTienda} target="_blank" rel="noopener noreferrer" className="fid-btn-secondary" style={{ ...ui.botonSecundario, minHeight: 46, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none' }}>
+                    {guia.textoBotonTienda} <ExternalLink size={15} aria-hidden="true" />
+                  </a>
+                )}
+              </div>
+            ) : null;
+            return modal(titulo, (
+              <>
+                {nuevo && (
+                  <p style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 15, margin: '0 0 14px' }}>
+                    <CircleCheck size={19} aria-hidden="true" style={{ color: tema.primarioLegible, flexShrink: 0, marginTop: 2 }} />
+                    <span>Canjeaste {formatearMiles(premio.puntos)} puntos por <strong>{premio.nombre}</strong>.</span>
+                  </p>
+                )}
+                {!nuevo && <p style={{ fontSize: 15, margin: '0 0 14px' }}>{premio.nombre}</p>}
+
+                {codigo && (
+                  <>
+                    <p style={{ fontSize: 14, color: tema.textoSecundario, margin: '0 0 12px' }}>
+                      Este es tu código de descuento. Ingresalo al pagar en la tienda online para recibir tu premio.
+                    </p>
+                    <div style={{ background: tema.fondo, border: `1px solid ${tema.borde}`, padding: '14px 16px', textAlign: 'center' }}>
+                      <div style={ui.etiqueta}>Tu código</div>
+                      <div id="codigo-cupon" style={{ fontSize: 'clamp(17px, 5.2vw, 24px)', fontWeight: 600, letterSpacing: '0.05em', marginTop: 6, userSelect: 'all', WebkitUserSelect: 'all', overflowWrap: 'anywhere', ...ui.numero }}>{codigo}</div>
+                    </div>
+                    <p role="status" aria-live="polite" style={{ fontSize: 13, color: tema.textoSecundario, margin: '8px 0 0', minHeight: 20, textAlign: 'center' }}>
+                      {copiaCupon === 'manual' ? 'No pudimos copiarlo solo: el código quedó seleccionado, copialo desde el menú de tu celular o con Ctrl+C.' : copiaCupon === 'ok' ? 'Ya podés pegarlo en la tienda.' : ''}
+                    </p>
+                    {guia.beneficio && <p style={{ fontSize: 14, margin: '8px 0 0' }}>{guia.beneficio} Es de un solo uso.</p>}
+                    <h3 style={{ ...ui.etiqueta, margin: '18px 0 8px' }}>¿Cómo lo usás?</h3>
+                    <ol style={{ listStyle: 'none', margin: 0, padding: 0, fontSize: 14, lineHeight: 1.55, display: 'grid', gap: 6 }}>
+                      {guia.pasos.map((paso, i) => (
+                        <li key={paso} style={{ display: 'flex', gap: 10 }}>
+                          <span aria-hidden="true" style={{ fontFamily: tema.fuenteTitulo, color: tema.primarioLegible, minWidth: 14, ...ui.numero }}>{i + 1}.</span>
+                          <span>{paso}</span>
+                        </li>
+                      ))}
+                    </ol>
+                    {nuevo && <p style={{ fontSize: 13, color: tema.textoSecundario, margin: '14px 0 0' }}>Lo podés volver a ver cuando quieras en Mis movimientos.</p>}
+                  </>
+                )}
+
+                {!codigo && error && (
+                  <p style={{ fontSize: 14, color: tema.textoSecundario, margin: 0 }}>
+                    Tus puntos ya se descontaron, pero no pudimos generar el cupón automáticamente. Contactá a {negocioDelCliente.nombre} para que te lo entregue; cuando esté listo, lo vas a ver en Mis movimientos.
+                  </p>
+                )}
+                {!codigo && !error && (
+                  <p style={{ fontSize: 14, color: tema.textoSecundario, margin: 0 }}>Mostrá esta pantalla en el local para retirarlo.</p>
+                )}
+              </>
+            ), { ancho: 420, textoBoton: 'Listo', pie });
+          })()}
+
           {modalCliente === 'movimientos' && modal('Mis movimientos', (
             <>
               {!movimientosClienteData && <Cargando />}
@@ -1837,6 +1920,19 @@ export default function Home() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 15 }}>{m.descripcion}</div>
                       <div style={{ fontSize: 13, color: tema.textoSecundario }}>{new Date(m.fecha).toLocaleDateString('es-AR')}</div>
+                      {m.cupon?.codigo && (
+                        <button
+                          type="button"
+                          onClick={() => { setCuponMostrado({ premio: { ...m.cupon.premio }, codigo: m.cupon.codigo, nuevo: false }); setCopiaCupon(''); setModalCliente('cupon'); }}
+                          className="fid-link"
+                          style={{ ...ui.botonTexto, marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'underline', textUnderlineOffset: 3 }}
+                        >
+                          <Ticket size={13} aria-hidden="true" /> Ver cupón {m.cupon.codigo}
+                        </button>
+                      )}
+                      {m.cupon?.pendiente && (
+                        <div style={{ fontSize: 13, color: tema.textoSecundario, marginTop: 4 }}>Cupón en preparación: {negocioDelCliente.nombre} te lo va a entregar.</div>
+                      )}
                     </div>
                     <div style={{ fontSize: 15, ...ui.numero, color: m.puntos >= 0 ? '#15803d' : tema.texto }}>
                       {m.puntos >= 0 ? '+' : '−'}{formatearMiles(Math.abs(m.puntos))}

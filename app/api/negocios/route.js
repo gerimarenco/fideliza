@@ -49,11 +49,11 @@ const NEGOCIO_SELECT = {
     // como una progresión natural (y "Próximos premios" queda ordenado por
     // cuánto le falta), sin que el negocio tenga que acomodar nada a mano.
     orderBy: { puntos: 'asc' },
-    // tiendanubeProductoUrl es lo único de la integración de Tiendanube que
-    // necesita ver el cliente (el link "ver producto" del panel) — el resto
-    // (tiendanubeProductoId, tiendanubeDescuentoPorcentaje) solo lo usa el
-    // backend al canjear, ver app/api/canjes.
-    select: { id: true, nombre: true, puntos: true, emoji: true, tiendanubeProductoUrl: true }
+    // Lo que la clienta necesita del cupón de Tiendanube: el link al producto
+    // y qué tipo de beneficio es (producto, %, monto con su compra mínima),
+    // para explicarle cómo usarlo después de canjear (ver lib/guiaCupon.js).
+    // La generación del cupón sigue siendo solo del backend (app/api/canjes).
+    select: { id: true, nombre: true, puntos: true, emoji: true, tiendanubeProductoUrl: true, tiendanubeProductoId: true, tiendanubeDescuentoPorcentaje: true, tiendanubeDescuentoMonto: true, tiendanubeDescuentoMontoMinimo: true }
   },
 }
 

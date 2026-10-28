@@ -1854,6 +1854,20 @@ Pedido de Genaro, solo estético. La banda del mail "Sumaste puntos" (`enviarEma
 
 Pruebas: compra manual de $90.000 en la base local con Resend simulado → +900 puntos, un mail, ícono descargado sin sesión (200 image/png) 10/10; versión oscura con una marca de color claro; `next start` sirve los PNG sin sesión y sigue protegiendo el panel; `npm test` 84/84; rediseño 16/16, hito 3 20/20, mensaje de bienvenida 5/5, aviso de vencimiento 23/23; `next build` OK; ESLint 21.
 
+## 71. Ventana del canje con cupón: copiar, ir a la tienda e instrucciones (2026-10-28)
+
+Pedido de Genaro. Antes, al canjear, la clienta veía un `alert()` del navegador con el código. Ahora ve una ventana del panel (mismo componente `modal` que "Mis movimientos", con la tipografía, colores e íconos de Retornar):
+
+- "¡Tu premio está listo!", cuántos puntos canjeó y por qué premio, el código en un bloque destacado, **Copiar código** (acción principal, confirma "¡Código copiado!") y **Ver el producto en la tienda** / **Ir a la tienda de Peperina** (secundaria, pestaña nueva).
+- Beneficio según el tipo de premio y tres pasos (`lib/guiaCupon.js`): producto gratis (agregarlo al carrito; el cupón cubre su precio), % de descuento, monto fijo (con su compra mínima). Link: la URL del producto si el premio es de producto y la tiene; si no, `sitioWeb` del negocio (solo http/https); sin ninguno, no hay botón.
+- Si el navegador no deja copiar, el código queda seleccionado para copiarlo a mano.
+- Cerrar la ventana no toca el canje. El código se vuelve a ver desde **Mis movimientos** ("Ver cupón …"); si el cupón no se pudo generar, ahí figura "Cupón en preparación". Premios sin cupón: "Mostrá esta pantalla en el local para retirarlo".
+- Datos: `GET /api/negocios` devuelve a la clienta el tipo de cupón de cada premio (id de producto, %, monto y compra mínima) y `GET /api/clientes/movimientos` el código de sus propios canjes (el id sale de la sesión). No cambió el canje, el descuento de puntos ni la generación de cupones.
+- Instrucciones verificadas con el centro de ayuda de Tiendanube: el checkout siempre tiene campo de cupón; el carrito solo si el diseño lo activa (por eso se nombra el checkout). No verificado en la tienda real: el nombre exacto del campo y del botón en el checkout de Peperina.
+- El canje que hace el negocio para una clienta (Clientes → Canjear) sigue con su `alert()`: quedó fuera de este cambio.
+
+Pruebas: E2E 30/30 con Tiendanube y Resend simulados (cupón real mostrado y copiado sin cambios, copia manual, link al producto y a la tienda, cierre sin perder el cupón, historial, 4 tipos de premio, error de Tiendanube, saldo descontado una sola vez, celular y escritorio, una clienta no ve cupones de otra); `npm test` 91/91; se repitieron API 12/12, cupones 10/10, concurrencia, rediseño, hito 3, mail de puntos, aviso de vencimiento y mensaje de bienvenida.
+
 ## 65. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅
