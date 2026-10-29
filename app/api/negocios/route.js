@@ -65,7 +65,7 @@ const SLUG_VALIDO = /^[a-z0-9]+(-[a-z0-9]+)*$/
 // Peperina). Lo que no venga acá usa la paleta clara por defecto de la app.
 const TEMA_CLAVES_COLOR = ['fondo', 'superficie', 'borde', 'texto', 'textoSecundario', 'primario', 'primarioTexto', 'resaltado']
 const TEMA_CLAVES_TEXTO = ['fuenteTitulo']
-const TEMA_CLAVES_URL = ['imagenPortada']
+const TEMA_CLAVES_URL = ['imagenPortada', 'logo']
 // Los únicos largos válidos de un hex color CSS son 3, 4, 6 u 8 dígitos
 // (RGB, RGBA corto, RGB, RGBA) — 5 y 7 no son válidos y el navegador los
 // ignora en silencio, dejando el color anterior o el heredado.
@@ -80,7 +80,7 @@ function validarTema(tema) {
   return Object.entries(tema).every(([clave, valor]) => {
     if (TEMA_CLAVES_COLOR.includes(clave)) return COLOR_HEX_VALIDO.test(valor)
     if (TEMA_CLAVES_TEXTO.includes(clave)) return typeof valor === 'string' && valor.length > 0 && valor.length <= 200
-    // La imagen de portada es opcional: string vacío significa "sin imagen".
+    // La imagen de portada y el logo son opcionales: string vacío significa "sin imagen".
     if (TEMA_CLAVES_URL.includes(clave)) return typeof valor === 'string' && (valor === '' || (valor.length <= 500 && URL_HTTP_VALIDA.test(valor)))
     return false
   })

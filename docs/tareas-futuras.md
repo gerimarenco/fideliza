@@ -1868,6 +1868,19 @@ Pedido de Genaro. Antes, al canjear, la clienta veía un `alert()` del navegador
 
 Pruebas: E2E 30/30 con Tiendanube y Resend simulados (cupón real mostrado y copiado sin cambios, copia manual, link al producto y a la tienda, cierre sin perder el cupón, historial, 4 tipos de premio, error de Tiendanube, saldo descontado una sola vez, celular y escritorio, una clienta no ve cupones de otra); `npm test` 91/91; se repitieron API 12/12, cupones 10/10, concurrencia, rediseño, hito 3, mail de puntos, aviso de vencimiento y mensaje de bienvenida.
 
+## 72. Mails: íconos lineales en vez de emojis y logo opcional por negocio (2026-10-29)
+
+Pedido de Genaro, solo estético. Los mails ya no tienen emojis:
+- Banda de cada mail: el ícono lineal de la app (lucide) que corresponde, como PNG en `public/email/`, versión clara u oscura según el texto de la banda. Puntos: `ShoppingBag` (ya estaba, ítem 70); canje: `Gift`; vencidos y por vencer: `Hourglass`; contraseña: `KeyRound`.
+- "¡Ya lo podés canjear! 🎁" (sección de premios de los mails de puntos y de puntos por vencer) → el mismo texto con un regalo lineal (`Gift`) de 14 px en el verde de esa etiqueta.
+- Título de la banda en serif (Georgia), como los títulos de la app.
+
+Identidad por negocio: el color de la banda y de los botones ya salía de `Negocio.tema` (`obtenerTema`). Se sumó `tema.logo` (URL https de un PNG o JPG, opcional, en Ajustes → marca, junto a "Imagen de portada"): si está, va en una franja blanca arriba de la banda, a 40 px de alto, con el nombre del club como texto alternativo. Sin logo (o si es SVG o http), el mail sale como antes, con el nombre del club en la banda. Se busca siempre por el `negocioId` del mail, así un negocio nunca muestra el logo de otro. Una sola plantilla (`armarEmailHtml`) para todos los negocios.
+
+Peperina: en el proyecto no hay un logo oficial (la imagen `portada-club-peperina.png` es la portada del club, un texto sobre fondo crema, no un logo), así que no se cargó ninguno: sus mails siguen con su marrón (#877152) y el nombre "CLUB PEPERINA". Para sumar el logo, cargar en Ajustes la URL https de su logo en PNG o JPG (por ejemplo, el que usa su tienda de Tiendanube).
+
+Pruebas: HTML de los 5 mails antes/después (solo cambian ícono, título y la etiqueta del regalo; asuntos, puntos, premios, barras, cupón y links iguales); E2E de marca 17/17 (sin emojis, ícono correcto por mail, logo de cada negocio solo en sus mails, SVG/sin logo vuelven al nombre, imágenes cargan sin sesión); guardar el logo desde Ajustes 4/4 (válido, inválido 400, de otro negocio 403, borrar); compra manual de $90.000 10/10; `npm test` 92/92; se repitieron API, cupones, aviso de vencimiento, canje con cupón, rediseño, hito 3 y mensaje de bienvenida.
+
 ## 65. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅

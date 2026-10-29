@@ -1504,6 +1504,7 @@ export default function Home() {
         </div>
         <label style={{ display: 'block', marginBottom: 14 }}><span style={ui.label}>Tipografía de títulos (ej: Georgia, serif)</span><input value={formTema.fuenteTitulo} onChange={e => setFormTema({...formTema, fuenteTitulo: e.target.value})} style={ui.input} /></label>
         <label style={{ display: 'block', marginBottom: 14 }}><span style={ui.label}>Imagen de portada (URL)</span><input value={formTema.imagenPortada} onChange={e => setFormTema({...formTema, imagenPortada: e.target.value})} placeholder="https://..." style={ui.input} /></label>
+        <label style={{ display: 'block', marginBottom: 14 }}><span style={ui.label}>Logo para los mails (URL https de un PNG o JPG)</span><input value={formTema.logo} onChange={e => setFormTema({...formTema, logo: e.target.value})} placeholder="https://..." style={ui.input} /></label>
         <button type="button" className="fid-btn-primary" onClick={guardarTema} style={ui.botonPrimario}>Guardar</button>
       </section>
 
@@ -2278,6 +2279,7 @@ export default function Home() {
                         </div>
                         <label style={{ display: 'block', marginBottom: 12 }}><span style={uiAdmin.label}>Tipografía de títulos (ej: Georgia, serif)</span><input value={formEdicionNegocio.tema.fuenteTitulo} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, fuenteTitulo: e.target.value}})} style={uiAdmin.input} /></label>
                         <label style={{ display: 'block', marginBottom: 14 }}><span style={uiAdmin.label}>Imagen de portada (URL)</span><input value={formEdicionNegocio.tema.imagenPortada} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, imagenPortada: e.target.value}})} placeholder="https://..." style={uiAdmin.input} /></label>
+                        <label style={{ display: 'block', marginBottom: 14 }}><span style={uiAdmin.label}>Logo para los mails (URL https de un PNG o JPG)</span><input value={formEdicionNegocio.tema.logo} onChange={e => setFormEdicionNegocio({...formEdicionNegocio, tema: {...formEdicionNegocio.tema, logo: e.target.value}})} placeholder="https://..." style={uiAdmin.input} /></label>
                         <div style={{ display: 'flex', gap: 10 }}>
                           <button type="button" className="fid-btn-primary" onClick={guardarEdicionNegocio} style={uiAdmin.botonPrimario}>Guardar</button>
                           <button type="button" className="fid-btn-secondary" onClick={() => setNegocioEditandoId(null)} style={uiAdmin.botonSecundario}>Cancelar</button>
