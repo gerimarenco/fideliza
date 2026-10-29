@@ -1881,6 +1881,17 @@ Peperina: en el proyecto no hay un logo oficial (la imagen `portada-club-peperin
 
 Pruebas: HTML de los 5 mails antes/después (solo cambian ícono, título y la etiqueta del regalo; asuntos, puntos, premios, barras, cupón y links iguales); E2E de marca 17/17 (sin emojis, ícono correcto por mail, logo de cada negocio solo en sus mails, SVG/sin logo vuelven al nombre, imágenes cargan sin sesión); guardar el logo desde Ajustes 4/4 (válido, inválido 400, de otro negocio 403, borrar); compra manual de $90.000 10/10; `npm test` 92/92; se repitieron API, cupones, aviso de vencimiento, canje con cupón, rediseño, hito 3 y mensaje de bienvenida.
 
+## 73. Revisión de bugs (2026-10-29)
+
+Corregidos:
+- **El widget de la tienda online no cargaba** para quien no tuviera sesión en Retornar (o sea, cualquier compradora): `middleware.js` mandaba a `/login` todo archivo de `public/` (`/widget.js`, `/images/...`). Ahora quedan fuera del middleware las rutas con extensión; las páginas siguen protegidas igual (probado: `/` y rutas inexistentes redirigen a `/login`, `/.env` da 404). Con el middleware anterior el widget no aparecía en una página de prueba; con el nuevo, sí.
+- **El mail del regalo de cumpleaños y el del bono por invitar decían "¡Gracias por tu compra!"**. `enviarEmailPuntosAcreditados` recibe ahora `motivo` ('compra' por defecto, 'cumpleanos', 'referido') con su asunto, título, texto e ícono (torta para el cumpleaños, regalo para el bono). La compra no cambia.
+- **Los rechazos de Resend se perdían sin rastro**: Resend no tira excepción cuando rechaza un envío (devuelve `{ error }`). Todos los mails pasan por `enviarConResend`, que lo registra en el log (con el email ocultado).
+
+Pruebas: E2E 20/20 (archivos públicos, páginas protegidas, widget embebido, mail del bono y de la invitada, mail de cumpleaños con los puntos acreditados); widget antes/después; `npm test` 96/96; se repitieron todas las suites anteriores; `next build` y `next start` OK.
+
+Anotados, sin cambiar (ver informe de la revisión): canje de un toque sin confirmación; canje que hace el negocio sigue con `alert()`; el mail de vencidos manda sin pausa (límite de envíos de Resend); la guía del cupón en Mis movimientos usa los datos actuales del premio; la fila de premios del mail usa `display:flex` (Outlook de escritorio la muestra apilada); el widget antepone el emoji del negocio.
+
 ## 65. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅

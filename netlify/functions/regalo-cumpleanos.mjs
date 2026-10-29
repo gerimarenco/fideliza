@@ -42,6 +42,7 @@ async function acreditarRegalo(negocio, cliente, inicioDeHoy) {
     // Sin esto el mail de cumpleaños salía con los colores por defecto de
     // Retornar en vez de los de la marca del negocio.
     negocioId: negocio.id,
+    motivo: 'cumpleanos',
   })
   return true
 }

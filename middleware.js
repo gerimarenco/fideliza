@@ -29,9 +29,12 @@ export function middleware(request) {
   return NextResponse.next()
 }
 
-// email/: íconos de los mails (public/email). Los pide el cliente de correo,
-// que no tiene sesión: sin esta excepción recibiría un redirect a /login en
-// vez de la imagen.
+// Los archivos de public/ (rutas con extensión: /widget.js, /images/...,
+// /email/...) quedan fuera: los piden la tienda online, el cliente de correo
+// o una visita al club, que no tienen sesión, y recibían un redirect a /login
+// en vez del archivo (el widget de la tienda no cargaba). Las páginas de la
+// app no llevan puntos en la ruta (los slugs son [a-z0-9-]), así que siguen
+// protegidas igual que antes.
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|email/).*)']
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)']
 }
