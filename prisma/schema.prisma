@@ -35,6 +35,12 @@ model Negocio {
   // (ver netlify/functions/regalo-cumpleanos.mjs). null/0 = desactivado —
   // por ahora solo Peperina lo tiene cargado.
   regaloCumpleanosPuntos Int?
+  // Bonificación de bienvenida (ver lib/bienvenida.js): puntos que recibe
+  // una cuenta nueva creada entre bienvenidaDesde (incluido) y
+  // bienvenidaHasta (excluido). Cualquiera de los tres en null = sin promoción.
+  bienvenidaPuntos Int?
+  bienvenidaDesde  DateTime?
+  bienvenidaHasta  DateTime?
   // Sitio propio del negocio (ej. su tienda online) — se muestra como link
   // en el panel del cliente para cruzar tráfico entre los dos. Opcional.
   sitioWeb              String?
@@ -97,6 +103,9 @@ model Cliente {
   // referida" — evita tener que recontar todo el historial de compras en
   // cada acreditación solo para saber si ya se pagó antes.
   referidoRecompensado Boolean @default(false)
+  // Si ya recibió la bonificación de bienvenida: se marca en la misma
+  // transacción que la acredita, así nunca se paga dos veces.
+  bienvenidaOtorgada Boolean @default(false)
 
   @@index([negocioId])
 }
@@ -152,6 +161,15 @@ model Canje {
   // negocio tiene que entregar el descuento a mano.
   tiendanubeCuponCodigo String?
   tiendanubeCuponError  String?
+  // Estado del cupón según Tiendanube (ver lib/estadoCupon.js): "disponible",
+  // "utilizado", "vencido" o "anulado". null = todavía no se pudo verificar.
+  // cuponVerificadoEn: última vez que se consultó a Tiendanube. Un cupón
+  // pasa a "utilizado" solo si Tiendanube lo confirma (una orden pagada que
+  // lo trae, o su contador de usos), nunca por tiempo ni por un clic.
+  cuponEstado       String?
+  cuponVerificadoEn DateTime?
+  cuponUsadoEn      DateTime?
+  cuponPedidoId     String?
   // Clave que manda el panel al confirmar un canje (una por confirmación):
   // si el mismo pedido llega dos veces (doble clic, reintento de red, dos
   // pedidos a la vez), el segundo devuelve el canje ya hecho en vez de
