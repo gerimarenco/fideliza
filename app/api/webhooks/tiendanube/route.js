@@ -162,6 +162,7 @@ export async function POST(request) {
     if (referido) {
       await enviarEmailPuntosAcreditados({
         email: referido.invitadorEmail,
+        motivo: 'referido',
         puntosAcreditados: referido.puntos,
         puntosTotales: referido.invitadorPuntosTotales,
         negocioNombre: negocio.nombre,
