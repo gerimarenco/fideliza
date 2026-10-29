@@ -18,6 +18,7 @@ Cada punto se marca recién con evidencia (captura, línea de log, número).
 | A8 | Prueba integral completa (sección B) | Genaro | Todas las filas de B con evidencia | [ ] |
 | A9 | Vendedoras capacitadas | Genaro | Leyeron `capacitacion-vendedoras.md` e hicieron una venta de prueba cargando el email | [ ] |
 | A10 | Material de comunicación listo (sección D) | Genaro | Cartel impreso, posteo programado | [ ] |
+| A11 | Mails a clientas reales: remitente con dominio verificado | Genaro | Netlify → Site configuration → Environment variables: `RESEND_FROM_EMAIL` con una dirección `@retornar.com.ar` (no `onboarding@resend.dev`), en el contexto Production. Resend → Domains: `retornar.com.ar` en **Verified**. Resend → Emails: un mail de prueba a una casilla propia (no de una clienta) en **Delivered** | [ ] |
 
 ## B. Prueba integral (con una cuenta de prueba propia, nunca de una clienta real)
 

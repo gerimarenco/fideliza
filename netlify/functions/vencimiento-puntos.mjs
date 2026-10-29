@@ -91,11 +91,21 @@ async function vencimientoPuntos() {
     }
   }
 
-  // Después de vencer lo de hoy, avisar lo que vence en los próximos días
-  // (ver lib/vencimientoPuntos.js). Va aparte para que un error acá nunca
-  // frene el vencimiento, que es lo que mueve saldos.
+  // Los mails van después de vencer todo: un problema con Resend (o el
+  // límite de tiempo de la función) nunca frena el vencimiento, que es lo
+  // que mueve saldos. Primero los de puntos ya vencidos (hoy y los que
+  // quedaron pendientes de días anteriores), después los avisos de lo que
+  // vence pronto, con un mismo tope de mails por corrida.
+  const cupo = { restantes: MAXIMO_MAILS_POR_CORRIDA }
+  let mailsVencidos = 0
+  try {
+    mailsVencidos = await mandarMailsDeVencidos(negocios, ahora, cupo)
+  } catch (error) {
+    console.error('Mails de puntos vencidos: error', error.message)
+  }
+
+  // Avisar lo que vence en los próximos días (ver lib/vencimientoPuntos.js).
   let clientesAvisados = 0
-  const cupo = { restantes: MAXIMO_AVISOS_POR_CORRIDA }
   for (const negocio of negocios) {
     try {
       clientesAvisados += await avisarPuntosPorVencer(negocio, ahora, cupo)
@@ -104,15 +114,14 @@ async function vencimientoPuntos() {
     }
   }
 
-  console.log(`Vencimiento de puntos: ${clientesAfectados} cliente(s) con puntos vencidos, ${clientesAvisados} avisada(s) de puntos por vencer`)
-  return new Response(JSON.stringify({ clientesAfectados, clientesAvisados }), { status: 200 })
+  console.log(`Vencimiento de puntos: ${clientesAfectados} cliente(s) con puntos vencidos, ${mailsVencidos} mail(s) de vencidos enviados, ${clientesAvisados} avisada(s) de puntos por vencer`)
+  return new Response(JSON.stringify({ clientesAfectados, mailsVencidos, clientesAvisados }), { status: 200 })
 }
 
-// Devuelve true si le venció algo a esta clienta.
+// Devuelve true si le venció algo a esta clienta. El mail se manda aparte
+// (mandarMailsDeVencidos), a partir del movimiento de vencimiento que se
+// crea acá.
 async function vencerLotesDeCliente(negocio, clienteId, loteIds) {
-  const cliente = await prisma.cliente.findUnique({ where: { id: clienteId }, select: { email: true } })
-  if (!cliente) return false
-
   // Idempotente por construcción: una vez que un lote queda en
   // saldoRestante: 0 nunca vuelve a aparecer en el where de arriba, así que
   // un reintento del mismo día (o un disparo manual de nuevo) no vence los
@@ -128,36 +137,104 @@ async function vencerLotesDeCliente(negocio, clienteId, loteIds) {
     // ni que avisar en ese caso.
     if (total === 0) return null
 
-    const clienteActualizado = await tx.cliente.update({
+    await tx.cliente.update({
       where: { id: clienteId },
       data: { puntos: { decrement: total } },
     })
     await tx.movimientoPuntos.create({
       data: { clienteId, negocioId: negocio.id, puntos: -total, origen: 'vencimiento' },
     })
-    return { clienteActualizado, total }
+    return { total }
   })
 
-  if (!resultado) return false
+  return !!resultado
+}
 
-  await enviarEmailPuntosVencidos({
+// Mails de "vencieron puntos": uno por cada movimiento de vencimiento que
+// todavía no se avisó (MovimientoPuntos.avisoVencidoEn null), de hoy o de
+// los últimos DIAS_REINTENTO_MAIL_VENCIDOS días. Si Resend rechaza un envío
+// (límite por segundo, una caída), se reintenta una vez en la misma corrida
+// y, si sigue fallando, queda sin marcar y la corrida del día siguiente lo
+// vuelve a intentar; pasado ese plazo se deja de intentar (un mail de hace
+// una semana ya no sirve). Devuelve cuántos se enviaron.
+async function mandarMailsDeVencidos(negocios, ahora, cupo) {
+  const porId = new Map(negocios.map((n) => [n.id, n]))
+  const pendientes = await prisma.movimientoPuntos.findMany({
+    where: {
+      negocioId: { in: [...porId.keys()] },
+      origen: 'vencimiento',
+      avisoVencidoEn: null,
+      createdAt: { gte: new Date(ahora.getTime() - DIAS_REINTENTO_MAIL_VENCIDOS * DIA_MS) },
+    },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, clienteId: true, negocioId: true, puntos: true, createdAt: true },
+  })
+
+  let enviados = 0
+  for (const movimiento of pendientes) {
+    if (cupo.restantes <= 0) break
+    try {
+      const resultado = await mandarMailVencido(movimiento, porId.get(movimiento.negocioId), ahora)
+      if (resultado === 'omitido') continue
+      cupo.restantes--
+      if (resultado === 'enviado') enviados++
+      await esperar(PAUSA_ENTRE_MAILS_MS)
+    } catch (error) {
+      console.error(`Mail de puntos vencidos: error con el movimiento ${movimiento.id}`, error.message)
+    }
+  }
+  return enviados
+}
+
+async function mandarMailVencido(movimiento, negocio, ahora) {
+  // Se marca antes de mandar: si dos corridas se pisan, solo una lo toma.
+  const { count } = await prisma.movimientoPuntos.updateMany({
+    where: { id: movimiento.id, avisoVencidoEn: null },
+    data: { avisoVencidoEn: ahora },
+  })
+  if (count === 0) return 'omitido'
+
+  const cliente = await prisma.cliente.findUnique({ where: { id: movimiento.clienteId }, select: { email: true, puntos: true } })
+  if (!cliente) return 'omitido'
+
+  const datos = {
     email: cliente.email,
-    puntosVencidos: resultado.total,
-    puntosTotales: resultado.clienteActualizado.puntos,
+    puntosVencidos: -movimiento.puntos,
+    puntosTotales: cliente.puntos,
     negocioNombre: negocio.nombre,
     negocioId: negocio.id,
     meses: negocio.vencimientoPuntosMeses,
+  }
+  let enviado = await enviarEmailPuntosVencidos(datos)
+  if (!enviado) {
+    await esperar(PAUSA_REINTENTO_MS)
+    enviado = await enviarEmailPuntosVencidos(datos)
+  }
+  if (enviado) return 'enviado'
+
+  // Se desmarca para que lo retome la corrida de mañana.
+  await prisma.movimientoPuntos.updateMany({
+    where: { id: movimiento.id, avisoVencidoEn: ahora },
+    data: { avisoVencidoEn: null },
   })
-  return true
+  const ultimoDia = ahora.getTime() - movimiento.createdAt.getTime() > (DIAS_REINTENTO_MAIL_VENCIDOS - 1) * DIA_MS
+  console.error(`Mail de puntos vencidos: no se pudo enviar el del movimiento ${movimiento.id}${ultimoDia ? ' (último intento: no se va a reintentar)' : ' (se reintenta mañana)'}`)
+  return 'fallo'
 }
 
-// Tope de avisos por corrida y pausa entre uno y otro: Resend acepta pocos
-// mails por segundo y una Scheduled Function de Netlify tiene unos 30
-// segundos. Lo que no entra hoy queda sin marcar y sale mañana (los avisos
-// se mandan con 30 días de anticipación, sobra margen); se avisa primero a
-// quien tiene los puntos más cerca de vencer.
-const MAXIMO_AVISOS_POR_CORRIDA = 25
-const PAUSA_ENTRE_AVISOS_MS = 600
+// Tope de mails por corrida (vencidos + avisos) y pausa entre uno y otro:
+// Resend acepta pocos mails por segundo (2 en su plan por defecto) y una
+// Scheduled Function de Netlify tiene unos 30 segundos. Lo que no entra hoy
+// queda sin marcar y sale mañana: los vencidos tienen
+// DIAS_REINTENTO_MAIL_VENCIDOS días de margen y los avisos se mandan con 30
+// días de anticipación. Dentro de cada tipo, primero lo más viejo o lo que
+// vence antes.
+const MAXIMO_MAILS_POR_CORRIDA = 25
+const PAUSA_ENTRE_MAILS_MS = 600
+const PAUSA_REINTENTO_MS = 1500
+const DIAS_REINTENTO_MAIL_VENCIDOS = 7
+const DIA_MS = 24 * 60 * 60 * 1000
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms))
 
 // Avisa por mail a cada clienta con lotes que vencen dentro de
 // DIAS_AVISO_VENCIMIENTO días y que todavía no se avisaron. Devuelve a
@@ -185,7 +262,7 @@ async function avisarPuntosPorVencer(negocio, ahora, cupo) {
       if (resultado === 'omitido') continue
       cupo.restantes--
       if (resultado === 'enviado') avisadas++
-      await new Promise((r) => setTimeout(r, PAUSA_ENTRE_AVISOS_MS))
+      await esperar(PAUSA_ENTRE_MAILS_MS)
     } catch (error) {
       console.error(`Aviso de puntos por vencer: error con el cliente ${clienteId}`, error.message)
     }

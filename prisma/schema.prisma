@@ -152,6 +152,17 @@ model Canje {
   // negocio tiene que entregar el descuento a mano.
   tiendanubeCuponCodigo String?
   tiendanubeCuponError  String?
+  // Clave que manda el panel al confirmar un canje (una por confirmación):
+  // si el mismo pedido llega dos veces (doble clic, reintento de red, dos
+  // pedidos a la vez), el segundo devuelve el canje ya hecho en vez de
+  // crear otro (ver app/api/canjes). null en canjes viejos o hechos sin ella.
+  claveIdempotencia String? @unique
+  // Cómo era el premio al canjearlo: si el negocio lo edita después, el
+  // historial y las instrucciones del cupón siguen mostrando lo que se
+  // canjeó. null en canjes anteriores a este campo (se usa el premio actual).
+  premioNombre    String?
+  puntosUsados    Int?
+  premioBeneficio Json?
 
   @@index([clienteId])
   @@index([premioId])
@@ -215,6 +226,10 @@ model MovimientoPuntos {
   // netlify/functions/vencimiento-puntos.mjs y lib/vencimientoPuntos.js).
   // null = todavía no se avisó; cada lote se avisa una sola vez.
   avisoVencimientoEn DateTime?
+  // Solo en los movimientos de vencimiento (origen "vencimiento"): cuándo
+  // salió el mail "vencieron puntos". null = todavía no se pudo mandar; la
+  // tarea diaria lo reintenta unos días (ver netlify/functions/vencimiento-puntos.mjs).
+  avisoVencidoEn DateTime?
 
   @@index([negocioId, createdAt])
   @@index([clienteId, saldoRestante])

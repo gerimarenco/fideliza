@@ -1892,6 +1892,20 @@ Pruebas: E2E 20/20 (archivos públicos, páginas protegidas, widget embebido, ma
 
 Anotados, sin cambiar (ver informe de la revisión): canje de un toque sin confirmación; canje que hace el negocio sigue con `alert()`; el mail de vencidos manda sin pausa (límite de envíos de Resend); la guía del cupón en Mis movimientos usa los datos actuales del premio; la fila de premios del mail usa `display:flex` (Outlook de escritorio la muestra apilada); el widget antepone el emoji del negocio.
 
+## 74. Tanda 2: confirmación de canje, datos del canje, mails de vencidos, widget, Outlook (2026-10-30)
+
+- **Confirmación antes de canjear** (clienta y negocio en Clientes → Canjear): ventana "¿Canjear este premio?" con el premio, los puntos que se descuentan, lo que queda y si genera código. Cancelar/Escape no llaman a nada.
+- **Idempotencia**: cada confirmación manda una `claveIdempotencia` (columna única en `Canje`). Un pedido repetido (doble clic, reintento, simultáneo) devuelve el canje ya hecho sin descontar ni generar otro cupón; la misma clave para otro premio/clienta → 409. Sin clave funciona como antes.
+- **Datos del premio al canjear**: `Canje.premioNombre`, `puntosUsados` y `premioBeneficio` (lo que define el cupón). Mis movimientos, la ventana del cupón y el historial de Canjes del negocio usan eso; los canjes viejos (null) siguen usando el premio actual (`premioDelCanje` en `lib/guiaCupon.js`).
+- **Mails de vencidos**: la tarea primero vence todo y después manda los mails, desde el movimiento de vencimiento (`MovimientoPuntos.avisoVencidoEn`). Pausa de 0,6 s, tope de 25 mails por corrida compartido con los avisos, un reintento en la misma corrida y, si sigue fallando, se retoma en las corridas de los 7 días siguientes. Se marca antes de mandar, así dos corridas no lo duplican. La migración marca como avisados los vencimientos ya registrados (se mandaban en el momento).
+- **Cartel de canje de la clienta**: título "¡Premio canjeado!" y "Para recibir tu premio, usalo en la tienda online siguiendo estos pasos."; si el cupón todavía se está generando, lo dice.
+- **Widget**: ícono lineal de la bolsa (SVG en línea, del color del texto del botón) en vez del emoji del negocio.
+- **Mail con la lista de premios**: tablas en vez de `display:flex`/divs para Outlook de escritorio; en Chromium se ve igual.
+
+Migración `20261030120000_canje_snapshot_y_mail_vencidos`: columnas nuevas opcionales + completar `avisoVencidoEn` en los vencimientos existentes. Probada sobre una base con datos anteriores.
+
+Pruebas: E2E tanda 2 26/26 (confirmar/cancelar, doble clic, 6 pedidos simultáneos, 409/400, flujo del negocio, datos guardados con el premio editado, aislamiento entre clientas, widget celular/escritorio), mails de vencidos 14/14 (pausa, reintento, falla persistente y día siguiente, plazo de 7 días, sin duplicados, tope), canje con cupón 30/30, `npm test` 99/99, y todas las suites anteriores.
+
 ## 65. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅

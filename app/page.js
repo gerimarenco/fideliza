@@ -18,6 +18,12 @@ import {
   ArrowRight, Check, X, Copy, ExternalLink, CircleCheck,
 } from 'lucide-react';
 
+// Una clave por confirmación de canje (ver confirmacionCanje).
+function nuevaClaveCanje() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
@@ -109,6 +115,10 @@ export default function Home() {
   const [clienteExpandidoId, setClienteExpandidoId] = useState(null);
   const [premioParaCanjear, setPremioParaCanjear] = useState('');
   const [canjeandoClienteId, setCanjeandoClienteId] = useState(null);
+  // Confirmación antes de canjear ({ premio, cliente?, clave }), para la
+  // clienta y para el negocio. `clave` identifica esta confirmación: si el
+  // pedido se repite, el backend devuelve el mismo canje (ver app/api/canjes).
+  const [confirmacionCanje, setConfirmacionCanje] = useState(null);
   const [mostrarInfoNiveles, setMostrarInfoNiveles] = useState(false);
   const [canjesPagina, setCanjesPagina] = useState(1);
   const [reintentandoCuponId, setReintentandoCuponId] = useState(null);
@@ -838,13 +848,13 @@ export default function Home() {
 
   // El cliente canjea un premio para sí mismo (el backend ya valida que
   // tenga puntos suficientes y que el canje sea siempre a su propio nombre)
-  const canjearPremio = async (premio) => {
+  const canjearPremio = async (premio, claveIdempotencia) => {
     setCanjeandoId(premio.id);
     try {
       const res = await fetch('/api/canjes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ premioId: premio.id })
+        body: JSON.stringify({ premioId: premio.id, claveIdempotencia })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -854,7 +864,8 @@ export default function Home() {
       // Ventana propia (no un toast): queda abierta hasta que la clienta la
       // cierre, para copiar el código o mostrarla en el local. Cerrarla no
       // toca el canje, y el código se puede volver a ver en Mis movimientos.
-      setCuponMostrado({ premio, codigo: data.tiendanubeCuponCodigo || null, error: !data.tiendanubeCuponCodigo && !!data.tiendanubeCuponError, nuevo: true });
+      setConfirmacionCanje(null);
+      setCuponMostrado({ premio, codigo: data.tiendanubeCuponCodigo || null, error: !data.tiendanubeCuponCodigo && !!data.tiendanubeCuponError, pendiente: !!data.cuponPendiente, nuevo: true });
       setCopiaCupon('');
       setModalCliente('cupon');
       cargarNegocios();
@@ -869,22 +880,22 @@ export default function Home() {
   // presencial sin que la clienta tenga que usar su propio panel) -- mismo
   // endpoint que canjearPremio, el backend ya autoriza a un negocio a
   // canjear premios propios para clientes propios (ver app/api/canjes).
-  const canjearPremioParaCliente = async (cliente) => {
-    const premioId = premioParaCanjear;
+  const canjearPremioParaCliente = async (cliente, premio, claveIdempotencia) => {
+    const premioId = premio?.id;
     if (!premioId) return;
-    const premio = (premiosData?.items || []).find(p => p.id === premioId);
     setCanjeandoClienteId(cliente.id);
     try {
       const res = await fetch('/api/canjes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ premioId, clienteId: cliente.id })
+        body: JSON.stringify({ premioId, clienteId: cliente.id, claveIdempotencia })
       });
       const data = await res.json();
       if (!res.ok) {
         mostrarToast('error', data.error || 'No se pudo canjear el premio');
         return;
       }
+      setConfirmacionCanje(null);
       const nombreCliente = cliente.nombre || cliente.email;
       // Alert bloqueante a propósito, mismo criterio que canjearPremio: si
       // se generó un cupón de Tiendanube, alguien lo tiene que poder leer
@@ -903,6 +914,44 @@ export default function Home() {
     } finally {
       setCanjeandoClienteId(null);
     }
+  };
+
+  // Confirmación antes de canjear, para la clienta (desde su panel) y para el
+  // negocio (Clientes → Canjear). Cancelar o cerrar no llama a nada; el
+  // botón Confirmar se deshabilita mientras el canje está en curso.
+  const dialogoConfirmarCanje = () => {
+    if (!confirmacionCanje) return null;
+    const { premio, cliente, clave } = confirmacionCanje;
+    const enCurso = cliente ? canjeandoClienteId === cliente.id : canjeandoId === premio.id;
+    const saldo = cliente ? cliente.puntos : (negocios.flatMap(n => n.clientes || []).find(c => c.id === session?.user?.id)?.puntos ?? null);
+    const conCupon = !!(premio.tiendanubeProductoId || premio.tiendanubeDescuentoPorcentaje || premio.tiendanubeDescuentoMonto);
+    const cerrar = () => { if (!enCurso) setConfirmacionCanje(null); };
+    const confirmar = () => {
+      if (enCurso) return;
+      if (cliente) canjearPremioParaCliente(cliente, premio, clave);
+      else canjearPremio(premio, clave);
+    };
+    return (
+      <div onClick={cerrar} style={{ position: 'fixed', inset: 0, background: 'rgba(23,25,27,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: 16 }}>
+        <div role="alertdialog" aria-modal="true" aria-labelledby="titulo-confirmar-canje" onClick={e => e.stopPropagation()} style={{ background: tema.superficie, color: tema.texto, borderRadius: 2, padding: '24px 22px 20px', maxWidth: 400, width: '100%', fontFamily: FUENTE_TEXTO }}>
+          <h2 id="titulo-confirmar-canje" style={{ ...ui.titulo(26), marginBottom: 14 }}>¿Canjear este premio?</h2>
+          <div style={{ fontFamily: tema.fuenteTitulo, fontSize: 20, lineHeight: 1.25 }}>{premio.nombre}</div>
+          <p style={{ fontSize: 15, margin: '8px 0 0' }}>
+            Se van a descontar <strong>{formatearMiles(premio.puntos)} puntos</strong>{cliente ? <> de {cliente.nombre || cliente.email}</> : null}.
+            {saldo != null && <> Quedan {formatearMiles(Math.max(0, saldo - premio.puntos))}.</>}
+          </p>
+          <p style={{ fontSize: 14, color: tema.textoSecundario, margin: '8px 0 0' }}>
+            {conCupon ? 'Al confirmar se genera un código de descuento de un solo uso para la tienda online.' : 'Se entrega en el local.'}
+          </p>
+          <div style={{ display: 'grid', gap: 10, marginTop: 20 }}>
+            <button type="button" onClick={confirmar} disabled={enCurso} className="fid-btn-primary" style={{ ...ui.botonPrimario, minHeight: 46, opacity: enCurso ? 0.7 : 1, cursor: enCurso ? 'not-allowed' : 'pointer' }}>
+              {enCurso ? 'Canjeando...' : 'Confirmar canje'}
+            </button>
+            <button type="button" onClick={cerrar} disabled={enCurso} className="fid-btn-secondary" style={{ ...ui.botonSecundario, minHeight: 46 }}>Cancelar</button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Controles de "Anterior / Página X de Y / Siguiente", reutilizados en Clientes y Canjes
@@ -976,6 +1025,7 @@ export default function Home() {
     const alApretar = (e) => {
       if (e.key !== 'Escape') return;
       setModalCliente(null);
+      setConfirmacionCanje(null);
       setMostrarMenuCliente(false);
       setMostrarInfoNiveles(false);
     };
@@ -1259,7 +1309,10 @@ export default function Home() {
                     <button
                       type="button"
                       className="fid-btn-primary"
-                      onClick={() => canjearPremioParaCliente(c)}
+                      onClick={() => {
+                        const premio = (premiosData?.items || []).find(p => p.id === premioParaCanjear);
+                        if (premio) setConfirmacionCanje({ premio, cliente: c, clave: nuevaClaveCanje() });
+                      }}
                       disabled={!premioParaCanjear || canjeandoClienteId === c.id}
                       style={{ ...ui.botonPrimario, cursor: (!premioParaCanjear || canjeandoClienteId === c.id) ? 'not-allowed' : 'pointer', opacity: (!premioParaCanjear || canjeandoClienteId === c.id) ? 0.5 : 1 }}
                     >
@@ -1564,6 +1617,7 @@ export default function Home() {
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
   const PanelNegocio = ({ negocio, onVolver }) => (
     <div style={{ flex: 1, minWidth: 0, overflow: 'auto', background: tema.fondo, color: tema.texto, fontFamily: FUENTE_TEXTO }}>
+      {dialogoConfirmarCanje()}
       {/* Solo aparece cuando lo abre un admin (onVolver viene de la barra
           superior de admin, nunca del propio negocio logueado) -- en tinta
           de Retornar, para que quede claro que es "modo admin" sin importar
@@ -1825,10 +1879,12 @@ export default function Home() {
             ), { ancho: 400 });
           })()}
 
+          {dialogoConfirmarCanje()}
+
           {modalCliente === 'cupon' && cuponMostrado && (() => {
-            const { premio, codigo, error, nuevo } = cuponMostrado;
+            const { premio, codigo, error, pendiente, nuevo } = cuponMostrado;
             const guia = guiaCupon(premio, { sitioWeb: negocioDelCliente.sitioWeb, negocioNombre: negocioDelCliente.nombre });
-            const titulo = !nuevo ? 'Tu cupón' : error ? 'Canje confirmado' : '¡Tu premio está listo!';
+            const titulo = !nuevo ? 'Tu cupón' : (error || pendiente) ? 'Canje confirmado' : '¡Premio canjeado!';
             const copiar = async () => {
               try {
                 if (!navigator.clipboard?.writeText) throw new Error('sin portapapeles');
@@ -1873,7 +1929,7 @@ export default function Home() {
                 {codigo && (
                   <>
                     <p style={{ fontSize: 14, color: tema.textoSecundario, margin: '0 0 12px' }}>
-                      Este es tu código de descuento. Ingresalo al pagar en la tienda online para recibir tu premio.
+                      Este es tu código de descuento. Para recibir tu premio, usalo en la tienda online siguiendo estos pasos.
                     </p>
                     <div style={{ background: tema.fondo, border: `1px solid ${tema.borde}`, padding: '14px 16px', textAlign: 'center' }}>
                       <div style={ui.etiqueta}>Tu código</div>
@@ -1896,12 +1952,17 @@ export default function Home() {
                   </>
                 )}
 
+                {!codigo && pendiente && !error && (
+                  <p style={{ fontSize: 14, color: tema.textoSecundario, margin: 0 }}>
+                    Tus puntos ya se descontaron y el código de descuento se está generando. Lo vas a ver en Mis movimientos en unos minutos.
+                  </p>
+                )}
                 {!codigo && error && (
                   <p style={{ fontSize: 14, color: tema.textoSecundario, margin: 0 }}>
                     Tus puntos ya se descontaron, pero no pudimos generar el cupón automáticamente. Contactá a {negocioDelCliente.nombre} para que te lo entregue; cuando esté listo, lo vas a ver en Mis movimientos.
                   </p>
                 )}
-                {!codigo && !error && (
+                {!codigo && !error && !pendiente && (
                   <p style={{ fontSize: 14, color: tema.textoSecundario, margin: 0 }}>Mostrá esta pantalla en el local para retirarlo.</p>
                 )}
               </>
@@ -2059,7 +2120,7 @@ export default function Home() {
                     <button
                       type="button"
                       className="fid-btn-primary"
-                      onClick={() => canjearPremio(p)}
+                      onClick={() => setConfirmacionCanje({ premio: p, clave: nuevaClaveCanje() })}
                       disabled={canjeandoId === p.id}
                       style={{ ...ui.botonPrimario, minHeight: 44, flexShrink: 0, cursor: canjeandoId === p.id ? 'not-allowed' : 'pointer', opacity: canjeandoId === p.id ? 0.7 : 1 }}
                     >
