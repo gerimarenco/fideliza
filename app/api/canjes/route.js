@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { premioGeneraCupon, generarCuponDeCanje } from '@/lib/cuponCanje'
+import { beneficioDePremio } from '@/lib/guiaCupon'
 import { enviarEmailCanje } from '@/lib/email'
 
 // Descuenta `cantidad` puntos de los lotes de MovimientoPuntos más viejos
@@ -66,13 +67,39 @@ export async function GET(request) {
         entregado: true,
         tiendanubeCuponCodigo: true,
         tiendanubeCuponError: true,
+        premioNombre: true,
+        puntosUsados: true,
         cliente: { select: { id: true, nombre: true, email: true } },
         premio: { select: { id: true, nombre: true, puntos: true, emoji: true } },
       }
     })
   ])
 
+  // El nombre y los puntos que se ven son los del momento del canje (si el
+  // canje los tiene guardados), no los del premio editado después.
+  for (const canje of items) {
+    canje.premio = { ...canje.premio, nombre: canje.premioNombre ?? canje.premio.nombre, puntos: canje.puntosUsados ?? canje.premio.puntos }
+  }
+
   return NextResponse.json({ items, page, pageSize, total, totalPages: Math.ceil(total / pageSize) || 1 })
+}
+
+const CLAVE_VALIDA = /^[A-Za-z0-9-]{8,100}$/
+
+// Respuesta a un canje repetido: los mismos datos que el canje original, sin
+// tocar nada. Si la clave es de otro canje (otra clienta u otro premio), se
+// rechaza: no se reutiliza una confirmación para otra cosa.
+function respuestaCanjeRepetido(previo, clienteId, premio) {
+  if (previo.clienteId !== clienteId || previo.premioId !== premio.id) {
+    return NextResponse.json({ error: 'Esta confirmación ya se usó para otro canje' }, { status: 409 })
+  }
+  return NextResponse.json({
+    ...previo,
+    tiendanubeProductoUrl: premio.tiendanubeProductoUrl,
+    repetido: true,
+    // El primer pedido todavía está generando el cupón.
+    cuponPendiente: premioGeneraCupon(premio) && !previo.tiendanubeCuponCodigo && !previo.tiendanubeCuponError,
+  })
 }
 
 export async function POST(request) {
@@ -135,6 +162,21 @@ export async function POST(request) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
+  // Clave de idempotencia (ver Canje.claveIdempotencia): el panel manda una
+  // por cada confirmación. Si ya hay un canje con esa clave, es el mismo
+  // pedido repetido (doble clic, reintento): se devuelve ese canje sin
+  // descontar puntos ni generar otro cupón. Es opcional para no romper a
+  // quien llame sin ella.
+  let clave = null
+  if (body.claveIdempotencia != null) {
+    if (typeof body.claveIdempotencia !== 'string' || !CLAVE_VALIDA.test(body.claveIdempotencia)) {
+      return NextResponse.json({ error: 'Clave de confirmación inválida' }, { status: 400 })
+    }
+    clave = body.claveIdempotencia
+    const previo = await prisma.canje.findUnique({ where: { claveIdempotencia: clave } })
+    if (previo) return respuestaCanjeRepetido(previo, clienteId, premio)
+  }
+
   try {
     // updateMany con el saldo en el WHERE: Postgres serializa los UPDATE
     // concurrentes sobre la misma fila, así que si dos canjes llegan al
@@ -155,7 +197,16 @@ export async function POST(request) {
 
       await consumirPuntosFifo(tx, clienteId, premio.puntos)
 
-      return tx.canje.create({ data: { clienteId, premioId } })
+      return tx.canje.create({
+        data: {
+          clienteId,
+          premioId,
+          claveIdempotencia: clave,
+          premioNombre: premio.nombre,
+          puntosUsados: premio.puntos,
+          premioBeneficio: beneficioDePremio(premio),
+        },
+      })
     })
 
     // El cupón de Tiendanube se genera después de confirmar el canje, nunca
@@ -204,6 +255,13 @@ export async function POST(request) {
   } catch (error) {
     if (error.message === 'PUNTOS_INSUFICIENTES') {
       return NextResponse.json({ error: 'Puntos insuficientes' }, { status: 400 })
+    }
+    // Dos pedidos con la misma clave al mismo tiempo: el segundo choca con
+    // el índice único al crear el canje y su transacción se deshace entera
+    // (incluido el descuento de puntos); se responde con el canje del primero.
+    if (clave && error.code === 'P2002') {
+      const previo = await prisma.canje.findUnique({ where: { claveIdempotencia: clave } })
+      if (previo) return respuestaCanjeRepetido(previo, clienteId, premio)
     }
     throw error
   }

@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { premioDelCanje } from '@/lib/guiaCupon'
 
 // Historial de puntos para el propio cliente logueado (pantalla "Mis
 // movimientos" del panel del cliente, ver app/page.js) -- nunca el de otro
@@ -48,6 +49,10 @@ export async function GET(request) {
         createdAt: true,
         tiendanubeCuponCodigo: true,
         tiendanubeCuponError: true,
+        // Cómo era el premio al canjearlo (null en canjes viejos: se usa el actual).
+        premioNombre: true,
+        puntosUsados: true,
+        premioBeneficio: true,
         premio: { select: { nombre: true, puntos: true, emoji: true, tiendanubeProductoUrl: true, tiendanubeProductoId: true, tiendanubeDescuentoPorcentaje: true, tiendanubeDescuentoMonto: true, tiendanubeDescuentoMontoMinimo: true } },
       },
     }),
@@ -64,17 +69,17 @@ export async function GET(request) {
         : 'compra',
       descripcion: m.origen === 'vencimiento' ? 'Vencimiento de puntos' : (ORIGEN_A_DESCRIPCION[m.origen] || 'Puntos acreditados'),
     })),
-    ...canjes.map((c) => ({
+    ...canjes.map((c) => ({ c, premio: premioDelCanje(c) })).map(({ c, premio }) => ({
       id: `canje-${c.id}`,
       fecha: c.createdAt,
-      puntos: -c.premio.puntos,
+      puntos: -premio.puntos,
       tipo: 'canje',
-      descripcion: `Canjeaste "${c.premio.nombre}"`,
-      premioIcono: c.premio.emoji,
+      descripcion: `Canjeaste "${premio.nombre}"`,
+      premioIcono: premio.emoji,
       // codigo: el cupón listo para usar; pendiente: el premio genera cupón
       // pero todavía no se pudo crear (el negocio lo reintenta desde Canjes).
       cupon: c.tiendanubeCuponCodigo
-        ? { codigo: c.tiendanubeCuponCodigo, premio: c.premio }
+        ? { codigo: c.tiendanubeCuponCodigo, premio }
         : c.tiendanubeCuponError ? { pendiente: true } : null,
     })),
   ].sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
