@@ -14,17 +14,19 @@ async function sincronizarCupones() {
   })
   let revisados = 0
   let actualizados = 0
+  let incompletos = 0
   for (const negocio of negocios) {
     try {
       const r = await sincronizarCuponesNegocio(negocio, ahora)
       revisados += r.revisados
       actualizados += r.actualizados
+      if (r.incompleto) incompletos++
     } catch (error) {
       console.error(`Sincronizar cupones: error con el negocio ${negocio.id}`, error.message)
     }
   }
-  console.log(`Sincronizar cupones: ${revisados} revisado(s), ${actualizados} actualizado(s)`)
-  return new Response(JSON.stringify({ revisados, actualizados }), { status: 200 })
+  console.log(`Sincronizar cupones: ${revisados} revisado(s), ${actualizados} actualizado(s)${incompletos ? `, ${incompletos} negocio(s) sin listado completo` : ''}`)
+  return new Response(JSON.stringify({ revisados, actualizados, incompletos }), { status: 200 })
 }
 
 export default sincronizarCupones
