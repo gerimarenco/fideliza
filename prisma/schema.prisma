@@ -86,6 +86,13 @@ model Cliente {
   // (/registro/[slug]) — un cliente creado a mano por el negocio o de alta
   // automática por Dragon Fish no los tiene.
   fechaNacimiento DateTime?
+  // Obligatorio en el registro público desde 2026-10-30 (lib/dni.js),
+  // guardado normalizado (solo dígitos). Las cuentas creadas por el
+  // negocio, por Dragon Fish o antes de esa fecha pueden no tenerlo. Único
+  // por negocio para las cuentas desde el 30/10/2026: índice parcial
+  // "Cliente_negocioId_dni_key", creado a mano en la migración
+  // 20261031000000_dni_obligatorio (Prisma 5 no lo puede declarar acá). Dato
+  // sensible: nunca se devuelve en la API ni se loguea.
   dni             String?
   sexo            String?
 
@@ -278,6 +285,18 @@ model PasswordResetToken {
 // contraseñas una tras otra (ver lib/limiteLogin.js). Se guardan HMAC del
 // email normalizado y de la IP, nunca los datos en sí. Los exitosos se
 // borran apenas se confirma la contraseña; el resto, al día siguiente.
+// Registros rechazados porque el email o el DNI ya estaban registrados,
+// por conexión (ver app/api/registro/[negocio]): tope contra quien prueba
+// documentos para saber cuáles existen. Solo el HMAC de la IP.
+model IntentoRegistro {
+  id        String   @id @default(cuid())
+  ipHash    String
+  createdAt DateTime @default(now())
+
+  @@index([ipHash, createdAt])
+  @@index([createdAt])
+}
+
 model IntentoLogin {
   id        String   @id @default(cuid())
   emailHash String

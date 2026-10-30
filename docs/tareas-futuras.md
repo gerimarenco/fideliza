@@ -1930,6 +1930,25 @@ Pruebas: E2E 35/35 (bonificación dentro/antes/después del período, 3 registro
 
 No verificado (necesita la tienda real): que el checkout de Tiendanube rechace un segundo uso del mismo código (C2 del checklist) y que `used` y el campo `coupon` de la orden se comporten como dice la documentación.
 
+## 76. DNI obligatorio en el registro (2026-10-30)
+
+Decisión de Genaro: el registro público vuelve a pedir DNI, para que una misma persona no abra varias cuentas en el mismo negocio con distintos emails (bienvenida, referidos).
+
+- **Validación** (`lib/dni.js`): se aceptan puntos, espacios y guiones; se guarda solo con números y sin ceros adelante; 7 u 8 dígitos; se rechazan vacíos, letras y documentos inventados (todos iguales, 1234567/12345678/87654321…).
+- **Unicidad**: un DNI por negocio (la misma persona puede tener cuenta en otro negocio). La garantiza la base con el índice parcial único `Cliente_negocioId_dni_key` (`negocioId`, `dni`) para las cuentas desde el 30/10/2026; además, el registro toma un lock por documento y busca también en las cuentas anteriores (normalizando, por si tienen ceros adelante). Probado con 6 registros simultáneos: 1 cuenta, 5 rechazos.
+- **Email**: ya era único en toda la base (no solo por negocio), porque con el email se inicia sesión sin elegir negocio. Se mantiene así: cumple "uno por negocio" y cambiarlo exigiría elegir el negocio al entrar.
+- **Mensajes**: "Este correo electrónico ya está registrado. Iniciá sesión o recuperá tu contraseña." / "Este DNI ya está registrado. Ya existe una cuenta asociada a este documento. Iniciá sesión o recuperá tu cuenta." Con enlaces a iniciar sesión y a recuperar la contraseña.
+- **Tope**: 10 rechazos por email/DNI ya registrados por conexión cada 15 minutos (tabla `IntentoRegistro`, solo el HMAC de la IP), para que el mensaje no sirva para averiguar documentos en masa.
+- **Autorreferidos**: si quien invita tiene el mismo celular o el mismo DNI que la cuenta nueva, el código se ignora (la cuenta se crea sin bono); con el mismo DNI la cuenta directamente no se crea.
+- **Bienvenida**: sin cambios en la regla (una vez por cuenta y por celular); el DNI único impide la segunda cuenta de la misma persona.
+- **Privacidad**: la respuesta de `POST /api/compras` y la de "Nuevo cliente" ya no devuelven el DNI; el error del registro se loguea sin los datos enviados.
+
+**Migración `20261031000000_dni_obligatorio`**: solo crea el índice parcial y la tabla `IntentoRegistro`; no toca filas existentes. Las cuentas con DNI anteriores al 30/10 quedan fuera del índice para que la migración no pueda fallar si hubiera documentos repetidos entre ellas (en esa época no se controlaba). Revisarlas con `scripts/dni-duplicados.sql` (solo lectura).
+
+**Si aparecen DNI repetidos históricos**: no borrar ni fusionar automáticamente. Por cada grupo, mirar las cuentas (puntos, canjes, compras, última actividad) con Genaro y el negocio; si son la misma persona, decidir a mano cuál queda y cómo se pasa el saldo, con copia de seguridad previa y autorización. Recién cuando no haya repetidos se puede ampliar el índice a todas las cuentas (`CREATE UNIQUE INDEX ... WHERE "dni" IS NOT NULL`, sin la fecha).
+
+**Límites**: las cuentas viejas sin DNI no se pueden cruzar con una cuenta nueva de la misma persona (salvo por el celular). El índice de Prisma es parcial y Prisma 5 no lo declara en `schema.prisma`: si `prisma migrate dev` propone borrarlo, sacar esa línea.
+
 ## 65. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅

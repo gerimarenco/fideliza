@@ -67,12 +67,20 @@ Tiendanube (ya tiene los datos de las compras online).
 
 **Decidido por Genaro (2026-10-24):**
 
-- **DNI**: se dejó de pedir en el registro y salió del Excel exportado.
-  Los DNI de las cuentas creadas antes **siguen guardados** en la base (no
-  se borra ningún dato real sin autorización). Para borrarlos, después de
-  una copia de seguridad verificada y con autorización de Genaro:
-  `UPDATE "Cliente" SET "dni" = NULL WHERE "dni" IS NOT NULL;`
-  (antes, para saber cuántos son: `SELECT COUNT(*) FROM "Cliente" WHERE "dni" IS NOT NULL;`).
+- **DNI**: ~~se dejó de pedir en el registro (2026-10-24)~~. **Vuelve a ser
+  obligatorio en el registro desde 2026-10-30** (decisión de Genaro), con
+  una sola finalidad: que cada persona tenga una única cuenta por negocio y
+  no cobre varias veces la bienvenida o el bono de referidos con otros
+  emails. Debajo del campo se informa esa finalidad ("Solo para que cada
+  persona tenga una única cuenta. No se muestra a nadie."). La información
+  del registro (4.1) y la política (4.2) tienen que decirlo.
+  - No se muestra en ninguna pantalla, no sale en el Excel, no viaja en
+    mails ni URLs, ninguna respuesta de la API lo devuelve y no se loguea
+    (ver lib/dni.js y app/api/registro/[negocio]).
+  - Las cuentas anteriores sin DNI siguen funcionando; no se les pide ni se
+    les inventa. Las de septiembre/octubre que lo tienen lo conservan.
+  - Ya no corresponde el borrado masivo de DNI que se había propuesto acá:
+    ahora el dato se usa.
 - **Género**: se mantiene, para campañas futuras de Peperina, y es
   **opcional** ("Prefiero no decirlo" es la opción por defecto). La
   información del registro (4.1) y la política (4.2) tienen que decir esa

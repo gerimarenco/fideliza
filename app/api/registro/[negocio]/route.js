@@ -3,7 +3,10 @@ import { NextResponse } from 'next/server';
 import { hashPassword } from '@/lib/password';
 import { nombreClub } from '@/lib/nombreClub';
 import { normalizarEmail, filtroEmail, emailValido } from '@/lib/identidad';
-import { puntosBienvenida, acreditarBienvenida } from '@/lib/bienvenida';
+import { puntosBienvenida, acreditarBienvenida, celularComparable } from '@/lib/bienvenida';
+import { normalizarDni, MENSAJE_DNI_FALTA, MENSAJE_DNI_INVALIDO, MENSAJE_DNI_REPETIDO, MENSAJE_EMAIL_REPETIDO } from '@/lib/dni';
+import { hashIpLogin, ipDeEncabezados } from '@/lib/limiteLogin';
+import { registroBloqueado, inicioVentanaRegistro, MENSAJE_DEMASIADOS_INTENTOS } from '@/lib/limiteRegistro';
 
 // CORS abierto porque también la consume el widget embebible (public/widget.js)
 // desde el dominio de la tienda online del negocio (ver README) — no un
@@ -57,13 +60,25 @@ export async function GET(request, { params }) {
   return NextResponse.json(negocioPublico, { headers: CORS_HEADERS });
 }
 
+// El DNI de la cuenta nueva ya existe en este negocio (ver más abajo).
+class DniRepetido extends Error {}
+
+// Rechazo por email o DNI ya registrados: queda anotado para el tope por
+// conexión (lib/limiteRegistro.js).
+async function rechazoPorRepetido(ipHash, mensaje) {
+  await prisma.intentoRegistro.create({ data: { ipHash } }).catch(() => {});
+  await prisma.intentoRegistro.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }).catch(() => {});
+  return NextResponse.json({ error: mensaje }, { status: 409 });
+}
+
 export async function POST(request, { params }) {
   try {
     const { negocio } = await params;
-    // El DNI ya no se pide (decisión de Genaro, 2026-10-24: no se usaba para
-    // nada y es un dato personal más para cuidar). Si un formulario viejo
-    // todavía lo manda, se ignora: no se guarda.
-    const { nombre, email: emailIngresado, password, fechaNacimiento, sexo, telefono, codigoReferido } = await request.json();
+    // DNI obligatorio otra vez desde 2026-10-30 (decisión de Genaro): una
+    // cuenta por documento en cada negocio, para que nadie cobre varias
+    // veces la bienvenida o el bono de referidos con otros emails. Se
+    // guarda normalizado (lib/dni.js) y nunca se devuelve ni se loguea.
+    const { nombre, email: emailIngresado, password, fechaNacimiento, sexo, telefono, codigoReferido, dni: dniIngresado } = await request.json();
     const email = normalizarEmail(emailIngresado);
 
     if (!nombre?.trim() || !email || !password) {
@@ -94,6 +109,14 @@ export async function POST(request, { params }) {
       );
     }
 
+    if (dniIngresado == null || String(dniIngresado).trim() === '') {
+      return NextResponse.json({ error: MENSAJE_DNI_FALTA }, { status: 400 });
+    }
+    const dni = normalizarDni(dniIngresado);
+    if (!dni) {
+      return NextResponse.json({ error: MENSAJE_DNI_INVALIDO }, { status: 400 });
+    }
+
     const telefonoLimpio = telefono.replace(/[\s\-()]/g, '');
     if (!TELEFONO_VALIDO.test(telefonoLimpio)) {
       return NextResponse.json(
@@ -122,13 +145,19 @@ export async function POST(request, { params }) {
     }
 
     // Buscar el negocio por su slug (el que viene en la URL) y verificar que
-    // el email no esté ya registrado -- las dos consultas son independientes
-    // entre sí, se piden juntas en vez de una detrás de la otra para no
-    // sumar esa demora extra a cada registro.
-    const [negocioEncontrado, clienteExistente] = await Promise.all([
+    // el email no esté ya registrado, y contar los rechazos recientes de esta
+    // conexión -- las consultas son independientes entre sí, se piden juntas
+    // en vez de una detrás de la otra para no sumar esa demora a cada registro.
+    const ipHash = hashIpLogin(ipDeEncabezados(Object.fromEntries(request.headers)));
+    const [negocioEncontrado, clienteExistente, rechazosRecientes] = await Promise.all([
       prisma.negocio.findUnique({ where: { slug: negocio } }),
       prisma.cliente.findFirst({ where: { email: filtroEmail(email) } }),
+      prisma.intentoRegistro.count({ where: { ipHash, createdAt: { gte: inicioVentanaRegistro() } } }),
     ]);
+
+    if (registroBloqueado(rechazosRecientes)) {
+      return NextResponse.json({ error: MENSAJE_DEMASIADOS_INTENTOS }, { status: 429 });
+    }
 
     if (!negocioEncontrado || !negocioEncontrado.activo) {
       return NextResponse.json(
@@ -137,24 +166,32 @@ export async function POST(request, { params }) {
       );
     }
 
+    // El email es único en toda la base (no solo en el negocio): con él se
+    // inicia sesión, sin elegir negocio (ver lib/auth.js).
     if (clienteExistente) {
-      return NextResponse.json(
-        { error: 'Ya existe una cuenta con ese email.' },
-        { status: 409 }
-      );
+      return rechazoPorRepetido(ipHash, MENSAJE_EMAIL_REPETIDO);
     }
 
     // Código de invitación de otra clienta (ver "Referí a una amiga" en el
     // panel del cliente, lib/referidos.js) — opcional, y si no matchea a
     // nadie de este mismo negocio se ignora en silencio: un código viejo,
     // mal tipeado, o de otro negocio no tiene por qué frenar el registro.
+    //
+    // Autorreferido: si quien invita tiene el mismo celular o el mismo DNI
+    // que la cuenta nueva, es la misma persona con otro email; el código se
+    // ignora igual que uno inválido (la cuenta se crea, sin bono). El DNI
+    // repetido además rechaza la cuenta entera más abajo.
     let referidoPorId = null;
     if (codigoReferido) {
       const invitador = await prisma.cliente.findFirst({
-        where: { codigoReferido: codigoReferido.trim().toUpperCase(), negocioId: negocioEncontrado.id },
-        select: { id: true },
+        where: { codigoReferido: String(codigoReferido).trim().toUpperCase(), negocioId: negocioEncontrado.id },
+        select: { id: true, telefono: true, dni: true },
       });
-      referidoPorId = invitador?.id || null;
+      const mismaPersona = invitador && (
+        celularComparable(invitador.telefono) === celularComparable(telefonoLimpio) ||
+        (invitador.dni && normalizarDni(invitador.dni) === dni)
+      );
+      referidoPorId = invitador && !mismaPersona ? invitador.id : null;
     }
 
     // Crear el cliente, asociado al negocio encontrado. Si el negocio tiene
@@ -164,6 +201,20 @@ export async function POST(request, { params }) {
     const puntosRegalo = puntosBienvenida(negocioEncontrado, new Date());
     const passwordHash = await hashPassword(password);
     const { nuevoCliente, bienvenida } = await prisma.$transaction(async (tx) => {
+      // Un documento por negocio. El lock serializa los registros
+      // simultáneos con el mismo DNI en este negocio; la consulta cubre
+      // también las cuentas anteriores al índice único (septiembre a
+      // octubre de 2026, que pueden tener el DNI con ceros adelante), y el
+      // índice (negocioId, dni) lo garantiza en la base para las nuevas.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dni:${negocioEncontrado.id}:${dni}`}))`;
+      const conMismoDni = await tx.$queryRaw`
+        SELECT 1 FROM "Cliente"
+        WHERE "negocioId" = ${negocioEncontrado.id}
+          AND "dni" IS NOT NULL
+          AND ltrim(regexp_replace("dni", '[^0-9]', '', 'g'), '0') = ${dni}
+        LIMIT 1`;
+      if (conMismoDni.length > 0) throw new DniRepetido();
+
       const nuevoCliente = await tx.cliente.create({
         data: {
           nombre: nombre.trim(),
@@ -174,8 +225,10 @@ export async function POST(request, { params }) {
           fechaNacimiento: fechaNacimientoDate,
           sexo: sexoElegido,
           telefono: telefonoLimpio,
+          dni,
           referidoPorId,
         },
+        select: { id: true, telefono: true },
       });
       const bienvenida = await acreditarBienvenida(tx, nuevoCliente, negocioEncontrado, puntosRegalo);
       return { nuevoCliente, bienvenida };
@@ -186,15 +239,20 @@ export async function POST(request, { params }) {
       { status: 201 }
     );
   } catch (error) {
-    // Dos registros simultáneos con el mismo email: el segundo choca con el
-    // índice único (y su transacción, con la bonificación, se deshace).
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: 'Ya existe una cuenta con ese email.' },
-        { status: 409 }
-      );
+    // Con el mismo DNI, o dos registros simultáneos con el mismo email o
+    // DNI: el segundo choca con el lock o con el índice único, y su
+    // transacción (con la bonificación) se deshace entera.
+    if (error instanceof DniRepetido) {
+      return rechazoPorRepetido(hashIpLogin(ipDeEncabezados(Object.fromEntries(request.headers))), MENSAJE_DNI_REPETIDO);
     }
-    console.error('Error en registro:', error);
+    if (error.code === 'P2002') {
+      const destino = String(error.meta?.target ?? '');
+      const mensaje = destino.includes('dni') ? MENSAJE_DNI_REPETIDO : MENSAJE_EMAIL_REPETIDO;
+      return rechazoPorRepetido(hashIpLogin(ipDeEncabezados(Object.fromEntries(request.headers))), mensaje);
+    }
+    // Sin el objeto del error: los de Prisma pueden incluir los datos de la
+    // consulta (email, celular, DNI) y el log de Netlify no es lugar para eso.
+    console.error('Error en registro:', error?.code || error?.name || 'desconocido');
     return NextResponse.json(
       { error: 'Ocurrió un error al crear la cuenta.' },
       { status: 500 }
