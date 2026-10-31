@@ -69,6 +69,9 @@ export async function GET(request) {
         tiendanubeCuponError: true,
         premioNombre: true,
         puntosUsados: true,
+        cuponEstado: true,
+        cuponVerificadoEn: true,
+        cuponUsadoEn: true,
         cliente: { select: { id: true, nombre: true, email: true } },
         premio: { select: { id: true, nombre: true, puntos: true, emoji: true } },
       }

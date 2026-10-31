@@ -7,6 +7,8 @@ import { esCumpleanosHoy, diasHastaProximoCumpleanos } from '@/lib/cumpleanos';
 import { descripcionNiveles, formatearMiles } from '@/lib/clienteStats';
 import { fechaCorta } from '@/lib/csv';
 import { guiaCupon } from '@/lib/guiaCupon';
+import { fechaArgentina } from '@/lib/bienvenida';
+import { estadoVisible } from '@/lib/estadoCupon';
 import { calcularPuntosPorCompra } from '@/lib/puntos';
 import { estadoAgente, textoTiempo } from '@/lib/estadoAgente';
 import { ICONOS_PREMIO, IconoPremio } from '@/lib/premioIconos';
@@ -96,6 +98,9 @@ export default function Home() {
   const [modalCliente, setModalCliente] = useState(null);
   const [movimientosClientePagina, setMovimientosClientePagina] = useState(1);
   const [movimientosClienteData, setMovimientosClienteData] = useState(null);
+  // "Mis cupones" de la clienta, y qué código se acaba de copiar ahí.
+  const [cuponesClienteData, setCuponesClienteData] = useState(null);
+  const [cuponCopiado, setCuponCopiado] = useState(null);
   const [referidosData, setReferidosData] = useState(null);
   const [referidoCopiado, setReferidoCopiado] = useState(false);
   // Ventana del canje de la clienta ({ premio, codigo, error, nuevo }) y el
@@ -134,6 +139,7 @@ export default function Home() {
   const [formPuntosXPeso, setFormPuntosXPeso] = useState('');
   const [formMensajeRegistro, setFormMensajeRegistro] = useState('');
   const [formRegaloCumpleanos, setFormRegaloCumpleanos] = useState('');
+  const [formBienvenida, setFormBienvenida] = useState({ puntos: '', desde: '', hasta: '' });
   const [formPuntosReferido, setFormPuntosReferido] = useState('');
   const [formVencimientoPuntos, setFormVencimientoPuntos] = useState('');
   const [formSitioWeb, setFormSitioWeb] = useState('');
@@ -249,6 +255,13 @@ export default function Home() {
       .catch(() => {});
   };
 
+  const cargarCuponesCliente = () => {
+    fetch('/api/clientes/cupones')
+      .then(res => res.json())
+      .then(setCuponesClienteData)
+      .catch(() => {});
+  };
+
   const cargarReferidos = () => {
     fetch('/api/clientes/referidos')
       .then(res => res.json())
@@ -311,6 +324,11 @@ export default function Home() {
   }, [modalCliente, movimientosClientePagina]);
 
   useEffect(() => {
+    if (modalCliente !== 'cupones') return;
+    cargarCuponesCliente();
+  }, [modalCliente]);
+
+  useEffect(() => {
     if (modalCliente !== 'referidos') return;
     setReferidoCopiado(false);
     cargarReferidos();
@@ -335,6 +353,11 @@ export default function Home() {
     setFormPuntosXPeso(negocioMostrado?.puntosXPeso ? String(negocioMostrado.puntosXPeso) : '');
     setFormMensajeRegistro(negocioMostrado?.mensajeRegistro || '');
     setFormRegaloCumpleanos(negocioMostrado?.regaloCumpleanosPuntos ? String(negocioMostrado.regaloCumpleanosPuntos) : '');
+    setFormBienvenida({
+      puntos: negocioMostrado?.bienvenidaPuntos ? String(negocioMostrado.bienvenidaPuntos) : '',
+      desde: fechaArgentina(negocioMostrado?.bienvenidaDesde),
+      hasta: fechaArgentina(negocioMostrado?.bienvenidaHasta, { ultimoDia: true }),
+    });
     setFormPuntosReferido(negocioMostrado?.puntosReferido ? String(negocioMostrado.puntosReferido) : '');
     setFormVencimientoPuntos(negocioMostrado?.vencimientoPuntosMeses ? String(negocioMostrado.vencimientoPuntosMeses) : '');
     setFormSitioWeb(negocioMostrado?.sitioWeb || '');
@@ -663,6 +686,27 @@ export default function Home() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: negocioMostrado.id, regaloCumpleanosPuntos: formRegaloCumpleanos || null })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`❌ Error: ${data.error || 'no se pudo guardar'}`);
+        return;
+      }
+      mostrarToast('exito', 'Guardado');
+      cargarNegocios();
+    } catch (err) {
+      alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
+    }
+  };
+
+  // Vacío en puntos = sin bonificación de bienvenida.
+  const guardarBienvenida = async () => {
+    const sinPromocion = !formBienvenida.puntos;
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: negocioMostrado.id, bienvenida: sinPromocion ? null : formBienvenida })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -1094,6 +1138,20 @@ export default function Home() {
     }
   };
 
+  // Estado de un cupón (ver lib/estadoCupon.js): "Disponible" resaltado; el
+  // resto apagado; "Pendiente de verificación" con borde punteado, para que
+  // no se confunda con un estado confirmado.
+  const insigniaEstadoCupon = (estado) => {
+    if (!estado) return null;
+    const base = { display: 'inline-block', fontSize: 12, lineHeight: 1.4, padding: '2px 8px', borderRadius: 2, whiteSpace: 'nowrap', border: `1px solid ${tema.borde}`, color: tema.textoSecundario };
+    const estilo = estado.clave === 'disponible'
+      ? { ...base, background: tema.resaltado, borderColor: tema.resaltado, color: tema.texto, fontWeight: 500 }
+      : (estado.clave === 'sin_verificar' || estado.clave === 'en_preparacion')
+        ? { ...base, borderStyle: 'dashed' }
+        : base;
+    return <span style={estilo}>{estado.etiqueta}</span>;
+  };
+
   // Mensajes de "cargando" y de lista vacía, iguales en todas las pantallas.
   const Cargando = () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: tema.textoSecundario, padding: '14px 0' }}><Spinner size={14} /> Cargando...</div>
@@ -1122,7 +1180,7 @@ export default function Home() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: tema.fuenteTitulo, fontSize: 19, lineHeight: 1.25 }}>{c.premio.nombre}</div>
               <div style={{ fontSize: 13, color: tema.textoSecundario, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.cliente.nombre || c.cliente.email} · {new Date(c.createdAt).toLocaleDateString('es-AR')}</div>
-              {c.tiendanubeCuponCodigo && <div style={{ fontSize: 13, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}><Ticket size={13} aria-hidden="true" /> Cupón <strong style={{ letterSpacing: '0.04em' }}>{c.tiendanubeCuponCodigo}</strong></div>}
+              {c.tiendanubeCuponCodigo && <div style={{ fontSize: 13, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}><Ticket size={13} aria-hidden="true" /> Cupón <strong style={{ letterSpacing: '0.04em' }}>{c.tiendanubeCuponCodigo}</strong> {insigniaEstadoCupon(estadoVisible(c))}</div>}
               {c.tiendanubeCuponError && !c.tiendanubeCuponCodigo && (
                 <div style={{ fontSize: 13, color: '#b91c1c', marginTop: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                   <AlertTriangle size={13} aria-hidden="true" /> {c.tiendanubeCuponError}
@@ -1527,6 +1585,14 @@ export default function Home() {
         <input type="number" min="1" aria-label="Puntos de regalo de cumpleaños" value={formRegaloCumpleanos} onChange={e => setFormRegaloCumpleanos(e.target.value)} placeholder="Desactivado" style={ui.input} />
       ), guardarRegaloCumpleanos)}
 
+      {bloqueAjuste('Bonificación de bienvenida', 'Puntos de regalo para cada cuenta nueva que se cree entre estas fechas (inclusive, en hora de Argentina), una sola vez por persona. No cambia los puntos de cuentas existentes. Dejá los puntos vacíos para desactivarla.', (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
+          <label><span style={ui.label}>Puntos</span><input type="number" min="1" value={formBienvenida.puntos} onChange={e => setFormBienvenida({ ...formBienvenida, puntos: e.target.value })} placeholder="Desactivada" style={ui.input} /></label>
+          <label><span style={ui.label}>Desde</span><input type="date" value={formBienvenida.desde} onChange={e => setFormBienvenida({ ...formBienvenida, desde: e.target.value })} style={ui.input} /></label>
+          <label><span style={ui.label}>Hasta (inclusive)</span><input type="date" value={formBienvenida.hasta} onChange={e => setFormBienvenida({ ...formBienvenida, hasta: e.target.value })} style={ui.input} /></label>
+        </div>
+      ), guardarBienvenida)}
+
       {bloqueAjuste('Programa de referidos', 'Puntos que ganan tanto quien invita como la persona invitada cuando esta hace su primera compra (mismo monto para las dos). Cada cliente tiene su propio link para compartir, en “Referí a una amiga” desde su panel. Dejalo vacío para desactivarlo.', (
         <input type="number" min="1" aria-label="Puntos por referido" value={formPuntosReferido} onChange={e => setFormPuntosReferido(e.target.value)} placeholder="Desactivado" style={ui.input} />
       ), guardarPuntosReferido)}
@@ -1819,6 +1885,7 @@ export default function Home() {
                   <button type="button" className="fid-row-hover" onClick={() => abrirModal('referidos')} style={itemMenu}><Gift size={17} aria-hidden="true" /> Referí a una amiga</button>
                 )}
                 <button type="button" className="fid-row-hover" onClick={() => { setMovimientosClientePagina(1); abrirModal('movimientos'); }} style={itemMenu}><ScrollText size={17} aria-hidden="true" /> Mis movimientos</button>
+                <button type="button" className="fid-row-hover" onClick={() => { setCuponCopiado(null); abrirModal('cupones'); }} style={itemMenu}><Ticket size={17} aria-hidden="true" /> Mis cupones</button>
                 <button type="button" className="fid-row-hover" onClick={() => abrirModal('info')} style={itemMenu}><Info size={17} aria-hidden="true" /> Cómo funcionan los puntos</button>
                 <button type="button" className="fid-row-hover" onClick={() => abrirModal('bases')} style={itemMenu}><ClipboardList size={17} aria-hidden="true" /> Bases y condiciones</button>
                 {negocioDelCliente.soporteWhatsapp && (
@@ -1967,6 +2034,81 @@ export default function Home() {
                 )}
               </>
             ), { ancho: 420, textoBoton: 'Listo', pie });
+          })()}
+
+          {modalCliente === 'cupones' && (() => {
+            const items = cuponesClienteData?.items || [];
+            const anteriores = ['utilizado', 'vencido', 'anulado'];
+            const paraUsar = items.filter(c => !anteriores.includes(c.estado?.clave));
+            const yaUsados = items.filter(c => anteriores.includes(c.estado?.clave));
+            const copiar = async (cupon) => {
+              try {
+                if (!navigator.clipboard?.writeText) throw new Error('sin portapapeles');
+                await navigator.clipboard.writeText(cupon.codigo);
+                setCuponCopiado({ id: cupon.id, manual: false });
+              } catch {
+                // Sin permiso para el portapapeles: queda seleccionado.
+                const nodo = document.getElementById(`codigo-${cupon.id}`);
+                if (nodo) {
+                  const rango = document.createRange();
+                  rango.selectNodeContents(nodo);
+                  window.getSelection().removeAllRanges();
+                  window.getSelection().addRange(rango);
+                }
+                setCuponCopiado({ id: cupon.id, manual: true });
+              }
+            };
+            const fila = (cupon) => {
+              const { beneficio } = guiaCupon(cupon.premio, { sitioWeb: negocioDelCliente.sitioWeb, negocioNombre: negocioDelCliente.nombre });
+              const copiado = cuponCopiado?.id === cupon.id;
+              const usable = cupon.codigo && !anteriores.includes(cupon.estado?.clave);
+              return (
+                <li key={cupon.id} style={{ padding: '16px 0', borderBottom: `1px solid ${tema.borde}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                    <div style={{ fontFamily: tema.fuenteTitulo, fontSize: 19, lineHeight: 1.25, minWidth: 0 }}>{cupon.premio.nombre}</div>
+                    {insigniaEstadoCupon(cupon.estado)}
+                  </div>
+                  {beneficio && <div style={{ fontSize: 14, marginTop: 4 }}>{beneficio}</div>}
+                  {cupon.codigo ? (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', marginTop: 10 }}>
+                      <div id={`codigo-${cupon.id}`} style={{ flex: 1, minWidth: 0, background: tema.fondo, border: `1px solid ${tema.borde}`, padding: '9px 12px', fontSize: 16, fontWeight: 600, letterSpacing: '0.05em', userSelect: 'all', WebkitUserSelect: 'all', overflowWrap: 'anywhere', color: usable ? tema.texto : tema.textoSecundario, ...ui.numero }}>{cupon.codigo}</div>
+                      <button type="button" onClick={() => copiar(cupon)} aria-label={copiado && !cuponCopiado.manual ? `Código ${cupon.codigo} copiado` : `Copiar el código ${cupon.codigo}`} className="fid-btn-secondary" style={{ ...ui.botonSecundario, padding: '0 12px', display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                        {copiado && !cuponCopiado.manual ? <><Check size={15} aria-hidden="true" /> Copiado</> : <><Copy size={15} aria-hidden="true" /> Copiar</>}
+                      </button>
+                    </div>
+                  ) : null}
+                  {copiado && cuponCopiado.manual && <div role="status" style={{ fontSize: 13, color: tema.textoSecundario, marginTop: 6 }}>El código quedó seleccionado: copialo desde el menú de tu celular o con Ctrl+C.</div>}
+                  <div style={{ fontSize: 13, color: tema.textoSecundario, marginTop: 8, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                    <span>Canjeado el {fechaCorta(cupon.fecha)} · {formatearMiles(cupon.premio.puntos)} puntos</span>
+                    {cupon.estado?.clave !== 'disponible' && cupon.estado?.detalle && <span>{cupon.estado.detalle}</span>}
+                    {usable && (
+                      <button type="button" className="fid-link" onClick={() => { setCuponMostrado({ premio: cupon.premio, codigo: cupon.codigo, nuevo: false }); setCopiaCupon(''); setModalCliente('cupon'); }} style={{ ...ui.botonTexto, textDecoration: 'underline', textUnderlineOffset: 3 }}>Cómo usarlo</button>
+                    )}
+                  </div>
+                </li>
+              );
+            };
+            return modal('Mis cupones', (
+              <>
+                {!cuponesClienteData && <Cargando />}
+                {cuponesClienteData && items.length === 0 && <Vacio>Todavía no tenés cupones. Cuando canjees un premio de la tienda online, el código queda guardado acá.</Vacio>}
+                {paraUsar.length > 0 && (
+                  <>
+                    <h3 style={{ ...ui.etiqueta, margin: '0 0 2px' }}>Para usar</h3>
+                    <ul style={{ listStyle: 'none', margin: '0 0 18px', padding: 0 }}>{paraUsar.map(fila)}</ul>
+                  </>
+                )}
+                {yaUsados.length > 0 && (
+                  <>
+                    <h3 style={{ ...ui.etiqueta, margin: '0 0 2px' }}>Anteriores</h3>
+                    <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>{yaUsados.map(fila)}</ul>
+                  </>
+                )}
+                {items.some(c => c.estado?.clave === 'sin_verificar') && (
+                  <p style={{ fontSize: 13, color: tema.textoSecundario, margin: '14px 0 0' }}>«Pendiente de verificación»: el estado se confirma con la tienda online cada hora y cuando se paga una compra que usa el código.</p>
+                )}
+              </>
+            ), { ancho: 460 });
           })()}
 
           {modalCliente === 'movimientos' && modal('Mis movimientos', (

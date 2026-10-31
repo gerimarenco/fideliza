@@ -22,6 +22,7 @@ const ORIGEN_A_DESCRIPCION = {
   cumpleanos: 'Regalo de cumpleaños',
   referido_invitador: 'Bono por invitar a una amiga',
   referido_invitado: 'Bono de bienvenida por invitación',
+  bienvenida: 'Bonificación de bienvenida',
 }
 
 export async function GET(request) {
@@ -65,7 +66,7 @@ export async function GET(request) {
       puntos: m.puntos,
       tipo: m.origen === 'vencimiento' ? 'vencimiento'
         : m.origen === 'cumpleanos' ? 'cumpleanos'
-        : (m.origen === 'referido_invitador' || m.origen === 'referido_invitado') ? 'referido'
+        : (m.origen === 'referido_invitador' || m.origen === 'referido_invitado' || m.origen === 'bienvenida') ? 'referido'
         : 'compra',
       descripcion: m.origen === 'vencimiento' ? 'Vencimiento de puntos' : (ORIGEN_A_DESCRIPCION[m.origen] || 'Puntos acreditados'),
     })),

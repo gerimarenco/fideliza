@@ -7,6 +7,7 @@ import { randomBytes } from 'crypto'
 import { normalizarEmail, filtroEmail, emailValido } from '@/lib/identidad'
 import { calcularStatsClientes, siguienteNivel } from '@/lib/clienteStats'
 import { ventanaAviso, resumenPorVencer } from '@/lib/vencimientoPuntos'
+import { inicioDiaArgentina, finDiaArgentina } from '@/lib/bienvenida'
 
 // Nunca incluir password/tiendanubeAccessToken tal cual acá: esta respuesta
 // viaja al navegador de negocio y cliente. tiendanubeAccessToken se selecciona
@@ -23,6 +24,9 @@ const NEGOCIO_SELECT = {
   slug: true,
   mensajeRegistro: true,
   regaloCumpleanosPuntos: true,
+  bienvenidaPuntos: true,
+  bienvenidaDesde: true,
+  bienvenidaHasta: true,
   puntosReferido: true,
   sitioWeb: true,
   soporteEmail: true,
@@ -286,6 +290,28 @@ export async function PATCH(request) {
         return NextResponse.json({ error: 'Los puntos de regalo de cumpleaños tienen que ser un número entero mayor a 0 (o vacío para desactivarlo)' }, { status: 400 })
       }
       data.regaloCumpleanosPuntos = regaloCumpleanosPuntos
+    }
+  }
+
+  // Bonificación de bienvenida (ver lib/bienvenida.js): { puntos, desde,
+  // hasta } con fechas 'aaaa-mm-dd' de Argentina, ambas inclusive; null la
+  // desactiva. Solo afecta a las cuentas que se creen desde ahora: no toca
+  // puntos ya acreditados.
+  if (body.bienvenida !== undefined) {
+    if (body.bienvenida === null) {
+      data.bienvenidaPuntos = null
+      data.bienvenidaDesde = null
+      data.bienvenidaHasta = null
+    } else {
+      const puntos = parseInt(body.bienvenida?.puntos)
+      const desde = inicioDiaArgentina(body.bienvenida?.desde)
+      const hasta = finDiaArgentina(body.bienvenida?.hasta)
+      if (!Number.isInteger(puntos) || puntos <= 0 || !desde || !hasta || hasta <= desde) {
+        return NextResponse.json({ error: 'La bonificación de bienvenida necesita puntos mayores a 0 y fechas de inicio y fin válidas (el fin no puede ser anterior al inicio)' }, { status: 400 })
+      }
+      data.bienvenidaPuntos = puntos
+      data.bienvenidaDesde = desde
+      data.bienvenidaHasta = hasta
     }
   }
 
