@@ -108,6 +108,49 @@ El Excel exportado sale de Retornar con datos personales completos. Sumar
 un aviso al exportar ("Este archivo tiene datos personales de tus clientas:
 guardalo en un lugar seguro y no lo compartas").
 
+### 3.5 Protección del DNI guardado — propuesta, NO implementada
+
+**Hoy**: el DNI se guarda normalizado y en texto en `Cliente.dni`, igual que
+el email y el celular. No sale en ninguna pantalla, API, mail, log ni
+exportación, y los límites del registro guardan solo HMAC. Quien tenga
+acceso directo a la base sí puede leerlo.
+
+**Propuesta** (compatible con lo actual y con la búsqueda de repetidos):
+
+- `dniHmac`: HMAC-SHA256 del DNI normalizado con una clave propia
+  (`DNI_HMAC_CLAVE`, nueva). Sirve para el índice único por negocio y para
+  buscar repetidos sin tener el documento en claro. No puede ser
+  `NEXTAUTH_SECRET`: si esa clave se rota, los HMAC viejos dejan de coincidir
+  y se pierde el control de repetidos.
+- `dniCifrado` (solo si el negocio necesita volver a ver el documento, por
+  ejemplo para verificar identidad en el local): AES-256-GCM con otra clave
+  (`DNI_CIFRADO_CLAVE`) y un IV al azar por fila, guardando la versión de la
+  clave para poder rotarla. Si nadie necesita recuperarlo, alcanza con el
+  HMAC y el documento no se guarda.
+
+**Cómo pasar sin una migración riesgosa** (cada paso se puede volver atrás
+hasta el último):
+
+1. Agregar las columnas vacías (no cambia ninguna fila). El registro empieza
+   a guardar también `dniHmac` (y `dniCifrado`) y a buscar repetidos por las
+   dos vías.
+2. Script de relleno para las cuentas existentes con DNI: simulación
+   primero, copia de seguridad verificada y autorización; comprobar que la
+   cantidad de HMAC coincide con la de DNI.
+3. Índice único por (`negocioId`, `dniHmac`), después de revisar repetidos
+   (`scripts/dni-duplicados.sql`).
+4. Pasar los controles a `dniHmac` y, recién al final y con autorización,
+   vaciar `Cliente.dni` (este es el único paso destructivo).
+
+**Por qué no se hizo ahora**: hacen falta dos claves nuevas en Netlify (las
+tiene que crear Genaro y guardar una copia: si se pierde la clave del HMAC
+se pierde el control de repetidos, si se pierde la de cifrado no se puede
+leer ningún documento), un relleno sobre datos reales y pruebas con esas
+claves. Nada de lo actual impide hacerlo después. Aun con la clave, el
+espacio de DNI es chico (unos 100 millones): si la clave del HMAC se filtra,
+los documentos se pueden recuperar probando todos, así que la clave tiene
+que vivir solo en Netlify.
+
 ## 4. Borradores de textos (para revisión)
 
 ### 4.1 Información en el registro (texto corto)

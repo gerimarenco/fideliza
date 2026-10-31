@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { hashPassword } from '@/lib/password';
@@ -5,8 +6,8 @@ import { nombreClub } from '@/lib/nombreClub';
 import { normalizarEmail, filtroEmail, emailValido } from '@/lib/identidad';
 import { puntosBienvenida, acreditarBienvenida, celularComparable } from '@/lib/bienvenida';
 import { normalizarDni, MENSAJE_DNI_FALTA, MENSAJE_DNI_INVALIDO, MENSAJE_DNI_REPETIDO, MENSAJE_EMAIL_REPETIDO } from '@/lib/dni';
-import { hashIpLogin, ipDeEncabezados } from '@/lib/limiteLogin';
-import { registroBloqueado, inicioVentanaRegistro, MENSAJE_DEMASIADOS_INTENTOS } from '@/lib/limiteRegistro';
+import { ipDeEncabezados } from '@/lib/limiteLogin';
+import { LIMITES, RETENCION_MS, claveDni, claveDispositivo, claveIp, limiteSuperado, MENSAJES_LIMITE } from '@/lib/limiteRegistro';
 
 // CORS abierto porque también la consume el widget embebible (public/widget.js)
 // desde el dominio de la tienda online del negocio (ver README) — no un
@@ -63,15 +64,81 @@ export async function GET(request, { params }) {
 // El DNI de la cuenta nueva ya existe en este negocio (ver más abajo).
 class DniRepetido extends Error {}
 
-// Rechazo por email o DNI ya registrados: queda anotado para el tope por
-// conexión (lib/limiteRegistro.js).
-async function rechazoPorRepetido(ipHash, mensaje) {
-  await prisma.intentoRegistro.create({ data: { ipHash } }).catch(() => {});
-  await prisma.intentoRegistro.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }).catch(() => {});
-  return NextResponse.json({ error: mensaje }, { status: 409 });
+// Cookie anónima del dispositivo (un id al azar, sin datos de la persona),
+// para el límite por dispositivo de lib/limiteRegistro.js. Solo viaja a
+// esta ruta.
+const COOKIE_DISPOSITIVO = 'retornar_registro';
+
+// Anota este intento (por DNI, dispositivo e IP) y DESPUÉS cuenta, así
+// varios pedidos simultáneos no pasan todos el control. Todo antes de saber
+// si el DNI existe. Devuelve qué límite se superó (o null) y lo necesario
+// para anotar un "DNI ya registrado" y devolver la cookie.
+async function anotarIntento(request, negocioId, dni) {
+  let dispositivo = request.cookies.get(COOKIE_DISPOSITIVO)?.value;
+  const cookieNueva = !/^[0-9a-f]{32}$/.test(dispositivo || '');
+  if (cookieNueva) dispositivo = randomBytes(16).toString('hex');
+  const claves = {
+    dni: claveDni(negocioId, dni),
+    dispositivo: claveDispositivo(dispositivo),
+    ip: claveIp(ipDeEncabezados(Object.fromEntries(request.headers))),
+  };
+  await prisma.intentoRegistro.createMany({
+    data: [
+      { tipo: 'dni', clave: claves.dni, negocioId },
+      { tipo: 'dispositivo', clave: claves.dispositivo, negocioId },
+      { tipo: 'ip', clave: claves.ip, negocioId },
+    ],
+  });
+  const desde = (ms) => ({ gte: new Date(Date.now() - ms) });
+  const p = LIMITES.proteccion;
+  const contar = (where) => prisma.intentoRegistro.count({ where });
+  const [dniN, dispositivoN, ipN, rechazosNegocio, rechazosDispositivo, rechazosIp] = await Promise.all([
+    contar({ tipo: 'dni', clave: claves.dni, createdAt: desde(LIMITES.dni.ventanaMs) }),
+    contar({ tipo: 'dispositivo', clave: claves.dispositivo, createdAt: desde(LIMITES.dispositivo.ventanaMs) }),
+    contar({ tipo: 'ip', clave: claves.ip, createdAt: desde(LIMITES.ip.ventanaMs) }),
+    contar({ tipo: 'rechazo_dni_ip', negocioId, createdAt: desde(p.ventanaMs) }),
+    contar({ tipo: 'rechazo_dni_dispositivo', clave: claves.dispositivo, createdAt: desde(p.ventanaMs) }),
+    contar({ tipo: 'rechazo_dni_ip', clave: claves.ip, createdAt: desde(p.ventanaMs) }),
+  ]);
+  await prisma.intentoRegistro.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - RETENCION_MS) } } }).catch(() => {});
+  const superado = limiteSuperado({
+    dni: dniN,
+    // Sin cookie (un script, o la primera vez) no hay historial del
+    // dispositivo: lo frenan los límites por IP y por DNI.
+    dispositivo: cookieNueva ? null : dispositivoN,
+    ip: ipN,
+    rechazosNegocio,
+    rechazosDispositivo: cookieNueva ? 0 : rechazosDispositivo,
+    rechazosIp,
+  });
+  return { claves, negocioId, dispositivo, cookieNueva, superado };
+}
+
+// Una respuesta "DNI ya registrado", para el modo protección.
+async function anotarRechazoDni(intento) {
+  await prisma.intentoRegistro.createMany({
+    data: [
+      { tipo: 'rechazo_dni_ip', clave: intento.claves.ip, negocioId: intento.negocioId },
+      { tipo: 'rechazo_dni_dispositivo', clave: intento.claves.dispositivo, negocioId: intento.negocioId },
+    ],
+  }).catch(() => {});
+}
+
+function conDispositivo(respuesta, intento) {
+  if (intento?.cookieNueva) {
+    respuesta.cookies.set(COOKIE_DISPOSITIVO, intento.dispositivo, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/api/registro',
+      maxAge: 365 * 24 * 60 * 60,
+    });
+  }
+  return respuesta;
 }
 
 export async function POST(request, { params }) {
+  let intento = null;
   try {
     const { negocio } = await params;
     // DNI obligatorio otra vez desde 2026-10-30 (decisión de Genaro): una
@@ -145,19 +212,13 @@ export async function POST(request, { params }) {
     }
 
     // Buscar el negocio por su slug (el que viene en la URL) y verificar que
-    // el email no esté ya registrado, y contar los rechazos recientes de esta
-    // conexión -- las consultas son independientes entre sí, se piden juntas
-    // en vez de una detrás de la otra para no sumar esa demora a cada registro.
-    const ipHash = hashIpLogin(ipDeEncabezados(Object.fromEntries(request.headers)));
-    const [negocioEncontrado, clienteExistente, rechazosRecientes] = await Promise.all([
+    // el email no esté ya registrado -- las dos consultas son independientes
+    // entre sí, se piden juntas en vez de una detrás de la otra para no
+    // sumar esa demora extra a cada registro.
+    const [negocioEncontrado, clienteExistente] = await Promise.all([
       prisma.negocio.findUnique({ where: { slug: negocio } }),
       prisma.cliente.findFirst({ where: { email: filtroEmail(email) } }),
-      prisma.intentoRegistro.count({ where: { ipHash, createdAt: { gte: inicioVentanaRegistro() } } }),
     ]);
-
-    if (registroBloqueado(rechazosRecientes)) {
-      return NextResponse.json({ error: MENSAJE_DEMASIADOS_INTENTOS }, { status: 429 });
-    }
 
     if (!negocioEncontrado || !negocioEncontrado.activo) {
       return NextResponse.json(
@@ -166,10 +227,17 @@ export async function POST(request, { params }) {
       );
     }
 
+    // Límites por DNI, dispositivo e IP (lib/limiteRegistro.js), antes de
+    // responder nada que dependa de si el email o el DNI ya existen.
+    intento = await anotarIntento(request, negocioEncontrado.id, dni);
+    if (intento.superado) {
+      return conDispositivo(NextResponse.json({ error: MENSAJES_LIMITE[intento.superado] }, { status: 429 }), intento);
+    }
+
     // El email es único en toda la base (no solo en el negocio): con él se
     // inicia sesión, sin elegir negocio (ver lib/auth.js).
     if (clienteExistente) {
-      return rechazoPorRepetido(ipHash, MENSAJE_EMAIL_REPETIDO);
+      return conDispositivo(NextResponse.json({ error: MENSAJE_EMAIL_REPETIDO }, { status: 409 }), intento);
     }
 
     // Código de invitación de otra clienta (ver "Referí a una amiga" en el
@@ -238,21 +306,22 @@ export async function POST(request, { params }) {
       return { nuevoCliente, bienvenida };
     });
 
-    return NextResponse.json(
+    return conDispositivo(NextResponse.json(
       { message: 'Cliente creado con éxito', clienteId: nuevoCliente.id, puntosBienvenida: bienvenida },
       { status: 201 }
-    );
+    ), intento);
   } catch (error) {
     // Con el mismo DNI, o dos registros simultáneos con el mismo email o
     // DNI: el segundo choca con el lock o con el índice único, y su
     // transacción (con la bonificación) se deshace entera.
-    if (error instanceof DniRepetido) {
-      return rechazoPorRepetido(hashIpLogin(ipDeEncabezados(Object.fromEntries(request.headers))), MENSAJE_DNI_REPETIDO);
+    const dniRepetido = error instanceof DniRepetido ||
+      (error?.code === 'P2002' && String(error.meta?.target ?? '').includes('dni'));
+    if (dniRepetido && intento) {
+      await anotarRechazoDni(intento);
+      return conDispositivo(NextResponse.json({ error: MENSAJE_DNI_REPETIDO }, { status: 409 }), intento);
     }
-    if (error.code === 'P2002') {
-      const destino = String(error.meta?.target ?? '');
-      const mensaje = destino.includes('dni') ? MENSAJE_DNI_REPETIDO : MENSAJE_EMAIL_REPETIDO;
-      return rechazoPorRepetido(hashIpLogin(ipDeEncabezados(Object.fromEntries(request.headers))), mensaje);
+    if (error?.code === 'P2002') {
+      return conDispositivo(NextResponse.json({ error: MENSAJE_EMAIL_REPETIDO }, { status: 409 }), intento);
     }
     // Sin el objeto del error: los de Prisma pueden incluir los datos de la
     // consulta (email, celular, DNI) y el log de Netlify no es lugar para eso.

@@ -290,15 +290,20 @@ model PasswordResetToken {
 // contraseñas una tras otra (ver lib/limiteLogin.js). Se guardan HMAC del
 // email normalizado y de la IP, nunca los datos en sí. Los exitosos se
 // borran apenas se confirma la contraseña; el resto, al día siguiente.
-// Registros rechazados porque el email o el DNI ya estaban registrados,
-// por conexión (ver app/api/registro/[negocio]): tope contra quien prueba
-// documentos para saber cuáles existen. Solo el HMAC de la IP.
+// Intentos de registro y respuestas "DNI ya registrado", para los límites
+// del registro (ver lib/limiteRegistro.js). tipo: dni / dispositivo / ip
+// (intentos) o rechazo_dni_ip / rechazo_dni_dispositivo (respuestas de DNI
+// repetido). clave: HMAC de lo que se cuenta, nunca el dato en claro. Se
+// borran a las 24 horas.
 model IntentoRegistro {
   id        String   @id @default(cuid())
-  ipHash    String
+  tipo      String
+  clave     String
+  negocioId String?
   createdAt DateTime @default(now())
 
-  @@index([ipHash, createdAt])
+  @@index([tipo, clave, createdAt])
+  @@index([tipo, negocioId, createdAt])
   @@index([createdAt])
 }
 
