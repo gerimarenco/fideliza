@@ -106,6 +106,11 @@ model Cliente {
   // Si ya recibió la bonificación de bienvenida: se marca en la misma
   // transacción que la acredita, así nunca se paga dos veces.
   bienvenidaOtorgada Boolean @default(false)
+  // Por qué NO se acreditó la bonificación de bienvenida a esta cuenta
+  // aunque había una promoción vigente (ver lib/bienvenida.js):
+  // "celular_en_otra_cuenta" o "sin_celular". null si se acreditó o si no
+  // había promoción.
+  bienvenidaMotivo   String?
 
   @@index([negocioId])
 }
