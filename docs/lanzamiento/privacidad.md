@@ -67,12 +67,20 @@ Tiendanube (ya tiene los datos de las compras online).
 
 **Decidido por Genaro (2026-10-24):**
 
-- **DNI**: se dejó de pedir en el registro y salió del Excel exportado.
-  Los DNI de las cuentas creadas antes **siguen guardados** en la base (no
-  se borra ningún dato real sin autorización). Para borrarlos, después de
-  una copia de seguridad verificada y con autorización de Genaro:
-  `UPDATE "Cliente" SET "dni" = NULL WHERE "dni" IS NOT NULL;`
-  (antes, para saber cuántos son: `SELECT COUNT(*) FROM "Cliente" WHERE "dni" IS NOT NULL;`).
+- **DNI**: ~~se dejó de pedir en el registro (2026-10-24)~~. **Vuelve a ser
+  obligatorio en el registro desde 2026-10-30** (decisión de Genaro), con
+  una sola finalidad: que cada persona tenga una única cuenta por negocio y
+  no cobre varias veces la bienvenida o el bono de referidos con otros
+  emails. Debajo del campo se informa esa finalidad ("Solo para que cada
+  persona tenga una única cuenta. No se muestra a nadie."). La información
+  del registro (4.1) y la política (4.2) tienen que decirlo.
+  - No se muestra en ninguna pantalla, no sale en el Excel, no viaja en
+    mails ni URLs, ninguna respuesta de la API lo devuelve y no se loguea
+    (ver lib/dni.js y app/api/registro/[negocio]).
+  - Las cuentas anteriores sin DNI siguen funcionando; no se les pide ni se
+    les inventa. Las de septiembre/octubre que lo tienen lo conservan.
+  - Ya no corresponde el borrado masivo de DNI que se había propuesto acá:
+    ahora el dato se usa.
 - **Género**: se mantiene, para campañas futuras de Peperina, y es
   **opcional** ("Prefiero no decirlo" es la opción por defecto). La
   información del registro (4.1) y la política (4.2) tienen que decir esa
@@ -99,6 +107,49 @@ Tiendanube (ya tiene los datos de las compras online).
 El Excel exportado sale de Retornar con datos personales completos. Sumar
 un aviso al exportar ("Este archivo tiene datos personales de tus clientas:
 guardalo en un lugar seguro y no lo compartas").
+
+### 3.5 Protección del DNI guardado — propuesta, NO implementada
+
+**Hoy**: el DNI se guarda normalizado y en texto en `Cliente.dni`, igual que
+el email y el celular. No sale en ninguna pantalla, API, mail, log ni
+exportación, y los límites del registro guardan solo HMAC. Quien tenga
+acceso directo a la base sí puede leerlo.
+
+**Propuesta** (compatible con lo actual y con la búsqueda de repetidos):
+
+- `dniHmac`: HMAC-SHA256 del DNI normalizado con una clave propia
+  (`DNI_HMAC_CLAVE`, nueva). Sirve para el índice único por negocio y para
+  buscar repetidos sin tener el documento en claro. No puede ser
+  `NEXTAUTH_SECRET`: si esa clave se rota, los HMAC viejos dejan de coincidir
+  y se pierde el control de repetidos.
+- `dniCifrado` (solo si el negocio necesita volver a ver el documento, por
+  ejemplo para verificar identidad en el local): AES-256-GCM con otra clave
+  (`DNI_CIFRADO_CLAVE`) y un IV al azar por fila, guardando la versión de la
+  clave para poder rotarla. Si nadie necesita recuperarlo, alcanza con el
+  HMAC y el documento no se guarda.
+
+**Cómo pasar sin una migración riesgosa** (cada paso se puede volver atrás
+hasta el último):
+
+1. Agregar las columnas vacías (no cambia ninguna fila). El registro empieza
+   a guardar también `dniHmac` (y `dniCifrado`) y a buscar repetidos por las
+   dos vías.
+2. Script de relleno para las cuentas existentes con DNI: simulación
+   primero, copia de seguridad verificada y autorización; comprobar que la
+   cantidad de HMAC coincide con la de DNI.
+3. Índice único por (`negocioId`, `dniHmac`), después de revisar repetidos
+   (`scripts/dni-duplicados.sql`).
+4. Pasar los controles a `dniHmac` y, recién al final y con autorización,
+   vaciar `Cliente.dni` (este es el único paso destructivo).
+
+**Por qué no se hizo ahora**: hacen falta dos claves nuevas en Netlify (las
+tiene que crear Genaro y guardar una copia: si se pierde la clave del HMAC
+se pierde el control de repetidos, si se pierde la de cifrado no se puede
+leer ningún documento), un relleno sobre datos reales y pruebas con esas
+claves. Nada de lo actual impide hacerlo después. Aun con la clave, el
+espacio de DNI es chico (unos 100 millones): si la clave del HMAC se filtra,
+los documentos se pueden recuperar probando todos, así que la clave tiene
+que vivir solo en Netlify.
 
 ## 4. Borradores de textos (para revisión)
 
