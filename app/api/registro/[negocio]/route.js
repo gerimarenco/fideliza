@@ -230,7 +230,11 @@ export async function POST(request, { params }) {
         },
         select: { id: true, telefono: true },
       });
-      const bienvenida = await acreditarBienvenida(tx, nuevoCliente, negocioEncontrado, puntosRegalo);
+      // Si no corresponde (por ejemplo, el celular ya está en otra cuenta),
+      // la cuenta se crea igual, sin los puntos, y el motivo queda guardado
+      // en la cuenta. La respuesta no lo dice: revelaría que ese celular
+      // tiene otra cuenta.
+      const { puntos: bienvenida } = await acreditarBienvenida(tx, nuevoCliente, negocioEncontrado, puntosRegalo);
       return { nuevoCliente, bienvenida };
     });
 

@@ -21,15 +21,18 @@
 // - Solo cuentas autoregistradas (tienen fecha de nacimiento, que el
 //   registro pide y el alta manual del negocio no carga).
 // - Una vez por cuenta (Cliente.bienvenidaOtorgada) y una vez por celular
-//   en el negocio: se procesan por orden de registro, así la primera cuenta
-//   de cada celular es la que la recibe, como habría pasado al registrarse.
+//   en el negocio: si el celular coincide con CUALQUIER otra cuenta del
+//   negocio creada antes (también una clienta histórica de antes de la
+//   promoción) o que ya la cobró, no se acredita y queda el motivo en la
+//   cuenta (Cliente.bienvenidaMotivo). Es la misma regla del registro
+//   (motivoSinBienvenida en lib/bienvenida.js), en la simulación y al aplicar.
 // - Idempotente: cada cuenta se acredita en su propia transacción con
 //   acreditarBienvenida, que solo suma si bienvenidaOtorgada todavía es
 //   false. Correrlo dos veces no duplica nada.
 // - Solo suma 150 puntos con su movimiento "bienvenida"; no toca ningún
 //   otro saldo, movimiento ni canje.
 import { PrismaClient } from '@prisma/client'
-import { acreditarBienvenida, celularComparable } from '../lib/bienvenida.js'
+import { acreditarBienvenida, motivoSinBienvenida, celularComparable } from '../lib/bienvenida.js'
 import { ocultarEmail } from '../lib/identidad.js'
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => {
@@ -77,15 +80,6 @@ try {
   const autoregistradas = enPeriodo.filter((c) => c.fechaNacimiento)
   const candidatas = autoregistradas.filter((c) => !c.bienvenidaOtorgada)
 
-  // Celulares que ya cobraron la bonificación en este negocio (cualquier
-  // fecha), para la simulación; al aplicar lo vuelve a controlar
-  // acreditarBienvenida dentro de la transacción, con lock por celular.
-  const yaBonificadas = await prisma.cliente.findMany({
-    where: { negocioId: negocio.id, bienvenidaOtorgada: true },
-    select: { telefono: true },
-  })
-  const celularesUsados = new Set(yaBonificadas.map((c) => celularComparable(c.telefono)).filter(Boolean))
-
   console.log(`${negocio.nombre}: bonificación de ${puntos} puntos`)
   console.log(`Período: ${desde.toISOString()} → ${hasta.toISOString()} (UTC)`)
   console.log(`Modo: ${aplicar ? 'APLICAR (escribe en la base)' : 'simulación (no escribe nada)'}`)
@@ -97,35 +91,34 @@ try {
   console.log(`    sin la bonificación todavía:        ${candidatas.length}`)
   console.log('')
 
+  const MOTIVOS = {
+    celular_en_otra_cuenta: 'su celular ya está en otra cuenta del negocio',
+    sin_celular: 'no tiene celular para comprobarlo',
+    ya_otorgada: 'ya la tenía',
+  }
   let acreditadas = 0
-  let repetidas = 0
+  const omitidas = {}
   for (const cliente of candidatas) {
-    const celular = celularComparable(cliente.telefono)
     const etiqueta = `${cliente.createdAt.toISOString()}  ${cliente.id}  ${ocultarEmail(cliente.email).padEnd(28)} ${ocultarCelular(cliente.telefono)}`
-    if (!aplicar) {
-      if (celular && celularesUsados.has(celular)) {
-        repetidas++
-        console.log(`  omitida (celular ya bonificado)  ${etiqueta}`)
-        continue
-      }
-      if (celular) celularesUsados.add(celular)
-      acreditadas++
-      console.log(`  recibiría ${puntos}                   ${etiqueta}`)
-      continue
-    }
-    const otorgados = await prisma.$transaction((tx) => acreditarBienvenida(tx, cliente, negocio, puntos))
+    // Simulación: la misma regla, solo leyendo. Al aplicar, acreditarBienvenida
+    // la vuelve a evaluar dentro de la transacción, con lock por celular.
+    const { puntos: otorgados, motivo } = aplicar
+      ? await prisma.$transaction((tx) => acreditarBienvenida(tx, cliente, negocio, puntos))
+      : await motivoSinBienvenida(prisma, cliente, negocio).then((m) => ({ puntos: m ? 0 : puntos, motivo: m }))
     if (otorgados > 0) {
       acreditadas++
-      console.log(`  acreditados ${otorgados}                 ${etiqueta}`)
+      console.log(`  ${aplicar ? 'acreditados' : 'recibiría'} ${otorgados}   ${etiqueta}`)
     } else {
-      repetidas++
-      console.log(`  omitida (celular ya bonificado o ya acreditada)  ${etiqueta}`)
+      omitidas[motivo] = (omitidas[motivo] || 0) + 1
+      console.log(`  sin bonificación (${MOTIVOS[motivo] || motivo})   ${etiqueta}`)
     }
   }
 
   console.log('')
   console.log(`${aplicar ? 'Acreditadas' : 'Recibirían la bonificación'}: ${acreditadas} cuenta(s), ${acreditadas * puntos} puntos en total`)
-  console.log(`Omitidas por celular repetido: ${repetidas}`)
+  for (const [motivo, cantidad] of Object.entries(omitidas)) {
+    console.log(`Sin bonificación porque ${MOTIVOS[motivo] || motivo}: ${cantidad}`)
+  }
   if (!aplicar && acreditadas > 0) console.log('\nPara acreditar de verdad, volver a correr con --aplicar (con autorización).')
 } finally {
   await prisma.$disconnect()
