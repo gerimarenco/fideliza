@@ -66,7 +66,8 @@ export async function POST(request) {
     return [actualizado, resultadoReferido]
   })
 
-  const { password, ...cliente } = clienteActualizado
+  // Sin la contraseña ni el DNI: el panel no los necesita (dato sensible).
+  const { password, dni, ...cliente } = clienteActualizado
 
   // Si esta fue la primera compra de una clienta referida, su saldo final
   // (`clienteActualizado.puntos`) quedó desactualizado -- se le pagó el

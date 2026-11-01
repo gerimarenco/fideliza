@@ -17,6 +17,7 @@ navegador); el CI corre `npm test` (las pruebas de `lib/`).
 | Archivo | Qué prueba | Origen |
 |---|---|---|
 | `bienvenida-cupones.mjs` | Bonificación de bienvenida, cupones de un solo uso, estado de cupones sincronizado con Tiendanube (paginación, listado incompleto, contadores, borrados), webhook, "Mis cupones", privacidad entre clientas y negocios | La suite usada en el PR #122, traída al repo con cambios solo en rutas (antes vivía fuera del repo) |
+| `dni.mjs` | DNI obligatorio: validación (también patrones llamativos), separadores, unicidad por negocio, registros simultáneos, cuentas históricas, login y recuperación, autorreferidos, bienvenida, privacidad (respuestas, log, mails, Excel) y los límites de intentos (mismo Wi-Fi, mismo DNI, mismo dispositivo, misma IP, muchas IP) | La suite usada en el PR #123, traída al repo y adaptada a los límites nuevos (secciones "Límites" nuevas). Lee el log del servidor de `RETORNAR_E2E_LOG` (por defecto `$RETORNAR_E2E_DIR/servidor.log`) |
 | `bienvenida-celular.mjs` | Una bienvenida por persona: celular de una cuenta histórica, celular compartido, registros simultáneos, otro negocio, cuenta que ya la cobró y el script retroactivo (simulación, aplicar, repetir) | Nueva (2026-10-31) |
 
 ## Cómo correrlas

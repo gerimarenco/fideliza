@@ -131,7 +131,7 @@ export async function POST(request) {
     }
     throw error
   }
-  const { password, ...cliente } = clienteCreado
+  const { password, dni, ...cliente } = clienteCreado
 
   // passwordGenerada va en texto plano en la respuesta: el negocio la
   // necesita para pasársela al cliente. El hash (password) se descarta acá,
