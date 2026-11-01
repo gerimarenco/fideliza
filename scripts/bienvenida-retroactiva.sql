@@ -16,6 +16,10 @@
 -- no la recibe si su celular coincide con CUALQUIER otra cuenta del negocio
 -- creada antes, de cualquier fecha (también una clienta histórica), ni si no
 -- tiene celular.
+-- Aproximada: compara los últimos 10 dígitos y no reconoce el mismo celular
+-- escrito con "15" (por ejemplo "02324 15 555000"). La simulación del script
+-- (scripts/bienvenida-retroactiva.mjs, sin --aplicar) usa la regla exacta
+-- (mismoCelular en lib/bienvenida.js) y es la que vale.
 WITH negocio AS (
   SELECT id FROM "Negocio" WHERE slug = 'peperina'
 ),

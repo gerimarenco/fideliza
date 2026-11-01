@@ -42,6 +42,10 @@ chequear(c?.bienvenidaMotivo === 'celular_en_otra_cuenta', `queda el motivo en l
 chequear(!JSON.stringify(r.cuerpo).includes('celular') && !('motivo' in r.cuerpo), 'la respuesta no dice el motivo (revelaría que ese celular tiene otra cuenta)')
 chequear(JSON.stringify(await prisma.cliente.findUnique({ where: { id: historica.id } })) === historicaAntes && JSON.stringify(await prisma.movimientoPuntos.findMany({ where: { clienteId: historica.id }, orderBy: { id: 'asc' } })) === movsHistoricaAntes, 'la cuenta histórica no cambió: puntos y movimientos intactos')
 
+r = await registrar('peperina', 'historica.con15@prueba.test', '02324 15 700001')
+c = await cuenta('historica.con15@prueba.test')
+chequear(r.status === 201 && c.puntos === 0 && c.bienvenidaMotivo === 'celular_en_otra_cuenta', 'el mismo celular escrito con 0 y 15 ("02324 15 700001") también se reconoce: sin puntos')
+
 console.log('2. Cuenta histórica sin DNI y celular diferente')
 r = await registrar('peperina', 'historica.otrocel@prueba.test', '2324700002')
 c = await cuenta('historica.otrocel@prueba.test')
@@ -62,6 +66,10 @@ const conBienvenida = cuentasSim.filter((x) => x.bienvenidaOtorgada)
 chequear(simultaneos.every((x) => x.status === 201) && cuentasSim.length === 3, `las 3 cuentas se crean (${simultaneos.map((x) => x.status).join(',')})`)
 chequear(conBienvenida.length === 1 && cuentasSim.filter((x) => x.bienvenidaMotivo === 'celular_en_otra_cuenta').length === 2 && cuentasSim.reduce((s, x) => s + x.puntos, 0) === 150, 'una sola recibe los 150; las otras dos quedan con el motivo')
 chequear((await prisma.movimientoPuntos.count({ where: { clienteId: { in: cuentasSim.map((x) => x.id) }, origen: 'bienvenida' } })) === 1, 'un solo movimiento de bienvenida entre las tres')
+
+const formas = await Promise.all([['formas.a@prueba.test', '2324700021'], ['formas.b@prueba.test', '0232415700021'], ['formas.c@prueba.test', '+54 9 2324 70-0021'.replace('+', '')]].map(([email, tel]) => registrar('peperina', email, tel)))
+const cuentasFormas = await prisma.cliente.findMany({ where: { email: { in: ['formas.a@prueba.test', 'formas.b@prueba.test', 'formas.c@prueba.test'] } } })
+chequear(formas.every((x) => x.status === 201) && cuentasFormas.filter((x) => x.bienvenidaOtorgada).length === 1 && cuentasFormas.reduce((t, x) => t + x.puntos, 0) === 150, 'el mismo celular escrito de 3 formas distintas, a la vez: 3 cuentas, una sola bonificación')
 
 console.log('5. Dos negocios diferentes')
 await prisma.cliente.create({ data: { nombre: 'De Demo', email: 'de.demo@prueba.test', password: 'x', negocioId: demo.id, telefono: '2324700005', createdAt: new Date('2026-09-01T12:00:00Z') } })
@@ -96,10 +104,10 @@ const antesSim = await foto()
 const sim = correr()
 chequear((await foto()) === antesSim, 'la simulación no escribe nada')
 // Además de estas, el período incluye las cuentas registradas arriba en esta
-// misma prueba que quedaron sin bonificación por el celular (5): también se
+// misma prueba que quedaron sin bonificación por el celular (8): también se
 // reevalúan y siguen sin recibirla.
 const sinPorCelular = Number(sim.match(/celular ya está en otra cuenta del negocio: (\d+)/)?.[1])
-chequear(/Recibirían la bonificación: 2 cuenta/.test(sim) && sinPorCelular === 7, `la simulación aplica la regla: 2 recibirían; ${sinPorCelular} no, por el celular (las 2 del período + las 5 de arriba)`)
+chequear(/Recibirían la bonificación: 2 cuenta/.test(sim) && sinPorCelular === 10, `la simulación aplica la regla: 2 recibirían; ${sinPorCelular} no, por el celular (las 2 del período + las 8 de arriba)`)
 const ap1 = correr('--aplicar')
 const retro = Object.fromEntries(await Promise.all(['retro.nueva', 'retro.historica', 'retro.primera', 'retro.segunda', 'retro.manual'].map(async (x) => [x, await cuenta(`${x}@prueba.test`)])))
 chequear(/Acreditadas: 2 cuenta/.test(ap1) && retro['retro.nueva'].puntos === 150 && retro['retro.primera'].puntos === 150, 'al aplicar: las 2 elegibles reciben 150')
