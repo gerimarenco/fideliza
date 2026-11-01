@@ -1906,6 +1906,30 @@ Migración `20261030120000_canje_snapshot_y_mail_vencidos`: columnas nuevas opci
 
 Pruebas: E2E tanda 2 26/26 (confirmar/cancelar, doble clic, 6 pedidos simultáneos, 409/400, flujo del negocio, datos guardados con el premio editado, aislamiento entre clientas, widget celular/escritorio), mails de vencidos 14/14 (pausa, reintento, falla persistente y día siguiente, plazo de 7 días, sin duplicados, tope), canje con cupón 30/30, `npm test` 99/99, y todas las suites anteriores.
 
+## 75. Bonificación de bienvenida, estado de cupones y "Mis cupones" (2026-10-30)
+
+**Bonificación de bienvenida** (`lib/bienvenida.js`): `Negocio.bienvenidaPuntos/Desde/Hasta`, editable en Ajustes (fechas de Argentina, inclusive). Se acredita en la misma transacción que crea la cuenta (`app/api/registro/[negocio]`), movimiento `bienvenida` ("Bonificación de bienvenida", vence como cualquier lote). Una vez por cuenta (`Cliente.bienvenidaOtorgada`) y una vez por celular en el negocio: si el celular coincide con **cualquier** otra cuenta del negocio creada antes (también una clienta histórica sin bonificación) o que ya la cobró, la cuenta se crea igual pero **sin** los puntos automáticos, y queda el motivo en `Cliente.bienvenidaMotivo` (`celular_en_otra_cuenta`; `sin_celular` si no hay celular). Compartir celular no impide registrarse; el negocio puede revisar esos casos a mano. La respuesta del registro no dice el motivo (revelaría que ese celular tiene otra cuenta). Regla en `motivoSinBienvenida` (`lib/bienvenida.js`), con lock por celular para registros simultáneos. La migración configura Peperina: 150 puntos del 30/10/2026 al 7/11/2026 (00:00 del 30/10 a 00:00 del 8/11, hora argentina). Solo el registro de la clienta la acredita: la carga manual de "Nuevo cliente" desde el panel no.
+
+**Cupones de un solo uso**: ya se creaban con `max_uses: 1` (límite total del cupón en Tiendanube, para cualquier cuenta) y un código derivado del id del canje (`RETORNAR-` + 8 caracteres), así que cada canje tiene su código y un reintento nunca crea otro. No se cambió la generación.
+
+**Estado de los cupones** (`lib/estadoCupon.js`, `lib/sincronizarCupones.js`): `Canje.cuponEstado/cuponVerificadoEn/cuponUsadoEn/cuponPedidoId`.
+- Webhook `order/paid`: si la orden pagada (no cancelada) trae uno de nuestros códigos, queda "utilizado" con el número de orden, aunque la compre alguien sin cuenta.
+- Tarea `sincronizar-cupones` (cada hora): lee `GET /coupons` de la tienda; `used >= max_uses` → utilizado; `valid: false` → anulado; `end_date` pasada → vencido; si no, disponible; un cupón que ya no existe en la tienda → anulado (si el listado se leyó completo y el canje tiene más de 10 minutos). "Utilizado" es definitivo. Si Tiendanube no responde, no se cambia nada.
+- Paginación (`listarCupones` en `lib/tiendanube.js`): pasa a la página que indica `rel="next"` en el encabezado `Link`, como indica la documentación de Tiendanube (de esa URL solo toma el número de página, que tiene que ser la siguiente; el pedido siempre va a la misma tienda); no da por terminado el listado porque una página traiga menos de 200. Está "completo" solo si los cupones leídos coinciden con `x-total-count` (y el total no cambió entre páginas) o, sin ese encabezado, si la última página trae `Link` sin `next`. Si no se puede asegurar, o Tiendanube falla en cualquier página, la sincronización no cambia ningún estado.
+- Un cupón con `deleted_at` (borrado; la API puede seguir listándolo) → anulado, salvo que ya esté usado.
+- Si Tiendanube no manda el contador de usos (`used`) o el máximo (`max_uses`), el cupón queda "Pendiente de verificación" (aunque antes figurara disponible): nunca se supone cero usos.
+- Sin datos: "Pendiente de verificación". Nunca se marca usado por tiempo ni por un clic.
+
+**Mis cupones** (menú de la clienta; `GET /api/clientes/cupones`, solo los propios): código, copiar, premio y beneficio como se canjearon (aunque el premio se edite o desactive), fecha, puntos, estado; "Para usar" y "Anteriores"; "Cómo usarlo" abre la ventana del cupón sin generar nada. En Canjes del negocio se ve el estado junto a cada código.
+
+Migración `20261030200000_bienvenida_y_estado_cupones`: columnas nuevas + configura la promo de Peperina (por slug). Probada sobre una base con datos.
+
+Pruebas E2E en el repo: `pruebas/e2e/` (ver su README). Pruebas: E2E 35/35 (bonificación dentro/antes/después del período, 3 registros simultáneos, mismo celular, otro negocio, cuentas existentes intactas, Ajustes; códigos únicos y `max_uses: 1`; sin verificar → sincronización → utilizado/anulado/vencido, falla de Tiendanube, webhook con orden pagada/cancelada/de otro negocio; Mis cupones en celular, copiar, premio editado/desactivado, cupón viejo; privacidad entre clientas y negocios); `npm test` 110/110 (fechas límite exactas del 30/10, 7/11 y 8/11 en hora argentina); todas las suites anteriores.
+
+**Bonificación retroactiva** (preparada, NO ejecutada): la promo de Peperina empezó el 30/10 00:00 antes de publicarse este código, así que las cuentas autoregistradas en ese intervalo no la recibieron. `scripts/bienvenida-retroactiva.sql` las cuenta (solo lectura, funciona antes de publicar) y `scripts/bienvenida-retroactiva.mjs --hasta=<publicación UTC>` las lista en simulación; con `--aplicar` acredita usando la misma `acreditarBienvenida` del registro (una vez por cuenta y por celular, con la misma regla de "celular en otra cuenta" que el registro, idempotente; a las que no corresponde les guarda el motivo). Solo cuentas autoregistradas (con fecha de nacimiento). Correrlo requiere autorización expresa.
+
+No verificado (necesita la tienda real): que el checkout de Tiendanube rechace un segundo uso del mismo código (C2 del checklist) y que `used` y el campo `coupon` de la orden se comporten como dice la documentación.
+
 ## 65. Otros pendientes menores (de sesiones previas, sin resolver)
 
 - ~~Los webhooks de Tiendanube y Mercado Pago no verifican firma~~ — ✅

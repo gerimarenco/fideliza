@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { hashPassword } from '@/lib/password';
 import { nombreClub } from '@/lib/nombreClub';
 import { normalizarEmail, filtroEmail, emailValido } from '@/lib/identidad';
+import { puntosBienvenida, acreditarBienvenida } from '@/lib/bienvenida';
 
 // CORS abierto porque también la consume el widget embebible (public/widget.js)
 // desde el dominio de la tienda online del negocio (ver README) — no un
@@ -156,26 +157,47 @@ export async function POST(request, { params }) {
       referidoPorId = invitador?.id || null;
     }
 
-    // Crear el cliente, asociado al negocio encontrado
-    const nuevoCliente = await prisma.cliente.create({
-      data: {
-        nombre: nombre.trim(),
-        email,
-        password: await hashPassword(password),
-        negocioId: negocioEncontrado.id,
-        puntos: 0,
-        fechaNacimiento: fechaNacimientoDate,
-        sexo: sexoElegido,
-        telefono: telefonoLimpio,
-        referidoPorId,
-      },
+    // Crear el cliente, asociado al negocio encontrado. Si el negocio tiene
+    // una bonificación de bienvenida vigente (ver lib/bienvenida.js), se
+    // acredita en la misma transacción: o se crean la cuenta y sus puntos de
+    // regalo juntos, o nada.
+    const puntosRegalo = puntosBienvenida(negocioEncontrado, new Date());
+    const passwordHash = await hashPassword(password);
+    const { nuevoCliente, bienvenida } = await prisma.$transaction(async (tx) => {
+      const nuevoCliente = await tx.cliente.create({
+        data: {
+          nombre: nombre.trim(),
+          email,
+          password: passwordHash,
+          negocioId: negocioEncontrado.id,
+          puntos: 0,
+          fechaNacimiento: fechaNacimientoDate,
+          sexo: sexoElegido,
+          telefono: telefonoLimpio,
+          referidoPorId,
+        },
+      });
+      // Si no corresponde (por ejemplo, el celular ya está en otra cuenta),
+      // la cuenta se crea igual, sin los puntos, y el motivo queda guardado
+      // en la cuenta. La respuesta no lo dice: revelaría que ese celular
+      // tiene otra cuenta.
+      const { puntos: bienvenida } = await acreditarBienvenida(tx, nuevoCliente, negocioEncontrado, puntosRegalo);
+      return { nuevoCliente, bienvenida };
     });
 
     return NextResponse.json(
-      { message: 'Cliente creado con éxito', clienteId: nuevoCliente.id },
+      { message: 'Cliente creado con éxito', clienteId: nuevoCliente.id, puntosBienvenida: bienvenida },
       { status: 201 }
     );
   } catch (error) {
+    // Dos registros simultáneos con el mismo email: el segundo choca con el
+    // índice único (y su transacción, con la bonificación, se deshace).
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Ya existe una cuenta con ese email.' },
+        { status: 409 }
+      );
+    }
     console.error('Error en registro:', error);
     return NextResponse.json(
       { error: 'Ocurrió un error al crear la cuenta.' },

@@ -6,6 +6,7 @@ import { calcularPuntosPorCompra } from '@/lib/puntos'
 import { acreditarSiEsPrimeraCompraReferida } from '@/lib/referidos'
 import { filtroEmail, ocultarEmail } from '@/lib/identidad'
 import { datosOrdenAcreditable } from '@/lib/tiendanube'
+import { marcarCuponesDeOrden } from '@/lib/sincronizarCupones'
 
 // Tiendanube manda un payload liviano (store_id, event, id de la orden), no la
 // orden completa. Hay que pedirla a la API con el access_token del negocio.
@@ -90,6 +91,16 @@ export async function POST(request) {
     }
     if (datos.motivo === 'cancelada') {
       return NextResponse.json({ message: 'La orden está cancelada' }, { status: 200 })
+    }
+
+    // Si la orden pagada usó cupones de canje de Retornar, quedan
+    // "utilizados" (ver lib/sincronizarCupones.js). Va antes de buscar a la
+    // clienta: el cupón lo puede usar cualquier persona. Nunca frena la
+    // acreditación de puntos.
+    try {
+      await marcarCuponesDeOrden(negocio, orden)
+    } catch (error) {
+      console.error('Webhook Tiendanube: no se pudo registrar el uso de cupones de la orden', orderId, error.message)
     }
     if (datos.motivo) {
       console.error('Webhook Tiendanube: la orden no trae email o total válidos', { orderId, email: ocultarEmail(orden.contact_email), total: orden.total })
