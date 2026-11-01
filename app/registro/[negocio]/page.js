@@ -23,6 +23,8 @@ export default function RegistroPage() {
   const [fechaNacimiento, setFechaNacimiento] = useState('');
   const [sexo, setSexo] = useState('');
   const [telefono, setTelefono] = useState('');
+  const [dni, setDni] = useState('');
+  const [cuentaExistente, setCuentaExistente] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [datosNegocio, setDatosNegocio] = useState(null);
@@ -37,19 +39,22 @@ export default function RegistroPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setCuentaExistente(false);
     setLoading(true);
 
     try {
       const res = await fetch(`/api/registro/${negocio}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: `${nombre.trim()} ${apellido.trim()}`.trim(), email, password, fechaNacimiento, sexo, telefono, codigoReferido }),
+        body: JSON.stringify({ nombre: `${nombre.trim()} ${apellido.trim()}`.trim(), email, password, fechaNacimiento, dni, sexo, telefono, codigoReferido }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
         setError(data.error || 'Ocurrió un error al registrarte.');
+        // Email o DNI ya registrados: a mano los caminos para entrar.
+        setCuentaExistente(res.status === 409);
         setLoading(false);
         return;
       }
@@ -148,6 +153,25 @@ export default function RegistroPage() {
           </label>
 
           <label style={{ ...campo, display: 'block' }}>
+            <span style={estiloLabel}>DNI</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              value={dni}
+              onChange={(e) => setDni(e.target.value.replace(/[^\d.\s-]/g, ''))}
+              required
+              maxLength={12}
+              placeholder="12.345.678"
+              aria-describedby="registro-dni-ayuda"
+              style={estiloInput}
+            />
+            <span id="registro-dni-ayuda" style={{ display: 'block', marginTop: 6, fontSize: 13, color: t.textoSecundario }}>
+              Solo para que cada persona tenga una única cuenta. No se muestra a nadie.
+            </span>
+          </label>
+
+          <label style={{ ...campo, display: 'block' }}>
             <span style={estiloLabel}>Celular (WhatsApp)</span>
             <input
               type="tel"
@@ -174,6 +198,13 @@ export default function RegistroPage() {
           {error && (
             <p role="alert" style={{ color: '#b91c1c', fontSize: 14, margin: '0 0 16px' }}>
               {error}
+              {cuentaExistente && (
+                <span style={{ display: 'block', marginTop: 8 }}>
+                  <a href="/login" className="fid-link" style={{ color: t.texto }}>Iniciar sesión</a>
+                  {' · '}
+                  <a href="/olvide-password" className="fid-link" style={{ color: t.texto }}>Recuperar contraseña</a>
+                </span>
+              )}
             </p>
           )}
 
