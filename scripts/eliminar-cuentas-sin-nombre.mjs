@@ -1,12 +1,14 @@
-// Borra cuentas de clientas que NO tienen nombre propio: el nombre está
-// vacío o es un email (cuentas cargadas a mano por el negocio con el mail
-// como nombre, no creadas por la clienta). Pedido de Genaro, 2026-11-02.
+// Borra las cuentas de clientas que NO tienen nombre propio: el nombre está
+// vacío o es un email (cuentas cargadas a mano con el mail como nombre, no
+// creadas por la clienta). Pedido de Genaro, 2026-11-02: borrarlas todas,
+// también las que tienen puntos, compras o canjes, menos
+// genaromarenco110@gmail.com. Las que tienen nombre propio no se tocan.
 //
 // NO corre solo: no lo llama el build, ni Netlify, ni ninguna tarea
 // programada. Se ejecuta a mano, con autorización.
 //
 //   1) Ver qué cuentas serían (no borra nada):
-//        DATABASE_URL=... node scripts/eliminar-cuentas-sin-nombre.mjs
+//        DATABASE_URL=... node scripts/eliminar-cuentas-sin-nombre.mjs --mostrar
 //      Con --mostrar se ven los emails completos (para revisar la lista);
 //      sin eso salen enmascarados.
 //   2) Borrar, confirmando la cantidad que mostró el paso 1:
@@ -15,21 +17,23 @@
 // Opciones: --negocio=<slug> (por defecto "peperina"), --conservar=a@x.com,b@y.com
 // (se suman a las que se conservan siempre).
 //
-// Reglas:
-// - Se conservan siempre las cuentas con nombre propio y las de la lista
-//   CONSERVAR_SIEMPRE.
-// - Solo se borran cuentas SIN actividad: 0 puntos, sin movimientos de
-//   puntos (compras, bonos, canjes), sin canjes y sin haber invitado a nadie.
-//   Las que tienen actividad se listan aparte y NO se tocan: borrarlas
-//   cambiaría el historial de compras y canjes del negocio (y los canjes ni
-//   siquiera se pueden borrar sin borrar antes el canje). Para esas hace falta
-//   otra decisión.
-// - Cada cuenta se borra en su propia transacción, volviendo a comprobar que
-//   siga sin actividad. Se borran también sus pedidos de "olvidé mi
-//   contraseña". No se toca ninguna otra cuenta, saldo ni movimiento.
-// - Antes de borrar se guarda una copia de las cuentas borradas en un archivo
-//   local (respaldo-cuentas-eliminadas-<fecha>.json): tiene datos personales,
-//   guardarlo en un lugar seguro y borrarlo cuando ya no haga falta.
+// Qué se borra de cada cuenta, en su propia transacción:
+// - la cuenta;
+// - sus movimientos de puntos (compras, bonos, canjes, vencimientos);
+// - sus canjes (la base no deja borrar la cuenta sin borrarlos). Si alguno
+//   tenía un cupón de Tiendanube sin usar, el cupón SIGUE vivo en la tienda:
+//   el script lista esos códigos para desactivarlos a mano en Tiendanube;
+// - sus pedidos de "olvidé mi contraseña".
+// A las clientas que esa cuenta invitó se les borra "quién la invitó"
+// (Cliente.referidoPorId); sus puntos y movimientos no cambian. No se toca
+// ninguna otra cuenta, saldo ni movimiento.
+//
+// Las cuentas con un nombre de una sola palabra (sin apellido) NO se borran:
+// se listan aparte para revisarlas.
+//
+// Antes de borrar se guarda una copia de todo lo borrado en un archivo local
+// (respaldo-cuentas-eliminadas-<fecha>.json): tiene datos personales,
+// guardarlo en un lugar seguro y borrarlo cuando ya no haga falta.
 import fs from 'node:fs'
 import { PrismaClient } from '@prisma/client'
 import { normalizarEmail, ocultarEmail } from '../lib/identidad.js'
@@ -61,6 +65,8 @@ function sinNombrePropio(cliente) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nombre)
 }
 
+const aBorrar = (c) => sinNombrePropio(c) && !conservar.has(normalizarEmail(c.email))
+
 const prisma = new PrismaClient()
 try {
   const negocio = await prisma.negocio.findFirst({ where: { slug }, select: { id: true, nombre: true } })
@@ -71,41 +77,49 @@ try {
     select: { id: true, nombre: true, email: true, puntos: true, createdAt: true },
     orderBy: { createdAt: 'asc' },
   })
-  const candidatas = todas.filter((c) => sinNombrePropio(c) && !conservar.has(normalizarEmail(c.email)))
-  const conservadasPorLista = todas.filter((c) => sinNombrePropio(c) && conservar.has(normalizarEmail(c.email)))
-  const ids = candidatas.map((c) => c.id)
+  const borrables = todas.filter(aBorrar)
+  const conservadasPorLista = todas.filter((c) => sinNombrePropio(c) && !aBorrar(c))
+  const unaPalabra = todas.filter((c) => !sinNombrePropio(c) && !/\s/.test(String(c.nombre).trim()))
+  const ids = borrables.map((c) => c.id)
 
-  const [movs, canjes, invitadas] = await Promise.all([
+  const [movs, canjes, invitadas, cuponesVivos] = await Promise.all([
     prisma.movimientoPuntos.groupBy({ by: ['clienteId'], where: { clienteId: { in: ids } }, _count: true }),
     prisma.canje.groupBy({ by: ['clienteId'], where: { clienteId: { in: ids } }, _count: true }),
     prisma.cliente.groupBy({ by: ['referidoPorId'], where: { referidoPorId: { in: ids } }, _count: true }),
+    prisma.canje.findMany({
+      where: { clienteId: { in: ids }, tiendanubeCuponCodigo: { not: null }, OR: [{ cuponEstado: null }, { cuponEstado: { not: 'utilizado' } }] },
+      select: { clienteId: true, tiendanubeCuponCodigo: true, cuponEstado: true },
+    }),
   ])
   const cuenta = (lista, campo) => Object.fromEntries(lista.map((x) => [x[campo], x._count]))
   const nMovs = cuenta(movs, 'clienteId'), nCanjes = cuenta(canjes, 'clienteId'), nInvitadas = cuenta(invitadas, 'referidoPorId')
-  const actividad = (c) => ({ puntos: c.puntos, movimientos: nMovs[c.id] || 0, canjes: nCanjes[c.id] || 0, invitadas: nInvitadas[c.id] || 0 })
-  const tieneActividad = (a) => a.puntos !== 0 || a.movimientos > 0 || a.canjes > 0 || a.invitadas > 0
-
-  const borrables = candidatas.filter((c) => !tieneActividad(actividad(c)))
-  const conActividad = candidatas.filter((c) => tieneActividad(actividad(c)))
   const email = (e) => (mostrar ? e : ocultarEmail(e))
-  const fila = (c) => `  ${c.createdAt.toISOString().slice(0, 10)}  ${c.id}  ${email(c.email)}  nombre: ${c.nombre ? JSON.stringify(mostrar ? c.nombre : '(email)') : '(vacío)'}`
+  const nombre = (c) => (c.nombre && String(c.nombre).trim() ? JSON.stringify(mostrar ? c.nombre : '(email)') : '(vacío)')
+  const fila = (c) => {
+    const actividad = `puntos ${c.puntos}, movimientos ${nMovs[c.id] || 0}, canjes ${nCanjes[c.id] || 0}, invitó a ${nInvitadas[c.id] || 0}`
+    return `  ${c.createdAt.toISOString().slice(0, 10)}  ${c.id}  ${email(c.email)}  nombre: ${nombre(c)}  (${actividad})`
+  }
+  const totalMovs = ids.reduce((t, id) => t + (nMovs[id] || 0), 0)
+  const totalCanjes = ids.reduce((t, id) => t + (nCanjes[id] || 0), 0)
+  const totalInvitadas = ids.reduce((t, id) => t + (nInvitadas[id] || 0), 0)
 
   console.log(`${negocio.nombre}: ${todas.length} cuentas en total`)
-  console.log(`Con nombre propio (se conservan): ${todas.length - candidatas.length - conservadasPorLista.length}`)
+  console.log(`Con nombre propio (se conservan): ${todas.length - borrables.length - conservadasPorLista.length}`)
   console.log(`Sin nombre propio pero en la lista para conservar: ${conservadasPorLista.length}`)
-  console.log(`Sin nombre propio: ${candidatas.length}`)
-  console.log(`  sin actividad (se borrarían): ${borrables.length}`)
-  console.log(`  CON actividad (NO se tocan, requieren otra decisión): ${conActividad.length}`)
+  console.log(`Sin nombre propio (SE BORRAN): ${borrables.length}`)
+  console.log(`  con ellas se borran ${totalMovs} movimientos de puntos y ${totalCanjes} canjes; ${totalInvitadas} clienta(s) invitada(s) pierden "quién la invitó"`)
   console.log('')
   console.log('Se borrarían:')
   for (const c of borrables) console.log(fila(c))
-  if (conActividad.length > 0) {
+  if (cuponesVivos.length > 0) {
     console.log('')
-    console.log('Con actividad (no se borran):')
-    for (const c of conActividad) {
-      const a = actividad(c)
-      console.log(`${fila(c)}  puntos ${a.puntos}, movimientos ${a.movimientos}, canjes ${a.canjes}, invitó a ${a.invitadas}`)
-    }
+    console.log('Cupones de Tiendanube de estos canjes que pueden seguir vivos en la tienda (desactivarlos a mano en Tiendanube):')
+    for (const k of cuponesVivos) console.log(`  ${k.tiendanubeCuponCodigo}  (estado en Retornar: ${k.cuponEstado || 'pendiente de verificación'})`)
+  }
+  if (unaPalabra.length > 0) {
+    console.log('')
+    console.log(`Con un nombre de una sola palabra (NO se borran; revisarlas): ${unaPalabra.length}`)
+    for (const c of unaPalabra) console.log(`  ${c.id}  ${email(c.email)}  nombre: ${mostrar ? JSON.stringify(c.nombre) : '(una palabra)'}`)
   }
   console.log('')
 
@@ -118,22 +132,25 @@ try {
   }
 
   const respaldo = `respaldo-cuentas-eliminadas-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
-  const completas = await prisma.cliente.findMany({ where: { id: { in: borrables.map((c) => c.id) } } })
-  fs.writeFileSync(respaldo, JSON.stringify(completas, null, 2), { mode: 0o600 })
-  console.log(`Copia de las cuentas a borrar: ${respaldo} (tiene datos personales)`)
+  const [cuentasCompletas, movimientosCompletos, canjesCompletos, invitadasCompletas] = await Promise.all([
+    prisma.cliente.findMany({ where: { id: { in: ids } } }),
+    prisma.movimientoPuntos.findMany({ where: { clienteId: { in: ids } } }),
+    prisma.canje.findMany({ where: { clienteId: { in: ids } } }),
+    prisma.cliente.findMany({ where: { referidoPorId: { in: ids } }, select: { id: true, referidoPorId: true } }),
+  ])
+  fs.writeFileSync(respaldo, JSON.stringify({ cuentas: cuentasCompletas, movimientos: movimientosCompletos, canjes: canjesCompletos, invitadas: invitadasCompletas }, null, 2), { mode: 0o600 })
+  console.log(`Copia de todo lo que se borra: ${respaldo} (tiene datos personales)`)
 
   let borradas = 0
   for (const c of borrables) {
     const ok = await prisma.$transaction(async (tx) => {
-      // Se vuelve a comprobar dentro de la transacción: si en el medio la
-      // cuenta sumó una compra o un canje, no se borra.
-      const [actual, m, k, inv] = await Promise.all([
-        tx.cliente.findUnique({ where: { id: c.id }, select: { puntos: true, nombre: true, email: true } }),
-        tx.movimientoPuntos.count({ where: { clienteId: c.id } }),
-        tx.canje.count({ where: { clienteId: c.id } }),
-        tx.cliente.count({ where: { referidoPorId: c.id } }),
-      ])
-      if (!actual || actual.puntos !== 0 || m > 0 || k > 0 || inv > 0 || !sinNombrePropio(actual)) return false
+      // Se vuelve a comprobar dentro de la transacción (por si cambió el
+      // nombre mientras corría).
+      const actual = await tx.cliente.findUnique({ where: { id: c.id }, select: { nombre: true, email: true } })
+      if (!actual || !aBorrar(actual)) return false
+      await tx.cliente.updateMany({ where: { referidoPorId: c.id }, data: { referidoPorId: null } })
+      await tx.canje.deleteMany({ where: { clienteId: c.id } })
+      await tx.movimientoPuntos.deleteMany({ where: { clienteId: c.id } })
       await tx.passwordResetToken.deleteMany({ where: { usuarioId: c.id, tipo: 'cliente' } })
       await tx.cliente.delete({ where: { id: c.id } })
       return true
