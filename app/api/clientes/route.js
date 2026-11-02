@@ -4,7 +4,10 @@ import { hashPassword } from '@/lib/password'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { calcularStatsClientes, calcularNivel } from '@/lib/clienteStats'
-import { normalizarEmail, filtroEmail, normalizarTelefono, emailValido } from '@/lib/identidad'
+import { filtroEmail } from '@/lib/identidad'
+import { validarDatosCliente, dniYaRegistrado } from '@/lib/datosCliente'
+import { MENSAJE_DNI_REPETIDO, MENSAJE_EMAIL_REPETIDO } from '@/lib/dni'
+import { sinNombrePropio, FILTRO_SIN_NOMBRE } from '@/lib/eliminarCuenta'
 import { randomBytes } from 'crypto'
 
 export async function GET(request) {
@@ -24,6 +27,7 @@ export async function GET(request) {
   const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize')) || 20))
   const busqueda = searchParams.get('q')?.trim()
   const nivelFiltro = searchParams.get('nivel')?.trim().toLowerCase()
+  const soloSinNombre = searchParams.get('sinNombre') === '1'
 
   const where = negocioId ? { negocioId } : {}
   // Buscador de la lista de Clientes (nombre, email o teléfono) -- un
@@ -35,6 +39,12 @@ export async function GET(request) {
       { email: { contains: busqueda, mode: 'insensitive' } },
       { telefono: { contains: busqueda, mode: 'insensitive' } },
     ]
+  }
+  // Cuentas sin nombre propio (vacío o un email): las cargadas con el mail
+  // como nombre o creadas solas por Dragon Fish en septiembre de 2026; son
+  // las únicas que se pueden borrar desde el panel (ver app/api/clientes/[id]).
+  if (soloSinNombre) {
+    where.AND = [FILTRO_SIN_NOMBRE]
   }
 
   // Filtro por nivel (Bronce/Plata/Oro/Diamante/VIP): el nivel no vive en
@@ -76,7 +86,7 @@ export async function GET(request) {
   ])
 
   const stats = await calcularStatsClientes(prisma, items)
-  const itemsConStats = items.map((c) => ({ ...c, stats: stats[c.id] }))
+  const itemsConStats = items.map((c) => ({ ...c, sinNombre: sinNombrePropio(c), stats: stats[c.id] }))
 
   return NextResponse.json({ items: itemsConStats, page, pageSize, total, totalPages: Math.ceil(total / pageSize) || 1 })
 }
@@ -91,50 +101,63 @@ export async function POST(request) {
   if (!autorizado) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
-
-  const email = normalizarEmail(body.email)
-  if (!emailValido(email)) {
-    return NextResponse.json({ error: 'El email es obligatorio y tiene que ser válido' }, { status: 400 })
-  }
   if (!body.negocioId) {
     return NextResponse.json({ error: 'negocioId es obligatorio' }, { status: 400 })
   }
 
+  // Mismos datos y reglas que el registro público de la clienta
+  // (lib/datosCliente.js): nombre y apellido, email, fecha de nacimiento,
+  // DNI (solo números, uno por negocio), celular (país + código de área +
+  // número) y género opcional. La carga manual no acredita la bonificación
+  // de bienvenida (solo el registro de la clienta).
+  const validacion = validarDatosCliente(body)
+  if (validacion.error) {
+    return NextResponse.json({ error: validacion.error }, { status: 400 })
+  }
+  const { nombre, email, fechaNacimiento, dni, telefono, sexo } = validacion.datos
+
+  const negocio = await prisma.negocio.findUnique({ where: { id: body.negocioId }, select: { id: true } })
+  if (!negocio) {
+    return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
+  }
+
   // La restricción única de la base distingue mayúsculas: sin este chequeo
-  // se podía crear "Ana@mail.com" aunque ya existiera "ana@mail.com".
+  // se podía crear "Ana@mail.com" aunque ya existiera "ana@mail.com". El
+  // email es único en toda la base (con él se inicia sesión).
   const yaExiste = await prisma.cliente.findFirst({ where: { email: filtroEmail(email) }, select: { id: true } })
   if (yaExiste) {
-    return NextResponse.json({ error: 'Ya existe una cuenta con ese email' }, { status: 409 })
+    return NextResponse.json({ error: MENSAJE_EMAIL_REPETIDO }, { status: 409 })
   }
 
   // randomBytes en vez de Math.random(): no es un generador pensado para
   // secretos y su salida se puede predecir.
   const passwordGenerada = randomBytes(6).toString('base64url')
+  const passwordHash = await hashPassword(passwordGenerada)
 
   let clienteCreado
   try {
-    clienteCreado = await prisma.cliente.create({
-      data: {
-        nombre: body.nombre,
-        telefono: body.telefono ? normalizarTelefono(body.telefono) || null : body.telefono,
-        email,
-        password: await hashPassword(passwordGenerada),
-        negocioId: body.negocioId,
-      }
+    clienteCreado = await prisma.$transaction(async (tx) => {
+      if (await dniYaRegistrado(tx, negocio.id, dni)) return null
+      return tx.cliente.create({
+        data: { nombre, email, fechaNacimiento, dni, telefono, sexo, password: passwordHash, negocioId: negocio.id, origen: 'panel' },
+      })
     })
   } catch (error) {
-    // Cliente.email es único en toda la base (no por negocio): P2002 acá
-    // significa que ya existe una cuenta con ese email, de este negocio o
-    // de otro.
+    // Dos altas simultáneas: Cliente.email es único en toda la base y
+    // (negocioId, dni) en el negocio.
     if (error.code === 'P2002') {
-      return NextResponse.json({ error: 'Ya existe una cuenta con ese email' }, { status: 409 })
+      const mensaje = String(error.meta?.target ?? '').includes('dni') ? MENSAJE_DNI_REPETIDO : MENSAJE_EMAIL_REPETIDO
+      return NextResponse.json({ error: mensaje }, { status: 409 })
     }
     throw error
   }
-  const { password, dni, ...cliente } = clienteCreado
+  if (!clienteCreado) {
+    return NextResponse.json({ error: MENSAJE_DNI_REPETIDO }, { status: 409 })
+  }
+  const { password, dni: _dni, ...cliente } = clienteCreado
 
   // passwordGenerada va en texto plano en la respuesta: el negocio la
-  // necesita para pasársela al cliente. El hash (password) se descarta acá,
-  // en la base queda solo el hash.
+  // necesita para pasársela al cliente. El hash (password) y el DNI se
+  // descartan acá.
   return NextResponse.json({ ...cliente, passwordGenerada })
 }

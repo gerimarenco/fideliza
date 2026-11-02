@@ -37,6 +37,7 @@
 import fs from 'node:fs'
 import { PrismaClient } from '@prisma/client'
 import { normalizarEmail, ocultarEmail } from '../lib/identidad.js'
+import { sinNombrePropio, eliminarCuenta } from '../lib/eliminarCuenta.js'
 
 const CONSERVAR_SIEMPRE = ['genaromarenco110@gmail.com']
 
@@ -55,14 +56,6 @@ const conservar = new Set([
 function salir(mensaje) {
   console.error(mensaje)
   process.exit(1)
-}
-
-// Sin nombre propio: vacío, igual al email, o con forma de email.
-function sinNombrePropio(cliente) {
-  const nombre = String(cliente.nombre || '').trim()
-  if (!nombre) return true
-  if (normalizarEmail(nombre) === normalizarEmail(cliente.email)) return true
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nombre)
 }
 
 const aBorrar = (c) => sinNombrePropio(c) && !conservar.has(normalizarEmail(c.email))
@@ -148,11 +141,7 @@ try {
       // nombre mientras corría).
       const actual = await tx.cliente.findUnique({ where: { id: c.id }, select: { nombre: true, email: true } })
       if (!actual || !aBorrar(actual)) return false
-      await tx.cliente.updateMany({ where: { referidoPorId: c.id }, data: { referidoPorId: null } })
-      await tx.canje.deleteMany({ where: { clienteId: c.id } })
-      await tx.movimientoPuntos.deleteMany({ where: { clienteId: c.id } })
-      await tx.passwordResetToken.deleteMany({ where: { usuarioId: c.id, tipo: 'cliente' } })
-      await tx.cliente.delete({ where: { id: c.id } })
+      await eliminarCuenta(tx, c.id)
       return true
     })
     if (ok) borradas++

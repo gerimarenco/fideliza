@@ -8,9 +8,12 @@
 -- momento de la publicación (UTC), o usar directamente el script en modo
 -- simulación, que además descuenta las que ya la recibieron.
 --
--- "Autoregistradas" = tienen fecha de nacimiento: el registro público la pide
--- y el alta manual del negocio ("Nuevo cliente") no la carga. Solo esas
--- recibirían la bonificación, como en el registro.
+-- "Autoregistradas" = Cliente.origen = 'registro' o, en las cuentas
+-- anteriores al 2026-11-02 (sin origen), las que tienen fecha de nacimiento
+-- (que entonces solo pedía el registro; desde ese día "Nuevo cliente" del
+-- panel también la pide). Solo esas recibirían la bonificación, como en el
+-- registro. Usa la columna "origen" (migración 20261102120000_cliente_origen):
+-- antes de publicarla, usar la versión de esta consulta que está en main.
 -- "Celular" = últimos 10 dígitos (lib/bienvenida.js, celularComparable).
 -- Misma regla que el registro y el script (motivoSinBienvenida): una cuenta
 -- no la recibe si su celular coincide con CUALQUIER otra cuenta del negocio
@@ -33,7 +36,7 @@ todas AS (
 periodo AS (
   SELECT c.id,
          c."createdAt",
-         c."fechaNacimiento" IS NOT NULL AS autoregistrada,
+         (c."origen" = 'registro' OR (c."origen" IS NULL AND c."fechaNacimiento" IS NOT NULL)) AS autoregistrada,
          right(regexp_replace(coalesce(c.telefono, ''), '[^0-9]', '', 'g'), 10) AS celular
   FROM "Cliente" c
   JOIN negocio n ON c."negocioId" = n.id
