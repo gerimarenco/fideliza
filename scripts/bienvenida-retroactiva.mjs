@@ -18,8 +18,9 @@
 // - Desde: el inicio de la promoción configurada en el negocio
 //   (Negocio.bienvenidaDesde); hasta: --hasta, sin pasar el fin de la
 //   promoción. La promoción configurada no se modifica.
-// - Solo cuentas autoregistradas (tienen fecha de nacimiento, que el
-//   registro pide y el alta manual del negocio no carga).
+// - Solo cuentas autoregistradas: Cliente.origen = "registro" o, en las
+//   cuentas anteriores al 2026-11-02 (sin origen), las que tienen fecha de
+//   nacimiento (que entonces solo pedía el registro).
 // - Una vez por cuenta (Cliente.bienvenidaOtorgada) y una vez por celular
 //   en el negocio: si el celular coincide con CUALQUIER otra cuenta del
 //   negocio creada antes (también una clienta histórica de antes de la
@@ -74,10 +75,12 @@ try {
 
   const enPeriodo = await prisma.cliente.findMany({
     where: { negocioId: negocio.id, createdAt: { gte: desde, lt: hasta } },
-    select: { id: true, email: true, telefono: true, createdAt: true, fechaNacimiento: true, bienvenidaOtorgada: true },
+    select: { id: true, email: true, telefono: true, createdAt: true, fechaNacimiento: true, origen: true, bienvenidaOtorgada: true },
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   })
-  const autoregistradas = enPeriodo.filter((c) => c.fechaNacimiento)
+  // Desde 2026-11-02 cada cuenta guarda su origen; las anteriores no, y se
+  // reconocen por la fecha de nacimiento (que entonces solo pedía el registro).
+  const autoregistradas = enPeriodo.filter((c) => c.origen === 'registro' || (c.origen == null && c.fechaNacimiento))
   const candidatas = autoregistradas.filter((c) => !c.bienvenidaOtorgada)
 
   console.log(`${negocio.nombre}: bonificación de ${puntos} puntos`)

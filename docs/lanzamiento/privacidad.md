@@ -32,6 +32,10 @@ Retornar y cada negocio (sección 4).
 Netlify (hosting, EE.UU.), proveedor de PostgreSQL (a confirmar dónde
 están los servidores), Resend (mails, EE.UU.), Google (login con Google),
 Tiendanube (ya tiene los datos de las compras online).
+Si un negocio usa "Exportar clientes" a Google Sheets, sus clientas
+quedan además en una hoja del Google Drive **del propio negocio** (su cuenta,
+no la de Retornar), sin DNI ni año de nacimiento; ver
+`docs/lanzamiento/google-sheets.md`.
 
 ## 2. Qué pide la ley (puntos a confirmar con quien revise)
 
