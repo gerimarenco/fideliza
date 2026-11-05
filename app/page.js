@@ -151,6 +151,8 @@ export default function Home() {
   const [formVencimientoPuntos, setFormVencimientoPuntos] = useState('');
   const [formSitioWeb, setFormSitioWeb] = useState('');
   const [formSoporte, setFormSoporte] = useState({ email: '', whatsapp: '' });
+  // Emails a las clientas: nombre visible del remitente y mail de bienvenida.
+  const [formEmails, setFormEmails] = useState({ nombreRemitente: '', bienvenida: false });
   const [formBasesCondiciones, setFormBasesCondiciones] = useState('');
   const [formTema, setFormTema] = useState({ ...TEMA_DEFAULT });
 
@@ -378,6 +380,7 @@ export default function Home() {
     setFormVencimientoPuntos(negocioMostrado?.vencimientoPuntosMeses ? String(negocioMostrado.vencimientoPuntosMeses) : '');
     setFormSitioWeb(negocioMostrado?.sitioWeb || '');
     setFormSoporte({ email: negocioMostrado?.soporteEmail || '', whatsapp: negocioMostrado?.soporteWhatsapp || '' });
+    setFormEmails({ nombreRemitente: negocioMostrado?.emailRemitenteNombre || '', bienvenida: !!negocioMostrado?.emailBienvenida });
     setFormBasesCondiciones(negocioMostrado?.basesCondiciones || '');
     setFormTema({ ...TEMA_DEFAULT, ...(negocioMostrado?.tema || {}) });
     setFormPassword({ actual: '', nueva: '', confirmar: '' });
@@ -899,6 +902,25 @@ export default function Home() {
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al guardar. Probá de nuevo.');
+    }
+  };
+
+  const guardarEmails = async () => {
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: negocioMostrado.id, emailRemitenteNombre: formEmails.nombreRemitente, emailBienvenida: formEmails.bienvenida })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        mostrarToast('error', data.error || 'No se pudo guardar');
+        return;
+      }
+      mostrarToast('exito', 'Guardado');
+      cargarNegocios();
+    } catch (err) {
+      mostrarToast('error', 'Ocurrió un error al guardar. Probá de nuevo.');
     }
   };
 
@@ -1840,6 +1862,17 @@ export default function Home() {
           <label htmlFor="soporte-whatsapp"><span style={ui.label}>WhatsApp (con código de país y área, ej. 5492324123456)</span><input id="soporte-whatsapp" type="tel" inputMode="numeric" value={formSoporte.whatsapp} onChange={e => setFormSoporte({ ...formSoporte, whatsapp: e.target.value })} placeholder="5492324123456" style={ui.input} /></label>
         </div>
       ), guardarSoporte)}
+
+      {bloqueAjuste('Emails a tus clientas', `Cómo aparecen los emails que les manda el club (compras, canjes, vencimientos, contraseña). Si cargaste un email de soporte, las respuestas llegan ahí.`, (
+        <div style={{ display: 'grid', gap: 14 }}>
+          <label htmlFor="email-remitente"><span style={ui.label}>Nombre del remitente (lo que se ve en la bandeja de entrada)</span><input id="email-remitente" maxLength={60} value={formEmails.nombreRemitente} onChange={e => setFormEmails({ ...formEmails, nombreRemitente: e.target.value })} placeholder={negocioMostrado?.nombre ? nombreClub(negocioMostrado.nombre) : 'Club ...'} style={ui.input} /></label>
+          <p style={{ ...ui.ayuda, margin: 0 }}>Vacío: se ve como &quot;Retornar&quot;. La dirección de envío no cambia.</p>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 14, cursor: 'pointer' }}>
+            <input type="checkbox" checked={formEmails.bienvenida} onChange={e => setFormEmails({ ...formEmails, bienvenida: e.target.checked })} style={{ marginTop: 3 }} />
+            <span>Mandar un email de bienvenida a cada clienta que se registra</span>
+          </label>
+        </div>
+      ), guardarEmails)}
 
       {bloqueAjuste('Bases y condiciones', 'El texto legal del programa de puntos que ve tu clienta en "Bases y condiciones" (menú de su panel). Dejalo vacío si todavía no lo tenés — se le va a avisar que falta cargarlo.', (
         <textarea rows={10} aria-label="Bases y condiciones" value={formBasesCondiciones} onChange={e => setFormBasesCondiciones(e.target.value)} placeholder={'Ej: 1. ¿Qué es el Club?\n\nEs nuestro programa de beneficios...'} style={{ ...ui.input, resize: 'vertical' }} />

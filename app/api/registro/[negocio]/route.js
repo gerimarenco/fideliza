@@ -5,6 +5,7 @@ import { hashPassword } from '@/lib/password';
 import { nombreClub } from '@/lib/nombreClub';
 import { normalizarEmail, filtroEmail, emailValido } from '@/lib/identidad';
 import { puntosBienvenida, acreditarBienvenida, mismoCelular } from '@/lib/bienvenida';
+import { enviarEmailBienvenida } from '@/lib/email';
 import { normalizarDni, MENSAJE_DNI_FALTA, MENSAJE_DNI_INVALIDO, MENSAJE_DNI_REPETIDO, MENSAJE_EMAIL_REPETIDO } from '@/lib/dni';
 import { ipDeEncabezados } from '@/lib/limiteLogin';
 import { LIMITES, RETENCION_MS, claveDni, claveDispositivo, claveIp, limiteSuperado, bloqueadoPorProteccion, MENSAJES_LIMITE } from '@/lib/limiteRegistro';
@@ -330,6 +331,20 @@ export async function POST(request, { params }) {
       return conDispositivo(NextResponse.json({ error: MENSAJE_DNI_REPETIDO }, { status: 409 }), intento);
     }
     const { nuevoCliente, bienvenida } = resultado;
+    // Mail de bienvenida, si el negocio lo activó en Ajustes. Va después de
+    // crear la cuenta y nunca la frena: si el mail falla, la cuenta queda
+    // igual (se registra en el log). Se manda una sola vez: es el único
+    // lugar donde se crea una cuenta por registro.
+    if (negocioEncontrado.emailBienvenida) {
+      await enviarEmailBienvenida({
+        email,
+        nombre: nombre.trim(),
+        puntos: bienvenida || 0,
+        puntosBienvenida: bienvenida || 0,
+        negocioNombre: negocioEncontrado.nombre,
+        negocioId: negocioEncontrado.id,
+      }).catch((error) => console.error('Error al enviar el email de bienvenida', error.message));
+    }
     return conDispositivo(NextResponse.json(
       { message: 'Cliente creado con éxito', clienteId: nuevoCliente.id, puntosBienvenida: bienvenida },
       { status: 201 }

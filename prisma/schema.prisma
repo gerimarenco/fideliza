@@ -49,6 +49,12 @@ model Negocio {
   // que además hubiera sido la misma para cualquier negocio). Cada negocio
   // carga el suyo; si no carga ninguno, la opción no aparece.
   soporteEmail          String?
+  // Nombre visible del remitente de los mails a las clientas (ej. "Club
+  // Peperina"). La dirección sigue siendo la de RESEND_FROM_EMAIL (dominio
+  // verificado en Resend); null = el remitente de siempre ("Retornar").
+  emailRemitenteNombre String?
+  // Mandar un mail de bienvenida a cada clienta que se registra (Ajustes).
+  emailBienvenida      Boolean @default(false)
   // Solo dígitos, con código de país y área (ej. 5492324123456) para wa.me.
   soporteWhatsapp       String?
   // Meses sin usar un lote de puntos para que venza (ver

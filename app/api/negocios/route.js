@@ -30,6 +30,8 @@ const NEGOCIO_SELECT = {
   puntosReferido: true,
   sitioWeb: true,
   soporteEmail: true,
+  emailRemitenteNombre: true,
+  emailBienvenida: true,
   soporteWhatsapp: true,
   vencimientoPuntosMeses: true,
   basesCondiciones: true,
@@ -376,6 +378,23 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'El email de soporte no es válido' }, { status: 400 })
     }
     data.soporteEmail = soporteEmail || null
+  }
+  // Emails a las clientas: nombre visible del remitente (ej. "Club
+  // Peperina"; vacío = el de siempre) y si se manda el mail de bienvenida.
+  // La dirección del remitente no se elige acá: requiere un dominio
+  // verificado en Resend (ver docs/lanzamiento/emails.md).
+  if (body.emailRemitenteNombre !== undefined) {
+    const nombreRemitente = String(body.emailRemitenteNombre ?? '').replace(/\s+/g, ' ').trim()
+    if (nombreRemitente.length > 60 || /["<>\\@]/.test(nombreRemitente)) {
+      return NextResponse.json({ error: 'El nombre del remitente puede tener hasta 60 caracteres, sin comillas, @ ni < >.' }, { status: 400 })
+    }
+    data.emailRemitenteNombre = nombreRemitente || null
+  }
+  if (body.emailBienvenida !== undefined) {
+    if (typeof body.emailBienvenida !== 'boolean') {
+      return NextResponse.json({ error: 'emailBienvenida tiene que ser verdadero o falso' }, { status: 400 })
+    }
+    data.emailBienvenida = body.emailBienvenida
   }
   if (body.soporteWhatsapp !== undefined) {
     const soporteWhatsapp = String(body.soporteWhatsapp ?? '').replace(/\D/g, '')

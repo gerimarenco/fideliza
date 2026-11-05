@@ -2014,3 +2014,28 @@ Migración `20261106120000_premio_alternativas`: agrega `Premio.tiendanubeVarian
 - Probar en la tienda real que `?variant=<id>` abre el color y que el
   buscador encuentra los productos.
 - Cargar el enlace y 2 o 3 alternativas de cada premio de producto.
+
+## 80. Emails a las clientas: remitente del club, bienvenida, vencimiento y diseño (2026-11-07)
+
+Detalle en `docs/lanzamiento/emails.md`.
+
+- **Remitente**: nombre visible por negocio (Ajustes → "Emails a tus
+  clientas", ej. "Club Peperina"), misma dirección verificada; "responder a"
+  el email de soporte. Vacío = como antes ("Retornar").
+- **Bienvenida**: mail nuevo al registrarse, activable por negocio
+  (desactivado por defecto).
+- **Vencimiento**: el aviso (30 días antes, por lote) ahora detalla las
+  fechas, los premios que alcanza y cuánto comprar para los demás.
+- **Canje**: asunto y texto de confirmación, no promocionales.
+- **Todos**: plantilla nueva con los colores del negocio y versión de texto.
+- Migración `20261107120000_emails_negocio`: dos columnas nuevas en Negocio
+  (nombre vacío, bienvenida desactivada); no cambia el comportamiento de
+  ningún negocio hasta que se configure.
+
+**Pendiente**:
+- En Ajustes de Peperina: cargar "Club Peperina" como remitente y activar la
+  bienvenida (después del deploy).
+- Dirección `club@peperina.com.ar`: requiere verificar el dominio en Resend
+  (DNS de peperina.com.ar) y revisar el plan; con autorización.
+- Revisar en un mail real ("Mostrar original" en Gmail) SPF, DKIM y DMARC; si
+  falta, agregar DMARC a retornar.com.ar.
