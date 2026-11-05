@@ -118,6 +118,10 @@ model Cliente {
   // "celular_en_otra_cuenta" o "sin_celular". null si se acreditó o si no
   // había promoción.
   bienvenidaMotivo   String?
+  // Cómo se creó la cuenta: "registro" (la clienta, desde /registro/[slug])
+  // o "panel" ("Nuevo cliente" del negocio). null en las cuentas anteriores
+  // al 2026-11-02 (no se infiere ni se completa para atrás).
+  origen             String?
 
   @@index([negocioId])
 }
