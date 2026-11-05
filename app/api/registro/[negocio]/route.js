@@ -3,10 +3,11 @@ import { prisma } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { hashPassword } from '@/lib/password';
 import { nombreClub } from '@/lib/nombreClub';
-import { normalizarEmail, filtroEmail, emailValido } from '@/lib/identidad';
+import { filtroEmail } from '@/lib/identidad';
 import { puntosBienvenida, acreditarBienvenida, mismoCelular } from '@/lib/bienvenida';
 import { enviarEmailBienvenida } from '@/lib/email';
-import { normalizarDni, MENSAJE_DNI_FALTA, MENSAJE_DNI_INVALIDO, MENSAJE_DNI_REPETIDO, MENSAJE_EMAIL_REPETIDO } from '@/lib/dni';
+import { normalizarDni, MENSAJE_DNI_REPETIDO, MENSAJE_EMAIL_REPETIDO } from '@/lib/dni';
+import { validarDatosCliente, dniYaRegistrado } from '@/lib/datosCliente';
 import { ipDeEncabezados } from '@/lib/limiteLogin';
 import { LIMITES, RETENCION_MS, claveDni, claveDispositivo, claveIp, limiteSuperado, bloqueadoPorProteccion, MENSAJES_LIMITE } from '@/lib/limiteRegistro';
 
@@ -16,15 +17,6 @@ import { LIMITES, RETENCION_MS, claveDni, claveDispositivo, claveIp, limiteSuper
 // No hay problema de seguridad: esta ruta nunca devuelve nada sensible.
 const CORS_HEADERS = { 'Access-Control-Allow-Origin': '*' };
 
-const SEXO_VALIDO = ['femenino', 'masculino', 'otro'];
-// Sin validar formato de país/área a propósito (varía mucho cómo la gente
-// escribe su celular) — solo que tenga una cantidad de dígitos razonable,
-// una vez sacados espacios/guiones/paréntesis. Se guarda tal cual lo separa
-// esta limpieza, no se le agrega código de país: el link de WhatsApp
-// (ver VistaClientes en app/page.js) hace su propio mejor esfuerzo al
-// armar el número, así que puede necesitar un ajuste manual si alguien lo
-// carga de forma muy distinta a la habitual.
-const TELEFONO_VALIDO = /^\d{8,13}$/;
 
 // Datos públicos del negocio para la pantalla de auto-registro (nombre real
 // y mensaje/promoción propia en vez de mostrar el slug pelado) y para el
@@ -155,68 +147,26 @@ export async function POST(request, { params }) {
     // cuenta por documento en cada negocio, para que nadie cobre varias
     // veces la bienvenida o el bono de referidos con otros emails. Se
     // guarda normalizado (lib/dni.js) y nunca se devuelve ni se loguea.
-    const { nombre, email: emailIngresado, password, fechaNacimiento, sexo, telefono, codigoReferido, dni: dniIngresado } = await request.json();
-    const email = normalizarEmail(emailIngresado);
+    const cuerpo = await request.json();
+    const { password, codigoReferido } = cuerpo;
 
-    if (!nombre?.trim() || !email || !password) {
-      return NextResponse.json(
-        { error: 'Nombre, email y contraseña son obligatorios.' },
-        { status: 400 }
-      );
+    if (typeof password !== 'string' || !password) {
+      return NextResponse.json({ error: 'La contraseña es obligatoria.' }, { status: 400 });
     }
 
-    if (!emailValido(email)) {
-      return NextResponse.json(
-        { error: 'El email no es válido.' },
-        { status: 400 }
-      );
+    // Mismos datos y reglas que "Nuevo cliente" del panel (lib/datosCliente.js):
+    // nombre y apellido, email, fecha de nacimiento, DNI (solo números),
+    // celular (país + código de área + número, guardado como +549…) y
+    // género opcional.
+    const validacion = validarDatosCliente(cuerpo);
+    if (validacion.error) {
+      return NextResponse.json({ error: validacion.error }, { status: 400 });
     }
+    const { nombre, email, fechaNacimiento, dni, telefono, sexo } = validacion.datos;
 
     if (password.length < 6) {
       return NextResponse.json(
         { error: 'La contraseña debe tener al menos 6 caracteres.' },
-        { status: 400 }
-      );
-    }
-
-    if (!fechaNacimiento || !telefono) {
-      return NextResponse.json(
-        { error: 'Fecha de nacimiento y celular son obligatorios.' },
-        { status: 400 }
-      );
-    }
-
-    if (dniIngresado == null || String(dniIngresado).trim() === '') {
-      return NextResponse.json({ error: MENSAJE_DNI_FALTA }, { status: 400 });
-    }
-    const dni = normalizarDni(dniIngresado);
-    if (!dni) {
-      return NextResponse.json({ error: MENSAJE_DNI_INVALIDO }, { status: 400 });
-    }
-
-    const telefonoLimpio = telefono.replace(/[\s\-()]/g, '');
-    if (!TELEFONO_VALIDO.test(telefonoLimpio)) {
-      return NextResponse.json(
-        { error: 'El celular tiene que tener solo números (con código de área), sin espacios.' },
-        { status: 400 }
-      );
-    }
-
-    const fechaNacimientoDate = new Date(fechaNacimiento);
-    if (Number.isNaN(fechaNacimientoDate.getTime()) || fechaNacimientoDate > new Date()) {
-      return NextResponse.json(
-        { error: 'La fecha de nacimiento no es válida.' },
-        { status: 400 }
-      );
-    }
-
-    // El género es opcional (decisión de Genaro, 2026-10-24): se guarda si la
-    // clienta lo elige, para campañas futuras del negocio, y queda vacío si
-    // no. Si viene, tiene que ser uno de los valores del formulario.
-    const sexoElegido = typeof sexo === 'string' && sexo.trim() !== '' ? sexo.trim() : null;
-    if (sexoElegido && !SEXO_VALIDO.includes(sexoElegido)) {
-      return NextResponse.json(
-        { error: 'Género inválido.' },
         { status: 400 }
       );
     }
@@ -266,7 +216,7 @@ export async function POST(request, { params }) {
         select: { id: true, telefono: true, dni: true },
       });
       const mismaPersona = invitador && (
-        mismoCelular(invitador.telefono, telefonoLimpio) ||
+        mismoCelular(invitador.telefono, telefono) ||
         (invitador.dni && normalizarDni(invitador.dni) === dni)
       );
       referidoPorId = invitador && !mismaPersona ? invitador.id : null;
@@ -287,14 +237,7 @@ export async function POST(request, { params }) {
       // también las cuentas anteriores al índice único (septiembre a
       // octubre de 2026, que pueden tener el DNI con ceros adelante), y el
       // índice (negocioId, dni) lo garantiza en la base para las nuevas.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`dni:${negocioEncontrado.id}:${dni}`}))`;
-      const conMismoDni = await tx.$queryRaw`
-        SELECT 1 FROM "Cliente"
-        WHERE "negocioId" = ${negocioEncontrado.id}
-          AND "dni" IS NOT NULL
-          AND ltrim(regexp_replace("dni", '[^0-9]', '', 'g'), '0') = ${dni}
-        LIMIT 1`;
-      if (conMismoDni.length > 0) {
+      if (await dniYaRegistrado(tx, negocioEncontrado.id, dni)) {
         // Se anota en esta misma transacción (que no crea ninguna cuenta),
         // antes de soltar el lock de la IP.
         await anotarRechazoDni(tx, intento);
@@ -303,16 +246,17 @@ export async function POST(request, { params }) {
 
       const nuevoCliente = await tx.cliente.create({
         data: {
-          nombre: nombre.trim(),
+          nombre,
           email,
           password: passwordHash,
           negocioId: negocioEncontrado.id,
           puntos: 0,
-          fechaNacimiento: fechaNacimientoDate,
-          sexo: sexoElegido,
-          telefono: telefonoLimpio,
+          fechaNacimiento,
+          sexo,
+          telefono,
           dni,
           referidoPorId,
+          origen: 'registro',
         },
         select: { id: true, telefono: true },
       });

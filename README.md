@@ -101,6 +101,8 @@ importar el `"type"` del `package.json`.
 | `ADMIN_PASSWORD_HASH` | Para el login de admin | Hash bcrypt de la password del admin. Se genera con `bcryptjs` (`bcrypt.hash('tu-password', 10)`), nunca la password en texto plano. |
 | `GOOGLE_CLIENT_ID` | Para "Iniciar sesión con Google" | Client ID de OAuth de Google Cloud Console. Si falta (junto con `GOOGLE_CLIENT_SECRET`), el botón de Google simplemente no aparece como provider habilitado. |
 | `GOOGLE_CLIENT_SECRET` | Para "Iniciar sesión con Google" | Client secret de la misma credencial OAuth. Callback URL a autorizar en Google: `<NEXTAUTH_URL>/api/auth/callback/google`. |
+| `GOOGLE_SHEETS_CLIENT_ID` / `GOOGLE_SHEETS_CLIENT_SECRET` | Para "Exportar clientes" a Google Sheets | Cliente OAuth de Google Cloud para que cada negocio conecte su cuenta (permiso `drive.file`). Si faltan, usa `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`; sin ninguno, la sección muestra que la conexión no está habilitada y queda la descarga para Excel. URI de redireccionamiento: `<NEXT_PUBLIC_BASE_URL>/api/google-sheets/callback`. Ver `docs/lanzamiento/google-sheets.md`. |
+| `GOOGLE_PICKER_API_KEY` / `GOOGLE_CLOUD_PROJECT_NUMBER` | Para elegir una hoja existente | Clave de API (restringida a Google Picker API y al dominio) y número del proyecto de Google Cloud. Sin ellas se puede crear una hoja nueva pero no elegir una existente. |
 | `MERCADOPAGO_ACCESS_TOKEN` | Para cobrar con Mercado Pago | Access token de la cuenta de Mercado Pago del negocio/plataforma. |
 | `NEXT_PUBLIC_BASE_URL` | Para Mercado Pago y los mails de puntos | URL pública del sitio, usada para armar las `back_urls`/`notification_url` de Mercado Pago y el link de login de los mails. |
 | `RESEND_API_KEY` | Para los mails de puntos acreditados/canje/vencimiento | API key de [Resend](https://resend.com). Si falta, el mail simplemente no se manda (no rompe la acreditación de puntos). |
@@ -314,6 +316,14 @@ producto borrado, Tiendanube caído), el canje igual queda confirmado y los
 puntos ya se descontaron: el error queda anotado en
 `Canje.tiendanubeCuponError` (visible en el historial de canjes del negocio)
 para que se resuelva el descuento a mano en vez de perder el canje.
+
+**Exportar clientes a Google Sheets** (desde 2026-11-09, ver
+`docs/lanzamiento/google-sheets.md`): cada negocio conecta su propia cuenta de
+Google (solo el permiso `drive.file`: Retornar ve únicamente las hojas que
+crea o que el negocio elige), crea o elige una hoja y exporta sus clientas;
+al volver a exportar se actualizan por ID sin duplicar ni tocar columnas o
+filas propias. Sin DNI. Apagado hasta configurar las credenciales de Google;
+la descarga para Excel se mantiene.
 
 **Enlace con stock** (desde 2026-11-06, ver
 `docs/lanzamiento/enlaces-con-stock.md`): el enlace de un premio de producto
