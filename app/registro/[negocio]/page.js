@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { resolverTema, FUENTE_TEXTO } from '@/lib/tema';
+import { PAISES, PAIS_PREDETERMINADO, normalizarCelular } from '@/lib/telefono';
+import { normalizarDni, MENSAJE_DNI_INVALIDO } from '@/lib/dni';
 
 export default function RegistroPage() {
   const params = useParams();
@@ -23,6 +25,7 @@ export default function RegistroPage() {
   const [fechaNacimiento, setFechaNacimiento] = useState('');
   const [sexo, setSexo] = useState('');
   const [telefono, setTelefono] = useState('');
+  const [paisTelefono, setPaisTelefono] = useState(PAIS_PREDETERMINADO);
   const [dni, setDni] = useState('');
   const [cuentaExistente, setCuentaExistente] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -40,13 +43,24 @@ export default function RegistroPage() {
     e.preventDefault();
     setError('');
     setCuentaExistente(false);
+    // Mismas validaciones que el servidor (lib/dni.js, lib/telefono.js),
+    // para avisar antes de mandar.
+    if (!normalizarDni(dni)) {
+      setError(MENSAJE_DNI_INVALIDO);
+      return;
+    }
+    const celular = normalizarCelular(telefono, paisTelefono);
+    if (celular.error) {
+      setError(celular.error);
+      return;
+    }
     setLoading(true);
 
     try {
       const res = await fetch(`/api/registro/${negocio}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: `${nombre.trim()} ${apellido.trim()}`.trim(), email, password, fechaNacimiento, dni, sexo, telefono, codigoReferido }),
+        body: JSON.stringify({ nombre: `${nombre.trim()} ${apellido.trim()}`.trim(), email, password, fechaNacimiento, dni, sexo, telefono, paisTelefono, codigoReferido }),
       });
 
       const data = await res.json();
@@ -154,36 +168,53 @@ export default function RegistroPage() {
 
           <label style={{ ...campo, display: 'block' }}>
             <span style={estiloLabel}>DNI</span>
+            {/* Solo números: lo que no sea un dígito no se puede escribir. */}
             <input
               type="text"
               inputMode="numeric"
+              pattern="[0-9]*"
               autoComplete="off"
               value={dni}
-              onChange={(e) => setDni(e.target.value.replace(/[^\d.\s-]/g, ''))}
+              onChange={(e) => setDni(e.target.value.replace(/\D/g, ''))}
               required
-              maxLength={12}
-              placeholder="12.345.678"
+              maxLength={8}
+              placeholder="12345678"
               aria-describedby="registro-dni-ayuda"
               style={estiloInput}
             />
             <span id="registro-dni-ayuda" style={{ display: 'block', marginTop: 6, fontSize: 13, color: t.textoSecundario }}>
-              Solo para que cada persona tenga una única cuenta. No se muestra a nadie.
+              Solo números, sin puntos. Es para que cada persona tenga una única cuenta y no se muestra a nadie.
             </span>
           </label>
 
-          <label style={{ ...campo, display: 'block' }}>
-            <span style={estiloLabel}>Celular (WhatsApp)</span>
-            <input
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              value={telefono}
-              onChange={(e) => setTelefono(e.target.value)}
-              required
-              placeholder="11 2345 6789"
-              style={estiloInput}
-            />
-          </label>
+          <div style={campo}>
+            <label htmlFor="registro-celular" style={estiloLabel}>Celular (WhatsApp)</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <select
+                aria-label="País del celular"
+                value={paisTelefono}
+                onChange={(e) => setPaisTelefono(e.target.value)}
+                style={{ ...estiloInput, width: 'auto', flex: '0 0 auto' }}
+              >
+                {PAISES.map((p) => <option key={p.codigo} value={p.codigo}>{p.nombre} (+{p.prefijo})</option>)}
+              </select>
+              <input
+                id="registro-celular"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel-national"
+                value={telefono}
+                onChange={(e) => setTelefono(e.target.value.replace(/[^\d\s-]/g, ''))}
+                required
+                placeholder={PAISES.find((p) => p.codigo === paisTelefono)?.ejemplo}
+                aria-describedby="registro-celular-ayuda"
+                style={{ ...estiloInput, flex: 1, minWidth: 0 }}
+              />
+            </div>
+            <span id="registro-celular-ayuda" style={{ display: 'block', marginTop: 6, fontSize: 13, color: t.textoSecundario }}>
+              {paisTelefono === 'AR' ? 'Código de área y número, sin el 0 ni el 15. Ej.: 2324500294 o 1155551234.' : 'Solo el número, sin el código del país.'}
+            </span>
+          </div>
 
           <label style={{ marginBottom: 22, display: 'block' }}>
             <span style={estiloLabel}>Género (opcional)</span>

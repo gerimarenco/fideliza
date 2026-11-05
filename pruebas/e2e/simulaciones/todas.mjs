@@ -3,3 +3,4 @@
 import './resend.mjs'
 import './tiendanube-cupones.mjs'
 import './tiendanube-ordenes.mjs'
+import './google.mjs'

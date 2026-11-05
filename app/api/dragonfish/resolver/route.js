@@ -5,6 +5,7 @@ import { enviarEmailPuntosAcreditados } from '@/lib/email'
 import { calcularPuntosPorCompra } from '@/lib/puntos'
 import { acreditarSiEsPrimeraCompraReferida } from '@/lib/referidos'
 import { normalizarEmail, filtroEmail, normalizarTelefono } from '@/lib/identidad'
+import { mismoCelular } from '@/lib/bienvenida'
 
 // El agente local reporta acá el resultado de consultar una factura pendiente
 // contra la API REST de Dragon Fish: monto de la venta y el dato de
@@ -62,8 +63,8 @@ export async function POST(request) {
   }
 
   const emailNormalizado = normalizarEmail(email)
-  // Dragon Fish puede traer el celular con guiones o espacios; el registro
-  // lo guarda solo con dígitos (ver app/api/registro).
+  // Dragon Fish puede traer el celular con guiones o espacios: acá quedan
+  // solo los dígitos, para buscar a la clienta más abajo.
   const telefonoNormalizado = normalizarTelefono(telefono)
 
   // Dragon Fish (vía el agente local) puede mandar el monto como número o
@@ -82,18 +83,24 @@ export async function POST(request) {
     return marcarFactura(factura.id, codigo, 'sin_datos')
   }
 
-  let cliente = await prisma.cliente.findFirst({
-    where: {
-      negocioId: negocio.id,
-      OR: [
-        ...(emailNormalizado ? [{ email: filtroEmail(emailNormalizado) }] : []),
-        ...(telefonoNormalizado ? [{ telefono: telefonoNormalizado }] : []),
-        // Clientas cargadas a mano antes de normalizar el celular pueden
-        // tenerlo guardado con guiones/espacios, igual que en Dragon Fish.
-        ...(typeof telefono === 'string' && telefono.trim() && telefono.trim() !== telefonoNormalizado ? [{ telefono: telefono.trim() }] : []),
-      ],
-    },
-  })
+  // Primero por email; si no, por celular. El celular se compara con
+  // mismoCelular (lib/bienvenida.js): Dragon Fish lo puede traer como
+  // "2324-500294" y Retornar lo guarda como "+5492324500294" (o, en cuentas
+  // viejas, como se haya cargado). La base trae las candidatas por los
+  // últimos 6 dígitos (iguales en cualquier forma) y la comparación exacta se
+  // hace acá; si dos cuentas comparten el celular, se toma la más antigua.
+  let cliente = emailNormalizado
+    ? await prisma.cliente.findFirst({ where: { negocioId: negocio.id, email: filtroEmail(emailNormalizado) } })
+    : null
+  if (!cliente && telefonoNormalizado.length >= 6) {
+    const candidatas = await prisma.$queryRaw`
+      SELECT id, telefono FROM "Cliente"
+      WHERE "negocioId" = ${negocio.id}
+        AND right(regexp_replace(coalesce(telefono, ''), '[^0-9]', '', 'g'), 6) = ${telefonoNormalizado.slice(-6)}
+      ORDER BY "createdAt" ASC, id ASC`
+    const coincidencia = candidatas.find((c) => mismoCelular(c.telefono, telefonoNormalizado))
+    if (coincidencia) cliente = await prisma.cliente.findUnique({ where: { id: coincidencia.id } })
+  }
 
   // A propósito no se crea cuenta sola acá aunque la venta traiga email:
   // el negocio no quiere que alguien se entere de que tiene una cuenta en
