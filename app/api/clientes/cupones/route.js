@@ -32,6 +32,7 @@ export async function GET() {
       premioNombre: true,
       puntosUsados: true,
       premioBeneficio: true,
+      premioId: true,
       premio: { select: { nombre: true, puntos: true, emoji: true, tiendanubeProductoUrl: true, tiendanubeProductoId: true, tiendanubeDescuentoPorcentaje: true, tiendanubeDescuentoMonto: true, tiendanubeDescuentoMontoMinimo: true } },
     },
   })

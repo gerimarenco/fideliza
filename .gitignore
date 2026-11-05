@@ -44,3 +44,8 @@ next-env.d.ts
 .vercel
 
 /app/generated/prisma
+
+# Copias locales de scripts/eliminar-cuentas-sin-nombre.mjs (datos personales)
+# y archivos temporales de prueba: nunca al repo.
+respaldo-cuentas-eliminadas-*.json
+*.tmp.mjs

@@ -113,6 +113,7 @@ export async function GET(request) {
         id: true, nombre: true, puntos: true, emoji: true, activo: true, negocioId: true,
         tiendanubeProductoId: true, tiendanubeProductoUrl: true, tiendanubeDescuentoPorcentaje: true,
         tiendanubeDescuentoMonto: true, tiendanubeDescuentoMontoMinimo: true,
+        tiendanubeVarianteId: true, _count: { select: { alternativas: true } },
       }
     })
   ])
@@ -202,6 +203,11 @@ export async function PATCH(request) {
     return NextResponse.json({ error: errorFijo }, { status: 400 })
   }
   Object.assign(data, datosTn)
+  // Si cambia el producto, la variante elegida (de otro producto) deja de
+  // tener sentido; las alternativas se mantienen (ver Enlace y alternativas).
+  if (data.tiendanubeProductoId !== undefined && data.tiendanubeProductoId !== premio.tiendanubeProductoId) {
+    data.tiendanubeVarianteId = null
+  }
 
   const actualizado = await prisma.premio.update({
     where: { id: body.id },

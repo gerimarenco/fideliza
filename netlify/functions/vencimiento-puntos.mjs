@@ -296,7 +296,7 @@ async function avisarCliente(negocio, clienteId, loteIds, ahora) {
       where: { id: { in: loteIds }, avisoVencimientoEn: ahora },
       select: { id: true, createdAt: true, saldoRestante: true },
     })
-    const cliente = await tx.cliente.findUnique({ where: { id: clienteId }, select: { email: true, puntos: true } })
+    const cliente = await tx.cliente.findUnique({ where: { id: clienteId }, select: { email: true, nombre: true, puntos: true } })
     return { marcados, cliente }
   })
   if (!aviso?.cliente) return 'omitido'
@@ -306,8 +306,10 @@ async function avisarCliente(negocio, clienteId, loteIds, ahora) {
 
   const enviado = await enviarEmailPuntosPorVencer({
     email: aviso.cliente.email,
+    nombre: aviso.cliente.nombre,
     puntosPorVencer: resumen.puntos,
     fechaVencimiento: resumen.fecha,
+    detalle: resumen.detalle,
     puntosTotales: aviso.cliente.puntos,
     negocioNombre: negocio.nombre,
     negocioId: negocio.id,

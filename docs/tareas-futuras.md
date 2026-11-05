@@ -1931,7 +1931,7 @@ No verificado (necesita la tienda real): que el checkout de Tiendanube rechace u
 
 Decisión de Genaro: el registro público vuelve a pedir DNI, para que una misma persona no abra varias cuentas en el mismo negocio con distintos emails (bienvenida, referidos).
 
-- **Validación** (`lib/dni.js`): se aceptan puntos, espacios y guiones; se guarda solo con números y sin ceros adelante; 7 u 8 dígitos; se rechazan vacíos, letras y otros signos. **Solo formato**: no se rechazan números por parecer raros (11.111.111 o 12.345.678 son documentos reales) y **no se verifica contra RENAPER** ni ningún registro oficial: un número inventado con la forma correcta pasa.
+- **Validación** (`lib/dni.js`): ~~se aceptan puntos, espacios y guiones~~ desde el 2026-11-02 solo números (ver ítem 77); se guarda solo con números y sin ceros adelante; 7 u 8 dígitos; se rechazan vacíos, letras y otros signos. **Solo formato**: no se rechazan números por parecer raros (11.111.111 o 12.345.678 son documentos reales) y **no se verifica contra RENAPER** ni ningún registro oficial: un número inventado con la forma correcta pasa.
 - **Unicidad**: un DNI por negocio (la misma persona puede tener cuenta en otro negocio). La garantiza la base con el índice parcial único `Cliente_negocioId_dni_key` (`negocioId`, `dni`) para las cuentas desde el 30/10/2026; además, el registro toma un lock por documento y busca también en las cuentas anteriores (normalizando, por si tienen ceros adelante). Probado con 6 registros simultáneos: 1 cuenta, 5 rechazos.
 - **Email**: ya era único en toda la base (no solo por negocio), porque con el email se inicia sesión sin elegir negocio. Se mantiene así: cumple "uno por negocio" y cambiarlo exigiría elegir el negocio al entrar.
 - **Mensajes**: "Este correo electrónico ya está registrado. Iniciá sesión o recuperá tu contraseña." / "Este DNI ya está registrado. Ya existe una cuenta asociada a este documento. Iniciá sesión o recuperá tu cuenta." Con enlaces a iniciar sesión y a recuperar la contraseña.
@@ -1951,6 +1951,22 @@ Decisión de Genaro: el registro público vuelve a pedir DNI, para que una misma
 **Si aparecen DNI repetidos históricos**: no borrar ni fusionar automáticamente. Por cada grupo, mirar las cuentas (puntos, canjes, compras, última actividad) con Genaro y el negocio; si son la misma persona, decidir a mano cuál queda y cómo se pasa el saldo, con copia de seguridad previa y autorización. Recién cuando no haya repetidos se puede ampliar el índice a todas las cuentas (`CREATE UNIQUE INDEX ... WHERE "dni" IS NOT NULL`, sin la fecha).
 
 **Límites**: las cuentas viejas sin DNI no se pueden cruzar con una cuenta nueva de la misma persona (salvo por el celular). El índice de Prisma es parcial y Prisma 5 no lo declara en `schema.prisma`: si `prisma migrate dev` propone borrarlo, sacar esa línea.
+
+## 77. Clientes: alta manual, DNI solo números, celular con país y cuentas sin nombre (2026-11-02)
+
+**Alta manual = registro.** "Nuevo cliente" del panel pide lo mismo que el registro público (nombre, apellido, email, fecha de nacimiento, DNI, celular con país y género opcional) y valida con la misma función (`lib/datosCliente.js`, usada por `POST /api/registro/[negocio]` y `POST /api/clientes`): mismos mensajes, mismo control de DNI repetido por negocio (lock + búsqueda normalizada + índice único). La contraseña la sigue generando el sistema. El nombre no puede ser un email.
+
+**DNI solo números** (`lib/dni.js`): se rechazan puntos, espacios internos y guiones (en la pantalla directamente no se pueden escribir); se toleran espacios al principio o al final y un 0 adelante, que se sacan. Se mantienen 7–8 dígitos y la unicidad por negocio. Los DNI ya guardados no se tocan (el control de repetidos los sigue comparando normalizados).
+
+**Celular** (`lib/telefono.js`): se escribe solo código de área + número (ej. 2324500294 o 1155551234), sin +54, 9 ni 15. Argentina (+54) por defecto, con un selector para Uruguay, Chile, Paraguay, Bolivia, Brasil, Perú, España y Estados Unidos. Se guarda en formato internacional: `+549` + 10 dígitos para Argentina (el 9 de celular se agrega solo), `+<código><número>` para los demás. Valida largo y código de área argentino (empieza con 11, 2 o 3); si igual se escribe +54, 9, 0 o 15 se sacan, sin duplicar prefijos. **Compatibilidad**: los celulares viejos no se modifican; la bienvenida (una por celular), el resolver de Dragon Fish (ahora compara con `mismoCelular`, antes buscaba el texto exacto) y el enlace de WhatsApp (`numeroWhatsapp`) tratan `+5492324500294`, `2324500294` y `02324 15 500294` como el mismo número.
+
+**Cuentas creadas automáticamente.** Investigado: entre el 9 y el 22 de septiembre de 2026 la integración con Dragon Fish creaba sola una cuenta sin nombre cuando llegaba una compra con un email o celular desconocido (se sacó en 777482c; hoy solo crean cuentas el registro y "Nuevo cliente"). Además hay cuentas cargadas a mano con el email como nombre. Cambios:
+- Columna nueva `Cliente.origen` (`'registro'` o `'panel'`; vacía en las anteriores). El script de bienvenida retroactiva la usa para no confundir altas del panel (que ahora también tienen fecha de nacimiento) con autoregistros.
+- En el panel, "Solo cuentas sin nombre" filtra las que tienen el nombre vacío o igual a un email, con la etiqueta "Sin nombre". Esas (y solo esas) se pueden eliminar desde el detalle, **menos las protegidas** (`CUENTAS_PROTEGIDAS` en `lib/eliminarCuenta.js`: genaromarenco110@gmail.com; la misma lista usa el script). Un nombre de una sola palabra cuenta como nombre propio: no se borra. Antes de confirmar se muestra siempre, aunque sea 0: puntos, movimientos, canjes, todos los cupones de Tiendanube con su estado (y cuáles pueden seguir activos: disponibles o sin verificar), y referidos. `GET/DELETE /api/clientes/[id]`: solo el negocio dueño o el admin; una cuenta con nombre propio o protegida da 400.
+- **Qué borra** (`lib/eliminarCuenta.js`): la cuenta, sus movimientos, sus canjes y sus pedidos de recuperación de contraseña. A las que invitó se les borra "quién la invitó" (sus puntos y movimientos no cambian). No toca ninguna otra cuenta, saldo ni movimiento. Los cupones de Tiendanube de esos canjes quedan vivos en la tienda: desactivarlos a mano.
+- Para borrar en bloque: `scripts/eliminar-cuentas-sin-nombre.mjs` (simulación por defecto, que ya lista los cupones posiblemente activos con su cuenta, para desactivarlos antes de borrar; `--aplicar --esperadas=N`; conserva genaromarenco110@gmail.com; guarda copia JSON de lo borrado, ignorada por git). **Pendiente**: correrlo en producción (lo corre Genaro, con la base real).
+
+**Migración** `20261102120000_cliente_origen`: solo agrega la columna (nullable), no toca filas.
 
 ## 65. Otros pendientes menores (de sesiones previas, sin resolver)
 
@@ -1990,3 +2006,89 @@ límites y prueba real en `docs/lanzamiento/cupones-por-producto.md`.
   un premio-producto, también el que hace el negocio en el local, se rechaza
   si la tienda online no tiene stock. Hay que distinguir el stock de la
   tienda online del stock físico del negocio.
+
+## 79. Enlaces de premios con stock real y alternativas (2026-11-06)
+
+Los enlaces de los premios con producto (panel de la clienta, cartel del
+cupón, mail de canje) pasan por una página intermedia de Retornar
+(`/club/<negocio>/producto/<premio>`) que consulta el stock en Tiendanube:
+disponible, sin stock (con los otros colores del mismo producto, primero los
+del mismo precio, y hasta 3 alternativas elegidas por el negocio, solo las
+que tienen stock) o "no pudimos confirmar" (nunca "disponible"). En el panel
+de la clienta, etiquetas de stock y el canje deshabilitado si no hay stock en
+ninguna variante. En Premios → "Enlace y alternativas" el negocio busca el
+producto en la tienda, elige el color y las alternativas. Solo lectura de
+Tiendanube. Detalle en `docs/lanzamiento/enlaces-con-stock.md`.
+
+Migración `20261106120000_premio_alternativas`: agrega `Premio.tiendanubeVarianteId`
+(vacía) y la tabla `PremioAlternativa`; no toca filas existentes.
+
+**Pendiente**:
+- Correr `scripts/diagnostico-productos-tiendanube.mjs` (solo lectura) contra
+  la tienda real para ver si hay varias ubicaciones de stock (local y online)
+  y decidir cuál cuenta para la tienda online.
+- Probar en la tienda real que `?variant=<id>` abre el color y que el
+  buscador encuentra los productos.
+- Cargar el enlace y 2 o 3 alternativas de cada premio de producto.
+
+## 80. Emails a las clientas: remitente del club, bienvenida, vencimiento y diseño (2026-11-07)
+
+Detalle en `docs/lanzamiento/emails.md`.
+
+- **Remitente**: nombre visible por negocio (Ajustes → "Emails a tus
+  clientas", ej. "Club Peperina"), misma dirección verificada; "responder a"
+  el email de soporte. Vacío = como antes ("Retornar").
+- **Bienvenida**: mail nuevo al registrarse, activable por negocio
+  (desactivado por defecto).
+- **Vencimiento**: el aviso (30 días antes, por lote) ahora detalla las
+  fechas, los premios que alcanza y cuánto comprar para los demás.
+- **Canje**: asunto y texto de confirmación, no promocionales.
+- **Todos**: plantilla nueva con los colores del negocio y versión de texto.
+- Migración `20261107120000_emails_negocio`: dos columnas nuevas en Negocio
+  (nombre vacío, bienvenida desactivada); no cambia el comportamiento de
+  ningún negocio hasta que se configure.
+
+**Pendiente**:
+- En Ajustes de Peperina: cargar "Club Peperina" como remitente y activar la
+  bienvenida (después del deploy).
+- Dirección `club@peperina.com.ar`: requiere verificar el dominio en Resend
+  (DNS de peperina.com.ar) y revisar el plan; con autorización.
+- Revisar en un mail real ("Mostrar original" en Gmail) SPF, DKIM y DMARC; si
+  falta, agregar DMARC a retornar.com.ar.
+
+## 81. Alerta de canje para las empleadas (2026-11-08)
+
+En Clientes (y en Inicio), las clientas que ya pueden canjear el premio de la
+alerta (el pañuelo en Peperina) aparecen con un "!" y "Puede canjear"; en el
+detalle, sus puntos, cuántos le faltan para el siguiente premio, WhatsApp con
+el mensaje sugerido (nunca se manda solo) y "Marcar como contactada". No se
+repite hasta el próximo canje. Configurable por negocio (Ajustes → "Alerta de
+canje"), desactivada por defecto; el umbral es el puntaje del premio elegido.
+Detalle en `docs/lanzamiento/alertas-canje.md`.
+
+**Pendiente**:
+- Confirmar con `scripts/revisar-alerta-canje.mjs` (solo lectura) que el
+  pañuelo cuesta 4.000 puntos en producción; si no, consultarlo antes de
+  cambiar nada.
+- Activar la alerta en Ajustes de Peperina después del deploy.
+
+## 82. Exportar clientes a Google Sheets (2026-11-09)
+
+Sección nueva "Exportar clientes" en el panel del negocio: conectar la cuenta
+de Google del negocio (OAuth, solo `drive.file`), crear una hoja o elegir una
+existente con el selector de Google y exportar las clientas. Al volver a
+exportar actualiza por ID interno, agrega las nuevas al final y no toca
+columnas, filas, pestañas ni formatos propios. Sin DNI ni datos sensibles.
+Token cifrado; una conexión por negocio. La descarga para Excel se mantiene en
+la misma sección. Migración `20261109120000_conexion_google` (tabla nueva).
+Detalle en `docs/lanzamiento/google-sheets.md`.
+
+**Pendiente** (con autorización):
+- Google Cloud: habilitar Sheets API y Picker API, cliente OAuth con la URI
+  `https://retornar.com.ar/api/google-sheets/callback`, permiso `drive.file` en
+  la pantalla de consentimiento (publicada "En producción"), clave de API
+  restringida.
+- Netlify: `GOOGLE_SHEETS_CLIENT_ID`, `GOOGLE_SHEETS_CLIENT_SECRET`,
+  `GOOGLE_PICKER_API_KEY`, `GOOGLE_CLOUD_PROJECT_NUMBER`.
+- Probar con una cuenta de Google de prueba (no la de Peperina) antes de
+  usarla con la cuenta real.

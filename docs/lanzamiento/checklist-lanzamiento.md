@@ -57,6 +57,7 @@ pocos puntos creados para la prueba, y borrar los cupones al terminar
 | C4 | C3 con una promoción automática activa en la tienda | ¿Tiendanube compara la compra mínima antes o después de la promoción? Anotar el resultado | [ ] |
 | C5 | C3 con envío | ¿El envío cuenta para llegar a la compra mínima? Anotar el resultado | [ ] |
 | C6 | Desconectar/reconectar no aplica: forzar un error (ej. premio de 10% con la app sin permiso de cupones) | El canje queda con error y "Reintentar cupón" en Canjes; al corregir y reintentar, se genera. (Un premio con ID de producto inexistente ya no se puede canjear: avisa que no está disponible y no descuenta puntos) | [ ] |
+| C7 | Enlaces con stock (requiere el diagnóstico de `enlaces-con-stock.md`) | Un premio con stock: la página dice "Disponible" y el botón abre el color; con el color agotado: muestra los otros colores; con todo agotado: las alternativas con stock; el panel de la clienta muestra la etiqueta y no deja canjear sin stock | [ ] |
 
 Si C4 o C5 muestran que el descuento puede superar la mitad de lo pagado,
 ajustar la compra mínima del premio de $70.000 en consecuencia.

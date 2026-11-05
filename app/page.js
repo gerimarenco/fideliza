@@ -8,8 +8,11 @@ import { descripcionNiveles, formatearMiles } from '@/lib/clienteStats';
 import { fechaCorta } from '@/lib/csv';
 import { guiaCupon } from '@/lib/guiaCupon';
 import { fechaArgentina } from '@/lib/bienvenida';
+import { mensajeAlerta } from '@/lib/alertaCanje';
 import { estadoVisible } from '@/lib/estadoCupon';
 import { calcularPuntosPorCompra } from '@/lib/puntos';
+import { PAISES, PAIS_PREDETERMINADO, normalizarCelular, numeroWhatsapp } from '@/lib/telefono';
+import { normalizarDni, MENSAJE_DNI_INVALIDO } from '@/lib/dni';
 import { estadoAgente, textoTiempo } from '@/lib/estadoAgente';
 import { ICONOS_PREMIO, IconoPremio } from '@/lib/premioIconos';
 import { TEMA_DEFAULT, FUENTE_TEXTO, resolverTema } from '@/lib/tema';
@@ -17,7 +20,7 @@ import {
   Home as HomeIcon, Store, Users, Gift, Star, RefreshCw, Plug, Settings, LogOut, Shield,
   AlertTriangle, MessageCircle, ScrollText, KeyRound, ClipboardList, Cake,
   ShoppingBag, Hourglass, Link as LinkIcon, Ticket, Info, Mail, Menu, Download,
-  ArrowRight, Check, X, Copy, ExternalLink, CircleCheck,
+  ArrowRight, Check, X, Copy, ExternalLink, CircleCheck, PackageX, CircleAlert, FileSpreadsheet, Trash2,
 } from 'lucide-react';
 
 // Una clave por confirmación de canje (ver confirmacionCanje).
@@ -86,13 +89,18 @@ export default function Home() {
   const [clienteSeleccionado, setClienteSeleccionado] = useState('');
   const [loading, setLoading] = useState(true);
   const [mostrarFormCliente, setMostrarFormCliente] = useState(false);
-  const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', telefono: '', email: '' });
+  // Mismos campos que el registro público de la clienta (lib/datosCliente.js).
+  const CLIENTE_VACIO = { nombre: '', apellido: '', email: '', fechaNacimiento: '', dni: '', paisTelefono: PAIS_PREDETERMINADO, telefono: '', sexo: '' };
+  const [nuevoCliente, setNuevoCliente] = useState(CLIENTE_VACIO);
   const [mostrarFormNegocio, setMostrarFormNegocio] = useState(false);
   const [nuevoNegocio, setNuevoNegocio] = useState({ nombre: '', tipo: '', ciudad: '', emoji: '', email: '' });
   const [negocioEditandoId, setNegocioEditandoId] = useState(null);
   const [formEdicionNegocio, setFormEdicionNegocio] = useState({ nombre: '', tipo: '', ciudad: '', emoji: '', tema: { ...TEMA_DEFAULT } });
   const [clientePropio, setClientePropio] = useState(null);
   const [negocioDelCliente, setNegocioDelCliente] = useState(null);
+  // Stock del producto de cada premio en Tiendanube ({ [premioId]: estado },
+  // ver app/api/premios/disponibilidad): etiquetas del panel de la clienta.
+  const [stockPremios, setStockPremios] = useState({});
   const [mostrarMenuCliente, setMostrarMenuCliente] = useState(false);
   // null | 'info' | 'password' | 'bases' | 'movimientos' | 'referidos' — qué modal del menú del cliente está abierto
   const [modalCliente, setModalCliente] = useState(null);
@@ -112,11 +120,22 @@ export default function Home() {
   const [toast, setToast] = useState(null);
   const [estadisticas, setEstadisticas] = useState(null);
   const [seccionActiva, setSeccionActiva] = useState('inicio');
+  // Exportar clientes → Google Sheets: estado de la conexión del negocio
+  // (app/api/google-sheets/estado) y qué acción está en curso.
+  const [estadoGoogle, setEstadoGoogle] = useState(null);
+  const [ocupadoGoogle, setOcupadoGoogle] = useState(null);
   const [clientesPagina, setClientesPagina] = useState(1);
+  // Alerta de canje (lib/alertaCanje.js): ver solo las clientas que ya
+  // pueden canjear el premio de la alerta, y el resumen { premio, pendientes }.
+  const [clientesSoloAlerta, setClientesSoloAlerta] = useState(false);
+  const [resumenAlerta, setResumenAlerta] = useState(null);
   const [clientesData, setClientesData] = useState(null);
   const [clientesBusqueda, setClientesBusqueda] = useState('');
   const [clientesBusquedaDebounced, setClientesBusquedaDebounced] = useState('');
   const [clientesNivelFiltro, setClientesNivelFiltro] = useState('');
+  // Solo cuentas sin nombre propio (vacío o un email), para revisarlas y
+  // borrarlas (ver app/api/clientes/[id]).
+  const [clientesSinNombre, setClientesSinNombre] = useState(false);
   const [clienteExpandidoId, setClienteExpandidoId] = useState(null);
   const [premioParaCanjear, setPremioParaCanjear] = useState('');
   const [canjeandoClienteId, setCanjeandoClienteId] = useState(null);
@@ -133,6 +152,10 @@ export default function Home() {
   const [mostrarFormPremio, setMostrarFormPremio] = useState(false);
   const [nuevoPremio, setNuevoPremio] = useState({ nombre: '', puntos: '', emoji: '', tiendanubeProductoId: '', tiendanubeProductoUrl: '', tiendanubeDescuentoPorcentaje: '', tiendanubeDescuentoMonto: '', tiendanubeDescuentoMontoMinimo: '' });
   const [premioEditandoId, setPremioEditandoId] = useState(null);
+  // "Enlace y alternativas" de un premio (ver app/api/premios/[id]/enlace):
+  // { premioId, cargando, error, guardando, principal, alternativas,
+  //   buscandoPara: 'principal' | 'alternativa' | null, busqueda, resultados, buscando }
+  const [enlaceEditando, setEnlaceEditando] = useState(null);
   const [formEdicionPremio, setFormEdicionPremio] = useState({ nombre: '', puntos: '', emoji: '', tiendanubeProductoId: '', tiendanubeProductoUrl: '', tiendanubeDescuentoPorcentaje: '', tiendanubeDescuentoMonto: '', tiendanubeDescuentoMontoMinimo: '' });
   const [formIntegraciones, setFormIntegraciones] = useState({ tiendanubeStoreId: '', tiendanubeAccessToken: '', slug: '', dragonfishBaseDeDatos: '' });
   const [formPassword, setFormPassword] = useState({ actual: '', nueva: '', confirmar: '' });
@@ -144,6 +167,9 @@ export default function Home() {
   const [formVencimientoPuntos, setFormVencimientoPuntos] = useState('');
   const [formSitioWeb, setFormSitioWeb] = useState('');
   const [formSoporte, setFormSoporte] = useState({ email: '', whatsapp: '' });
+  // Emails a las clientas: nombre visible del remitente y mail de bienvenida.
+  const [formEmails, setFormEmails] = useState({ nombreRemitente: '', bienvenida: false });
+  const [formAlertaPremio, setFormAlertaPremio] = useState('');
   const [formBasesCondiciones, setFormBasesCondiciones] = useState('');
   const [formTema, setFormTema] = useState({ ...TEMA_DEFAULT });
 
@@ -210,6 +236,45 @@ export default function Home() {
     if (session) cargarNegocios(true);
   }, [session]);
 
+  // Vuelta del OAuth de Google (app/api/google-sheets/callback): abre
+  // "Exportar clientes" y avisa el resultado; después limpia la URL.
+  useEffect(() => {
+    if (!isNegocio || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('seccion') !== 'exportar') return;
+    const resultado = params.get('google');
+    const MENSAJES = {
+      conectado: ['exito', 'Cuenta de Google conectada.'],
+      cancelado: ['error', 'No se conectó: cancelaste el permiso en Google.'],
+      'sin-permiso': ['error', 'No se conectó: hace falta dar permiso para crear y editar la hoja.'],
+      rechazado: ['error', 'No se pudo conectar (el pedido venció o no es de esta sesión). Probá de nuevo.'],
+      error: ['error', 'No se pudo conectar con Google. Probá de nuevo en unos minutos.'],
+    };
+    window.history.replaceState(null, '', window.location.pathname);
+    const t = setTimeout(() => {
+      setSeccionActiva('exportar');
+      if (MENSAJES[resultado]) setToast({ tipo: MENSAJES[resultado][0], mensaje: MENSAJES[resultado][1] });
+    }, 0);
+    return () => clearTimeout(t);
+  }, [isNegocio]);
+
+  useEffect(() => {
+    if (seccionActiva !== 'exportar' || !isNegocio) return;
+    fetch('/api/google-sheets/estado', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then(setEstadoGoogle)
+      .catch(() => setEstadoGoogle(null));
+  }, [seccionActiva, isNegocio]);
+
+  const premiosConProducto = (negocioDelCliente?.premios || []).filter((p) => p.tiendanubeProductoId).map((p) => p.id).join(',');
+  useEffect(() => {
+    if (!isCliente || !negocioDelCliente?.id || !premiosConProducto) return;
+    fetch(`/api/premios/disponibilidad?negocioId=${negocioDelCliente.id}`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : {}))
+      .then(setStockPremios)
+      .catch(() => setStockPremios({}));
+  }, [isCliente, negocioDelCliente?.id, premiosConProducto]);
+
   const cargarEstadisticas = (negocioId) => {
     if (!negocioId) { setEstadisticas(null); return; }
     fetch(`/api/negocios/estadisticas?negocioId=${negocioId}`)
@@ -222,14 +287,24 @@ export default function Home() {
     cargarEstadisticas(negocioMostrado?.id);
   }, [negocioMostrado?.id]);
 
-  const cargarClientes = (negocioId, page = 1, busqueda = '', nivel = '') => {
+  const cargarClientes = (negocioId, page = 1, busqueda = '', nivel = '', soloAlerta = false, sinNombre = false) => {
     if (!negocioId) { setClientesData(null); return; }
     const q = busqueda.trim() ? `&q=${encodeURIComponent(busqueda.trim())}` : '';
     const n = nivel ? `&nivel=${encodeURIComponent(nivel)}` : '';
-    fetch(`/api/clientes?negocioId=${negocioId}&page=${page}&pageSize=10${q}${n}`)
+    const a = soloAlerta ? '&alerta=1' : '';
+    const sn = sinNombre ? '&sinNombre=1' : '';
+    fetch(`/api/clientes?negocioId=${negocioId}&page=${page}&pageSize=10${q}${n}${a}${sn}`)
       .then(res => res.json())
       .then(setClientesData)
       .catch(() => {});
+  };
+
+  const cargarResumenAlerta = (negocioId) => {
+    if (!negocioId) { setResumenAlerta(null); return; }
+    fetch(`/api/clientes/alertas?negocioId=${negocioId}`, { cache: 'no-store' })
+      .then(res => (res.ok ? res.json() : null))
+      .then(setResumenAlerta)
+      .catch(() => setResumenAlerta(null));
   };
 
   const cargarCanjes = (negocioId, page = 1) => {
@@ -290,11 +365,19 @@ export default function Home() {
 
   useEffect(() => {
     setClientesPagina(1);
-  }, [clientesBusquedaDebounced, clientesNivelFiltro]);
+  }, [clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta, clientesSinNombre]);
 
   useEffect(() => {
-    cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro);
-  }, [negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro]);
+    cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta, clientesSinNombre);
+  }, [negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta, clientesSinNombre]);
+
+  useEffect(() => {
+    if ((seccionActiva !== 'inicio' && seccionActiva !== 'clientes') || !negocioMostrado?.id) return;
+    fetch(`/api/clientes/alertas?negocioId=${negocioMostrado.id}`, { cache: 'no-store' })
+      .then(res => (res.ok ? res.json() : null))
+      .then(setResumenAlerta)
+      .catch(() => setResumenAlerta(null));
+  }, [negocioMostrado?.id, seccionActiva]);
 
   // clientesData también alimenta la vista previa de Inicio (mismo estado,
   // ver VistaClientes e Inicio más abajo) -- sin esto, una búsqueda que
@@ -362,6 +445,8 @@ export default function Home() {
     setFormVencimientoPuntos(negocioMostrado?.vencimientoPuntosMeses ? String(negocioMostrado.vencimientoPuntosMeses) : '');
     setFormSitioWeb(negocioMostrado?.sitioWeb || '');
     setFormSoporte({ email: negocioMostrado?.soporteEmail || '', whatsapp: negocioMostrado?.soporteWhatsapp || '' });
+    setFormEmails({ nombreRemitente: negocioMostrado?.emailRemitenteNombre || '', bienvenida: !!negocioMostrado?.emailBienvenida });
+    setFormAlertaPremio(negocioMostrado?.alertaCanjePremioId || '');
     setFormBasesCondiciones(negocioMostrado?.basesCondiciones || '');
     setFormTema({ ...TEMA_DEFAULT, ...(negocioMostrado?.tema || {}) });
     setFormPassword({ actual: '', nueva: '', confirmar: '' });
@@ -390,6 +475,7 @@ export default function Home() {
       cargarNegocios();
       cargarEstadisticas(negocio.id);
       cargarClientes(negocio.id, clientesPagina);
+      cargarResumenAlerta(negocio.id);
     } catch (err) {
       mostrarToast('error', 'Ocurrió un error al sumar los puntos. Probá de nuevo.');
     }
@@ -397,15 +483,26 @@ export default function Home() {
 
   const agregarCliente = async () => {
     const negocio = isAdmin ? negocioActivo : negocioPropio;
-    if (!nuevoCliente.nombre || !nuevoCliente.telefono || !nuevoCliente.email) {
-      mostrarToast('error', 'Nombre, teléfono y email son obligatorios');
+    const nombreCompleto = `${nuevoCliente.nombre.trim()} ${nuevoCliente.apellido.trim()}`.trim();
+    if (!nuevoCliente.nombre.trim() || !nuevoCliente.apellido.trim() || !nuevoCliente.email.trim() || !nuevoCliente.fechaNacimiento || !nuevoCliente.dni || !nuevoCliente.telefono) {
+      mostrarToast('error', 'Completá nombre, apellido, email, fecha de nacimiento, DNI y celular.');
+      return;
+    }
+    // Mismas validaciones que el servidor y que el registro de la clienta.
+    if (!normalizarDni(nuevoCliente.dni)) {
+      mostrarToast('error', MENSAJE_DNI_INVALIDO);
+      return;
+    }
+    const celular = normalizarCelular(nuevoCliente.telefono, nuevoCliente.paisTelefono);
+    if (celular.error) {
+      mostrarToast('error', celular.error);
       return;
     }
     try {
       const res = await fetch('/api/clientes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...nuevoCliente, negocioId: negocio.id })
+        body: JSON.stringify({ ...nuevoCliente, nombre: nombreCompleto, negocioId: negocio.id })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -414,12 +511,13 @@ export default function Home() {
       }
       // Alert bloqueante a propósito (no toast): incluye la contraseña
       // generada, que hay que copiar antes de que desaparezca.
-      alert(`✅ Cliente ${nuevoCliente.nombre} agregado!\n\nEmail: ${nuevoCliente.email}\nContraseña: ${data.passwordGenerada}\n\n(Guardá esta contraseña para pasársela al cliente)`);
-      setNuevoCliente({ nombre: '', telefono: '', email: '' });
+      alert(`Cliente ${nombreCompleto} agregado.\n\nEmail: ${data.email}\nContraseña: ${data.passwordGenerada}\n\n(Guardá esta contraseña para pasársela al cliente)`);
+      setNuevoCliente(CLIENTE_VACIO);
       setMostrarFormCliente(false);
       cargarNegocios();
       cargarEstadisticas(negocio.id);
       cargarClientes(negocio.id, 1);
+      cargarResumenAlerta(negocio.id);
       setClientesPagina(1);
     } catch (err) {
       mostrarToast('error', 'Ocurrió un error al crear el cliente. Probá de nuevo.');
@@ -533,6 +631,69 @@ export default function Home() {
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al crear el premio. Probá de nuevo.');
+    }
+  };
+
+  // --- Enlace y alternativas de un premio (Premios) ---
+  const MAXIMO_ALTERNATIVAS = 3;
+  const abrirEnlacePremio = async (p) => {
+    setPremioEditandoId(null);
+    setEnlaceEditando({ premioId: p.id, cargando: true });
+    try {
+      const res = await fetch(`/api/premios/${p.id}/enlace`, { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) { setEnlaceEditando({ premioId: p.id, error: data.error || 'No se pudo abrir.' }); return; }
+      setEnlaceEditando({
+        premioId: p.id,
+        principal: data.principal,
+        alternativas: data.alternativas || [],
+        buscandoPara: data.principal ? null : 'principal',
+        busqueda: '',
+        resultados: null,
+      });
+    } catch {
+      setEnlaceEditando({ premioId: p.id, error: 'No se pudo abrir. Probá de nuevo.' });
+    }
+  };
+  const buscarProductosTienda = async () => {
+    const q = (enlaceEditando?.busqueda || '').trim();
+    if (q.length < 2) return;
+    setEnlaceEditando((e) => ({ ...e, buscando: true, errorBusqueda: null }));
+    try {
+      const res = await fetch(`/api/tiendanube/productos?negocioId=${negocioMostrado?.id}&q=${encodeURIComponent(q)}`, { cache: 'no-store' });
+      const data = await res.json();
+      setEnlaceEditando((e) => ({ ...e, buscando: false, resultados: res.ok ? data.items : [], errorBusqueda: res.ok ? null : data.error }));
+    } catch {
+      setEnlaceEditando((e) => ({ ...e, buscando: false, resultados: [], errorBusqueda: 'No se pudo buscar. Probá de nuevo.' }));
+    }
+  };
+  const elegirProductoTienda = (item) => {
+    const elegido = { productoId: item.id, varianteId: null, nombre: item.nombre, variantes: item.variantes, estado: item.variantes.some((v) => v.estado === 'con_stock') ? 'con_stock' : 'sin_stock' };
+    setEnlaceEditando((e) => (e.buscandoPara === 'principal'
+      ? { ...e, principal: elegido, alternativas: e.alternativas.filter((a) => a.productoId !== item.id), buscandoPara: null, resultados: null, busqueda: '' }
+      : { ...e, alternativas: [...e.alternativas, elegido].slice(0, MAXIMO_ALTERNATIVAS), buscandoPara: null, resultados: null, busqueda: '' }));
+  };
+  const guardarEnlacePremio = async () => {
+    const e = enlaceEditando;
+    if (!e?.principal) return;
+    setEnlaceEditando({ ...e, guardando: true, error: null });
+    try {
+      const res = await fetch(`/api/premios/${e.premioId}/enlace`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          principal: { productoId: e.principal.productoId, varianteId: e.principal.varianteId || null },
+          alternativas: e.alternativas.map((a) => ({ productoId: a.productoId, varianteId: a.varianteId || null })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setEnlaceEditando({ ...e, guardando: false, error: data.error || 'No se pudo guardar.' }); return; }
+      setEnlaceEditando(null);
+      mostrarToast('exito', 'Enlace y alternativas guardados.');
+      cargarPremios(negocioMostrado?.id, premiosPagina);
+      cargarNegocios();
+    } catch {
+      setEnlaceEditando({ ...e, guardando: false, error: 'No se pudo guardar. Probá de nuevo.' });
     }
   };
 
@@ -823,6 +984,25 @@ export default function Home() {
     }
   };
 
+  const guardarEmails = async () => {
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: negocioMostrado.id, emailRemitenteNombre: formEmails.nombreRemitente, emailBienvenida: formEmails.bienvenida })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        mostrarToast('error', data.error || 'No se pudo guardar');
+        return;
+      }
+      mostrarToast('exito', 'Guardado');
+      cargarNegocios();
+    } catch (err) {
+      mostrarToast('error', 'Ocurrió un error al guardar. Probá de nuevo.');
+    }
+  };
+
   const guardarBasesCondiciones = async () => {
     try {
       const res = await fetch('/api/negocios', {
@@ -952,7 +1132,8 @@ export default function Home() {
         alert(`✅ Canjeaste "${premio?.nombre}" para ${nombreCliente}.`);
       }
       setPremioParaCanjear('');
-      cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro);
+      cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta, clientesSinNombre);
+      cargarResumenAlerta(negocioMostrado?.id);
     } catch (err) {
       mostrarToast('error', 'Ocurrió un error al canjear el premio.');
     } finally {
@@ -1204,16 +1385,98 @@ export default function Home() {
     </div>
   );
 
+  // Borrar una cuenta sin nombre propio (vacío o un email): primero se
+  // muestra qué se pierde (puntos, compras, canjes, invitadas, cupones de
+  // Tiendanube todavía vivos) y se pide confirmar. Las cuentas con nombre no
+  // se pueden borrar desde acá (lo controla también el servidor).
+  const eliminarCuentaSinNombre = async (c) => {
+    try {
+      const resImpacto = await fetch(`/api/clientes/${c.id}`);
+      const impacto = await resImpacto.json();
+      if (!resImpacto.ok) {
+        mostrarToast('error', impacto.error || 'No se pudo revisar la cuenta.');
+        return;
+      }
+      const ESTADO_CUPON = { disponible: 'disponible', utilizado: 'utilizado', vencido: 'vencido', anulado: 'anulado' };
+      const cuponesTexto = impacto.cupones.length
+        ? impacto.cupones.map((k) => `  - ${k.codigo}: ${ESTADO_CUPON[k.estado] || 'sin verificar'}`).join('\n')
+        : '  (ninguno)';
+      const detalle = [
+        `Cuenta: ${c.email}`,
+        '',
+        'Se pierde:',
+        `- Puntos: ${formatearMiles(impacto.puntos)}`,
+        `- Movimientos de puntos (compras, bonos, canjes, vencimientos): ${impacto.movimientos}`,
+        `- Canjes: ${impacto.canjes}`,
+        `- Cupones de Tiendanube de esos canjes: ${impacto.cupones.length}`,
+        cuponesTexto,
+        impacto.cuponesVivos.length
+          ? `ATENCIÓN: ${impacto.cuponesVivos.length} cupón(es) pueden seguir activos en la tienda (${impacto.cuponesVivos.join(', ')}). Borrar la cuenta NO los desactiva: desactivalos a mano en Tiendanube.`
+          : 'Ningún cupón queda activo en la tienda.',
+        `- Referidos: invitó a ${impacto.invitadas} clienta(s)${impacto.invitadas ? '; a esas se les borra quién las invitó (sus puntos y movimientos no cambian)' : ''}.`,
+      ].join('\n');
+      if (!window.confirm(`¿Eliminar esta cuenta para siempre? Se borra con todo su historial y no se puede deshacer.\n\n${detalle}`)) return;
+      const res = await fetch(`/api/clientes/${c.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) {
+        mostrarToast('error', data.error || 'No se pudo eliminar la cuenta.');
+        return;
+      }
+      mostrarToast('exito', data.cuponesVivos?.length ? `Cuenta eliminada. Desactivá a mano en Tiendanube: ${data.cuponesVivos.join(', ')}` : 'Cuenta eliminada.');
+      setClienteExpandidoId(null);
+      cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta, clientesSinNombre);
+      cargarNegocios();
+    } catch (err) {
+      mostrarToast('error', 'Ocurrió un error al eliminar la cuenta.');
+    }
+  };
+
   // Link de WhatsApp con un mensaje sugerido a partir de datos reales del
   // cliente (cuánto le falta para el próximo premio que todavía no puede
   // pagar) — wa.me no necesita ninguna cuenta ni API key: el negocio lo
-  // revisa y lo manda desde su propio WhatsApp. El número se usa tal cual
-  // está cargado (solo se le sacan los caracteres que no son dígitos): si
-  // no abre el chat esperado, hay que revisar cómo lo cargó esa clienta en
-  // particular al registrarse.
+  // revisa y lo manda desde su propio WhatsApp. Los celulares nuevos se
+  // guardan con código de país (+549…); a los viejos sin código, si tienen
+  // forma de número argentino, se les agrega el 549 (lib/telefono.js).
+  // Alerta de canje: WhatsApp con el mensaje sugerido (la empleada lo revisa
+  // y lo manda ella; nada sale solo) y marcar el contacto.
+  const armarLinkWhatsappAlerta = (c) => {
+    const numero = c.alerta ? numeroWhatsapp(c.telefono) : null;
+    if (!numero) return null;
+    const mensaje = mensajeAlerta({ premioNombre: c.alerta.premio.nombre, club: nombreClub(negocioMostrado?.nombre || ''), haySiguiente: !!c.alerta.siguiente });
+    return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+  };
+  const marcarContactoAlerta = async (c, contactada) => {
+    try {
+      const res = await fetch(`/api/clientes/${c.id}/alerta`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contactada }) });
+      const data = await res.json();
+      if (!res.ok) { mostrarToast('error', data.error || 'No se pudo guardar.'); return; }
+      mostrarToast('exito', contactada ? 'Marcada como contactada.' : 'Se volvió a marcar para contactar.');
+      cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta, clientesSinNombre);
+      cargarResumenAlerta(negocioMostrado?.id);
+    } catch {
+      mostrarToast('error', 'No se pudo guardar. Probá de nuevo.');
+    }
+  };
+  const guardarAlertaPremio = async () => {
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: negocioMostrado.id, alertaCanjePremioId: formAlertaPremio || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) { mostrarToast('error', data.error || 'No se pudo guardar'); return; }
+      mostrarToast('exito', 'Guardado');
+      cargarNegocios();
+      cargarResumenAlerta(negocioMostrado.id);
+    } catch {
+      mostrarToast('error', 'Ocurrió un error al guardar. Probá de nuevo.');
+    }
+  };
+
   const armarLinkWhatsapp = (c) => {
-    if (!c.telefono) return null;
-    const numero = c.telefono.replace(/\D/g, '');
+    const numero = numeroWhatsapp(c.telefono);
+    if (!numero) return null;
     const club = nombreClub(negocioMostrado?.nombre || '');
     const proximoPremio = (premiosData?.items || [])
       .filter(p => p.activo && p.puntos > c.puntos)
@@ -1252,6 +1515,10 @@ export default function Home() {
             <option value="vip">VIP</option>
           </select>
         </label>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 42, fontSize: 14, color: tema.textoSecundario, cursor: 'pointer' }}>
+          <input type="checkbox" checked={clientesSinNombre} onChange={e => setClientesSinNombre(e.target.checked)} />
+          Solo cuentas sin nombre
+        </label>
         <a
           href={`/api/clientes/exportar?negocioId=${negocioMostrado?.id}${clientesBusquedaDebounced.trim() ? `&q=${encodeURIComponent(clientesBusquedaDebounced.trim())}` : ''}${clientesNivelFiltro ? `&nivel=${encodeURIComponent(clientesNivelFiltro)}` : ''}`}
           className="fid-btn-secondary"
@@ -1276,10 +1543,22 @@ export default function Home() {
         </div>
       </div>
 
+      {resumenAlerta?.premio && (resumenAlerta.pendientes > 0 || clientesSoloAlerta) && (
+        <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 18px', padding: '12px 14px', background: tema.superficie, border: `1px solid ${tema.borde}`, borderLeft: '3px solid #b45309' }}>
+          <CircleAlert size={18} aria-hidden="true" style={{ color: '#b45309', flexShrink: 0 }} />
+          <span style={{ flex: 1, minWidth: 0, fontSize: 14 }}>
+            {resumenAlerta.pendientes === 1 ? '1 clienta ya puede canjear' : `${formatearMiles(resumenAlerta.pendientes)} clientas ya pueden canjear`} <strong>{resumenAlerta.premio.nombre}</strong> ({formatearMiles(resumenAlerta.premio.puntos)} puntos) y todavía no fueron contactadas.
+          </span>
+          <button type="button" className="fid-btn-secondary" onClick={() => setClientesSoloAlerta(v => !v)} aria-pressed={clientesSoloAlerta} style={{ ...ui.botonSecundario, flexShrink: 0 }}>
+            {clientesSoloAlerta ? 'Ver todas las clientas' : 'Ver solo esas'}
+          </button>
+        </div>
+      )}
+
       {!clientesData && <Cargando />}
       {clientesData && clientesData.items.length === 0 && (
         <Vacio>
-          {clientesBusqueda.trim() || clientesNivelFiltro ? 'No encontramos clientes que coincidan con ese filtro.' : 'Todavía no hay clientes. Se suman cuando se registran desde el link o el QR del club.'}
+          {clientesSoloAlerta ? 'No hay clientas para contactar por ahora.' : clientesBusqueda.trim() || clientesNivelFiltro || clientesSinNombre ? 'No encontramos clientes que coincidan con ese filtro.' : 'Todavía no hay clientes. Se suman cuando se registran desde el link o el QR del club.'}
         </Vacio>
       )}
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, borderTop: clientesData?.items.length ? `1px solid ${tema.texto}` : 'none' }}>
@@ -1298,7 +1577,20 @@ export default function Home() {
                 style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 4px', width: '100%', border: 'none', background: 'transparent', color: tema.texto, textAlign: 'left', cursor: 'pointer' }}
               >
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontFamily: tema.fuenteTitulo, fontSize: 19, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nombre || c.email}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <span style={{ fontFamily: tema.fuenteTitulo, fontSize: 19, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{c.sinNombre ? c.email : c.nombre}</span>
+                    {c.sinNombre && <span style={{ flexShrink: 0, fontFamily: FUENTE_TEXTO, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9a3412', border: '1px solid #c2410c', padding: '1px 6px', whiteSpace: 'nowrap' }}>Sin nombre</span>}
+                    {c.alerta?.pendiente && (
+                      <span title={`Ya puede canjear ${c.alerta.premio.nombre}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, fontSize: 12, color: '#b45309', border: '1px solid #b45309', padding: '1px 7px', whiteSpace: 'nowrap' }}>
+                        <CircleAlert size={13} aria-hidden="true" /> Puede canjear
+                      </span>
+                    )}
+                    {c.alerta && !c.alerta.pendiente && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, fontSize: 12, color: tema.textoSecundario, whiteSpace: 'nowrap' }}>
+                        <Check size={13} aria-hidden="true" /> Contactada
+                      </span>
+                    )}
+                  </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: tema.textoSecundario, minWidth: 0 }}>
                     {s.nivel && (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0, whiteSpace: 'nowrap' }}>
@@ -1339,12 +1631,56 @@ export default function Home() {
                     </div>
                   )}
 
+                  {c.alerta && (
+                    <div role="group" aria-label="Alerta de canje" style={{ padding: '14px 16px', background: tema.superficie, border: `1px solid ${tema.borde}`, borderLeft: `3px solid ${c.alerta.pendiente ? '#b45309' : tema.borde}`, display: 'grid', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15 }}>
+                        <CircleAlert size={16} aria-hidden="true" style={{ color: c.alerta.pendiente ? '#b45309' : tema.textoSecundario }} />
+                        <span>Ya puede canjear <strong>{c.alerta.premio.nombre}</strong>.</span>
+                      </div>
+                      <div style={{ fontSize: 14, color: tema.textoSecundario, lineHeight: 1.5 }}>
+                        Tiene <strong style={{ color: tema.texto }}>{formatearMiles(c.alerta.puntos)} puntos</strong>.{' '}
+                        {c.alerta.siguiente
+                          ? <>Le faltan {formatearMiles(c.alerta.siguiente.faltan)} para el siguiente premio, {c.alerta.siguiente.nombre} ({formatearMiles(c.alerta.siguiente.puntos)}).</>
+                          : 'Ya le alcanza para todos los premios.'}
+                      </div>
+                      {c.alerta.pendiente ? (
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                          {armarLinkWhatsappAlerta(c) ? (
+                            <a href={armarLinkWhatsappAlerta(c)} target="_blank" rel="noopener noreferrer" className="fid-btn-primary" style={{ ...ui.botonPrimario, display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+                              <MessageCircle size={15} aria-hidden="true" /> Avisarle por WhatsApp
+                            </a>
+                          ) : (
+                            <span style={{ fontSize: 13, color: tema.textoSecundario, alignSelf: 'center' }}>Sin celular cargado.</span>
+                          )}
+                          <button type="button" className="fid-btn-secondary" onClick={() => marcarContactoAlerta(c, true)} style={{ ...ui.botonSecundario, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                            <Check size={15} aria-hidden="true" /> Marcar como contactada
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', fontSize: 13, color: tema.textoSecundario }}>
+                          <span>Contactada el {new Date(c.alerta.contactadaEn).toLocaleDateString('es-AR')}{c.alerta.contactadaPuntos != null ? `, con ${formatearMiles(c.alerta.contactadaPuntos)} puntos` : ''}. Se vuelve a avisar después de su próximo canje.</span>
+                          <button type="button" className="fid-link" onClick={() => marcarContactoAlerta(c, false)} style={ui.botonTexto}>Deshacer</button>
+                        </div>
+                      )}
+                      {c.alerta.pendiente && <div style={{ fontSize: 12, color: tema.textoSecundario }}>El WhatsApp se abre con el mensaje sugerido: revisalo y mandalo vos. Después marcá el contacto.</div>}
+                    </div>
+                  )}
+
                   {linkWhatsapp ? (
                     <a href={linkWhatsapp} target="_blank" rel="noopener noreferrer" className="fid-btn-secondary" style={{ ...ui.botonSecundario, display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none', width: 'fit-content' }}>
                       <MessageCircle size={15} aria-hidden="true" /> Escribirle por WhatsApp
                     </a>
                   ) : (
                     <div style={{ fontSize: 13, color: tema.textoSecundario }}>Sin celular cargado — no se le puede mandar WhatsApp.</div>
+                  )}
+
+                  {c.sinNombre && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', fontSize: 13, color: tema.textoSecundario, borderLeft: '2px solid #c2410c', paddingLeft: 10 }}>
+                      <span>Cuenta sin nombre (cargada con el email como nombre o creada sola por Dragon Fish).{!c.eliminable && ' Está protegida: no se puede eliminar.'}</span>
+                      {c.eliminable && <button type="button" className="fid-btn-secondary" onClick={() => eliminarCuentaSinNombre(c)} style={{ ...ui.botonSecundario, color: '#b91c1c', borderColor: '#b91c1c' }}>
+                        <Trash2 size={15} aria-hidden="true" /> Eliminar cuenta
+                      </button>}
+                    </div>
                   )}
 
                   {/* Canje presencial: la empleada elige el premio y lo
@@ -1400,6 +1736,120 @@ export default function Home() {
   );
 
   // Alta, edición y activar/desactivar premios del negocio
+  // Estado de stock de un producto o variante, en el panel del negocio.
+  const TEXTO_ESTADO_STOCK = { con_stock: 'con stock', sin_stock: 'sin stock', desconocido: 'sin confirmar', no_existe: 'ya no existe en la tienda' };
+  const colorEstadoStock = (estado) => (estado === 'con_stock' ? '#15803d' : estado === 'desconocido' ? tema.textoSecundario : '#b45309');
+
+  // Producto elegido (principal o alternativa) con su selector de color.
+  const filaProductoEnlace = (item, alCambiarVariante, alQuitar, etiqueta) => (
+    <div style={{ padding: '12px 0', borderBottom: `1px solid ${tema.borde}` }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ minWidth: 0 }}>
+          {etiqueta && <div style={{ fontSize: 12, color: tema.textoSecundario }}>{etiqueta}</div>}
+          <div style={{ fontSize: 15 }}>{item.nombre || `Producto ${item.productoId}`}</div>
+        </div>
+        {alQuitar && <button type="button" className="fid-link" onClick={alQuitar} style={{ ...ui.botonTexto, color: '#b91c1c' }}>Quitar</button>}
+      </div>
+      {item.variantes?.length > 0 ? (
+        <label style={{ display: 'block', marginTop: 8 }}>
+          <span style={ui.label}>Color o variante</span>
+          <select value={item.varianteId || ''} onChange={(ev) => alCambiarVariante(ev.target.value || null)} style={ui.input}>
+            <option value="">Cualquier color o variante</option>
+            {item.variantes.map((v) => (
+              <option key={v.id} value={v.id}>{(v.nombre || `Variante ${v.id}`)}{v.precio != null ? ` — $${formatearMiles(Math.round(v.precio))}` : ''} — {TEXTO_ESTADO_STOCK[v.estado]}</option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <div style={{ fontSize: 13, color: colorEstadoStock(item.estado), marginTop: 6 }}>Stock: {TEXTO_ESTADO_STOCK[item.estado] || 'sin confirmar'}</div>
+      )}
+    </div>
+  );
+
+  const editorEnlacePremio = () => {
+    const e = enlaceEditando;
+    if (!e) return null;
+    const cerrar = () => setEnlaceEditando(null);
+    return (
+      <div role="group" aria-label="Enlace y alternativas" style={{ marginTop: 14, padding: '16px 18px', background: tema.superficie, border: `1px solid ${tema.borde}` }}>
+        <div style={{ fontFamily: tema.fuenteTitulo, fontSize: 18 }}>Enlace y alternativas</div>
+        <p style={{ fontSize: 13, color: tema.textoSecundario, margin: '4px 0 10px', lineHeight: 1.5 }}>
+          El enlace del premio muestra el stock real de la tienda. Si el color elegido se agota, se ofrecen los otros colores del mismo producto; si se agota todo, las alternativas de abajo que tengan stock (recomendado: 2 o 3 del mismo tipo de producto).
+        </p>
+        {e.cargando && <Cargando />}
+        {e.error && <p role="alert" style={{ color: '#b91c1c', fontSize: 14 }}>{e.error}</p>}
+        {!e.cargando && (e.principal !== undefined || e.buscandoPara) && (
+          <>
+            {e.principal && filaProductoEnlace(
+              e.principal,
+              (varianteId) => setEnlaceEditando((x) => ({ ...x, principal: { ...x.principal, varianteId } })),
+              null,
+              'Producto del premio',
+            )}
+            {e.principal && e.buscandoPara !== 'principal' && (
+              <button type="button" className="fid-link" onClick={() => setEnlaceEditando((x) => ({ ...x, buscandoPara: 'principal', resultados: null, busqueda: '' }))} style={{ ...ui.botonTexto, marginTop: 8 }}>Cambiar producto</button>
+            )}
+
+            <div style={{ fontSize: 13, fontWeight: 500, marginTop: 18 }}>Alternativas si se agota ({e.alternativas?.length || 0} de {MAXIMO_ALTERNATIVAS})</div>
+            {(e.alternativas || []).map((a, i) => (
+              <div key={`${a.productoId}-${i}`}>
+                {filaProductoEnlace(
+                  a,
+                  (varianteId) => setEnlaceEditando((x) => ({ ...x, alternativas: x.alternativas.map((y, j) => (j === i ? { ...y, varianteId } : y)) })),
+                  () => setEnlaceEditando((x) => ({ ...x, alternativas: x.alternativas.filter((_, j) => j !== i) })),
+                  `Alternativa ${i + 1}`,
+                )}
+              </div>
+            ))}
+            {(e.alternativas?.length || 0) < MAXIMO_ALTERNATIVAS && e.principal && e.buscandoPara !== 'alternativa' && (
+              <button type="button" className="fid-link" onClick={() => setEnlaceEditando((x) => ({ ...x, buscandoPara: 'alternativa', resultados: null, busqueda: '' }))} style={{ ...ui.botonTexto, marginTop: 8 }}>+ Agregar alternativa</button>
+            )}
+
+            {e.buscandoPara && (
+              <div style={{ marginTop: 14 }}>
+                <label htmlFor="buscar-producto-tienda" style={ui.label}>{e.buscandoPara === 'principal' ? 'Buscá el producto del premio en la tienda' : 'Buscá una alternativa en la tienda'}</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input id="buscar-producto-tienda" value={e.busqueda || ''} onChange={(ev) => setEnlaceEditando((x) => ({ ...x, busqueda: ev.target.value }))} onKeyDown={(ev) => { if (ev.key === 'Enter') buscarProductosTienda(); }} placeholder="Ej. pañuelo" style={ui.input} />
+                  <button type="button" className="fid-btn-secondary" onClick={buscarProductosTienda} disabled={e.buscando} style={{ ...ui.botonSecundario, flexShrink: 0 }}>{e.buscando ? 'Buscando…' : 'Buscar'}</button>
+                </div>
+                {e.errorBusqueda && <p role="alert" style={{ color: '#b91c1c', fontSize: 14 }}>{e.errorBusqueda}</p>}
+                {e.resultados && e.resultados.length === 0 && !e.errorBusqueda && <p style={{ fontSize: 14, color: tema.textoSecundario }}>No encontramos productos con ese nombre.</p>}
+                {e.resultados?.length > 0 && (
+                  <ul aria-label="Productos encontrados" style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, borderTop: `1px solid ${tema.borde}` }}>
+                    {e.resultados.map((r) => {
+                      const conStock = r.variantes.filter((v) => v.estado === 'con_stock').length;
+                      const yaElegido = r.id === e.principal?.productoId || e.alternativas.some((a) => a.productoId === r.id);
+                      return (
+                        <li key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: `1px solid ${tema.borde}` }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          {r.imagen ? <img src={r.imagen} alt="" width={40} height={40} style={{ width: 40, height: 40, objectFit: 'cover' }} /> : <span aria-hidden="true" style={{ width: 40, height: 40, background: tema.fondo }} />}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 14 }}>{r.nombre}{!r.publicado && <span style={{ color: tema.textoSecundario }}> (sin publicar)</span>}</div>
+                            <div style={{ fontSize: 12, color: tema.textoSecundario }}>{r.variantes.length} variante(s), {conStock} con stock</div>
+                          </div>
+                          <button type="button" className="fid-btn-secondary" disabled={yaElegido} onClick={() => elegirProductoTienda(r)} style={{ ...ui.botonSecundario, flexShrink: 0, opacity: yaElegido ? 0.5 : 1 }}>{yaElegido ? 'Elegido' : 'Elegir'}</button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {e.principal && <button type="button" className="fid-link" onClick={() => setEnlaceEditando((x) => ({ ...x, buscandoPara: null, resultados: null }))} style={{ ...ui.botonTexto, marginTop: 8 }}>Cancelar búsqueda</button>}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+              <button type="button" className="fid-btn-primary" onClick={guardarEnlacePremio} disabled={!e.principal || e.guardando} style={{ ...ui.botonPrimario, opacity: !e.principal || e.guardando ? 0.6 : 1 }}>{e.guardando ? 'Guardando…' : 'Guardar enlace'}</button>
+              <button type="button" className="fid-btn-secondary" onClick={cerrar} style={ui.botonSecundario}>Cancelar</button>
+            </div>
+          </>
+        )}
+        {(e.cargando || e.error) && !e.principal && !e.buscandoPara && (
+          <button type="button" className="fid-btn-secondary" onClick={cerrar} style={{ ...ui.botonSecundario, marginTop: 10 }}>Cerrar</button>
+        )}
+      </div>
+    );
+  };
+
   const VistaPremios = () => (
     <div>
       {mostrarFormPremio && (
@@ -1454,6 +1904,7 @@ export default function Home() {
                   <div style={{ fontSize: 13, color: tema.textoSecundario, display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: 6 }}>
                     <span style={ui.numero}>{formatearMiles(p.puntos)} puntos</span>
                     {p.tiendanubeProductoId && <span>· con precio de la tienda online</span>}
+                    {p.tiendanubeProductoId && p._count?.alternativas > 0 && <span>· {p._count.alternativas} alternativa(s)</span>}
                     {p.tiendanubeProductoUrl && (
                       <span>· <a href={p.tiendanubeProductoUrl} target="_blank" rel="noopener noreferrer" className="fid-link" style={{ color: tema.textoSecundario, display: 'inline-flex', alignItems: 'center', gap: 3 }}><LinkIcon size={12} aria-hidden="true" /> ver producto</a></span>
                     )}
@@ -1461,12 +1912,17 @@ export default function Home() {
                     {p.tiendanubeDescuentoMonto ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>· <Ticket size={12} aria-hidden="true" /> cupón ${formatearMiles(p.tiendanubeDescuentoMonto)}{p.tiendanubeDescuentoMontoMinimo ? ` (compra mín. $${formatearMiles(p.tiendanubeDescuentoMontoMinimo)})` : ''}</span> : null}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 16, flexShrink: 0, paddingTop: 4 }}>
+                <div style={{ display: 'flex', gap: 16, flexShrink: 0, paddingTop: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {/* Solo premios de producto (no los de % o monto, que son para toda la tienda). */}
+                  {!p.tiendanubeDescuentoPorcentaje && !p.tiendanubeDescuentoMonto && (
+                    <button type="button" className="fid-link" onClick={() => abrirEnlacePremio(p)} style={ui.botonTexto}>Enlace y alternativas</button>
+                  )}
                   <button type="button" className="fid-link" onClick={() => iniciarEdicionPremio(p)} style={ui.botonTexto}>Editar</button>
                   <button type="button" className="fid-link" onClick={() => togglePremioActivo(p)} style={{ ...ui.botonTexto, color: p.activo ? '#b91c1c' : '#15803d' }}>{p.activo ? 'Desactivar' : 'Reactivar'}</button>
                 </div>
               </div>
             )}
+            {enlaceEditando?.premioId === p.id && premioEditandoId !== p.id && editorEnlacePremio()}
           </li>
         ))}
       </ul>
@@ -1557,6 +2013,138 @@ export default function Home() {
     </div>
   );
 
+  // --- Exportar clientes (Excel y Google Sheets) ---
+  const recargarEstadoGoogle = () => fetch('/api/google-sheets/estado', { cache: 'no-store' })
+    .then((res) => (res.ok ? res.json() : null))
+    .then(setEstadoGoogle)
+    .catch(() => {});
+  const accionGoogle = async (clave, url, cuerpo, mensajeExito) => {
+    setOcupadoGoogle(clave);
+    try {
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo || {}) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { mostrarToast('error', data.error || 'No se pudo completar.'); return null; }
+      if (mensajeExito) mostrarToast('exito', typeof mensajeExito === 'function' ? mensajeExito(data) : mensajeExito);
+      return data;
+    } catch {
+      mostrarToast('error', 'No se pudo completar. Probá de nuevo.');
+      return null;
+    } finally {
+      setOcupadoGoogle(null);
+      recargarEstadoGoogle();
+    }
+  };
+  const crearHojaGoogle = () => accionGoogle('hoja', '/api/google-sheets/hoja', { accion: 'crear' }, 'Hoja creada en tu Drive.');
+  const exportarGoogle = () => accionGoogle('exportar', '/api/google-sheets/exportar', null, (d) => `Exportación lista: ${d.info}.`);
+  const desconectarGoogle = () => {
+    if (!window.confirm('¿Desconectar tu cuenta de Google? La hoja queda en tu Drive, pero Retornar deja de actualizarla.')) return;
+    accionGoogle('desconectar', '/api/google-sheets/desconectar', null, 'Cuenta de Google desconectada.');
+  };
+  // Elegir una hoja existente con el selector de Google (Picker): con el
+  // permiso drive.file, Retornar solo puede abrir las hojas elegidas ahí.
+  const elegirHojaGoogle = async () => {
+    setOcupadoGoogle('elegir');
+    try {
+      const res = await fetch('/api/google-sheets/token', { cache: 'no-store' });
+      const datos = await res.json();
+      if (!res.ok) { mostrarToast('error', datos.error || 'No se pudo abrir el selector.'); setOcupadoGoogle(null); return; }
+      if (!window.gapi) {
+        await new Promise((ok, falla) => {
+          const script = document.createElement('script');
+          script.src = 'https://apis.google.com/js/api.js';
+          script.onload = ok;
+          script.onerror = falla;
+          document.head.appendChild(script);
+        });
+      }
+      await new Promise((ok) => window.gapi.load('picker', ok));
+      const picker = new window.google.picker.PickerBuilder()
+        .addView(window.google.picker.ViewId.SPREADSHEETS)
+        .setOAuthToken(datos.accessToken)
+        .setDeveloperKey(datos.apiKey)
+        .setAppId(datos.appId)
+        .setCallback((r) => {
+          if (r.action === window.google.picker.Action.PICKED && r.docs?.[0]?.id) {
+            accionGoogle('hoja', '/api/google-sheets/hoja', { accion: 'elegir', hojaId: r.docs[0].id }, 'Hoja elegida.');
+          } else if (r.action === window.google.picker.Action.CANCEL) {
+            setOcupadoGoogle(null);
+          }
+        })
+        .build();
+      picker.setVisible(true);
+    } catch {
+      mostrarToast('error', 'No se pudo abrir el selector de Google.');
+      setOcupadoGoogle(null);
+    }
+  };
+
+  const VistaExportar = () => {
+    const e = estadoGoogle;
+    const c = e?.conexion;
+    const ocupado = (clave) => ocupadoGoogle === clave;
+    const botonesHoja = (
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <button type="button" className="fid-btn-secondary" onClick={crearHojaGoogle} disabled={!!ocupadoGoogle} style={ui.botonSecundario}>{ocupado('hoja') ? 'Creando…' : 'Crear una hoja nueva'}</button>
+        {e?.selectorHojas && <button type="button" className="fid-btn-secondary" onClick={elegirHojaGoogle} disabled={!!ocupadoGoogle} style={ui.botonSecundario}>{ocupado('elegir') ? 'Abriendo…' : 'Elegir una hoja existente'}</button>}
+      </div>
+    );
+    return (
+      <div style={{ display: 'grid', gap: 40, maxWidth: 720 }}>
+        <section aria-labelledby="exportar-google">
+          <TituloBloque><span id="exportar-google">Google Sheets</span></TituloBloque>
+          <p style={{ ...ui.ayuda, marginTop: 8 }}>Una hoja de cálculo online con tus clientas, para trabajarla en equipo. Cada vez que exportás se actualizan las que ya están (por su ID de Retornar) y se agregan las nuevas: no se duplican ni se borran filas, y las columnas que agregues a la derecha no se tocan.</p>
+          {!e && <Cargando />}
+          {e && !e.configurada && (
+            <p role="status" style={{ fontSize: 14, borderLeft: `2px solid ${tema.borde}`, paddingLeft: 12 }}>La conexión con Google todavía no está habilitada en Retornar. Mientras tanto podés descargar el archivo para Excel (abajo).</p>
+          )}
+          {e?.configurada && !c && (
+            <div style={{ display: 'grid', gap: 12 }}>
+              <p style={{ fontSize: 14, margin: 0 }}>Conectá la cuenta de Google del negocio. Retornar solo va a poder ver y editar las hojas que cree o que elijas, nunca el resto de tu Drive.</p>
+              <a href="/api/google-sheets/conectar" className="fid-btn-primary" style={{ ...ui.botonPrimario, display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none', width: 'fit-content' }}>
+                <FileSpreadsheet size={16} aria-hidden="true" /> Conectar cuenta de Google
+              </a>
+            </div>
+          )}
+          {e?.configurada && c && (
+            <div style={{ display: 'grid', gap: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', fontSize: 14 }}>
+                <span><CircleCheck size={15} aria-hidden="true" style={{ display: 'inline-block', verticalAlign: '-3px', color: '#15803d', marginRight: 6 }} />Conectada{c.email ? <> como <strong>{c.email}</strong></> : ''}</span>
+                <button type="button" className="fid-link" onClick={desconectarGoogle} disabled={!!ocupadoGoogle} style={{ ...ui.botonTexto, color: '#b91c1c' }}>Desconectar</button>
+              </div>
+              <div style={{ display: 'grid', gap: 10 }}>
+                <div style={ui.etiqueta}>Hoja</div>
+                {c.hoja ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', fontSize: 15 }}>
+                    <span>{c.hoja.nombre || 'Hoja sin nombre'}</span>
+                    <a href={c.hoja.url} target="_blank" rel="noopener noreferrer" className="fid-link" style={{ fontSize: 14, color: tema.texto, display: 'inline-flex', alignItems: 'center', gap: 4 }}>Abrir <ExternalLink size={13} aria-hidden="true" /></a>
+                  </div>
+                ) : <p style={{ fontSize: 14, margin: 0, color: tema.textoSecundario }}>Todavía no elegiste dónde exportar.</p>}
+                {botonesHoja}
+              </div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <button type="button" className="fid-btn-primary" onClick={exportarGoogle} disabled={!c.hoja || !!ocupadoGoogle} style={{ ...ui.botonPrimario, width: 'fit-content', opacity: !c.hoja || ocupadoGoogle ? 0.6 : 1 }}>{ocupado('exportar') ? 'Exportando…' : 'Exportar clientes a la hoja'}</button>
+                {c.ultimaExportacionEn && <p style={{ ...ui.ayuda, margin: 0 }}>Última exportación: {new Date(c.ultimaExportacionEn).toLocaleString('es-AR')} · {c.ultimaExportacionInfo}</p>}
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section aria-labelledby="exportar-excel">
+          <TituloBloque><span id="exportar-excel">Archivo para Excel</span></TituloBloque>
+          <p style={{ ...ui.ayuda, marginTop: 8 }}>Descarga todas tus clientas en un archivo que Excel abre directo (también Google Sheets, importándolo). No hace falta conectar nada. En Clientes podés exportar solo una búsqueda o un nivel.</p>
+          <a href={`/api/clientes/exportar?negocioId=${negocioMostrado?.id}`} className="fid-btn-secondary" style={{ ...ui.botonSecundario, display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none', width: 'fit-content' }}>
+            <Download size={15} aria-hidden="true" /> Descargar para Excel
+          </a>
+        </section>
+
+        <section aria-labelledby="exportar-datos">
+          <TituloBloque><span id="exportar-datos">Qué datos se exportan</span></TituloBloque>
+          <p style={{ ...ui.ayuda, marginTop: 8 }}>A la hoja de Google: ID de Retornar, nombre y apellido, email, teléfono, fecha de registro, puntos actuales, nivel, puntos ganados en total, compras registradas, última actividad, cumpleaños (día y mes) y la fecha de actualización; no van el DNI, la contraseña, el género ni el año de nacimiento. El archivo para Excel trae nombre, email, teléfono, fecha de nacimiento, puntos, nivel, compras, fecha de alta y última actividad; tampoco el DNI. En los dos casos, solo tus clientas: nunca las de otro negocio.</p>
+        </section>
+      </div>
+    );
+  };
+
   // Un bloque de Ajustes: título, explicación, el campo y su botón Guardar.
   // Se llama como función (no como <Componente/>) para que los inputs no
   // pierdan el foco al tipear.
@@ -1642,6 +2230,28 @@ export default function Home() {
         </div>
       ), guardarSoporte)}
 
+      {bloqueAjuste('Emails a tus clientas', `Cómo aparecen los emails que les manda el club (compras, canjes, vencimientos, contraseña). Si cargaste un email de soporte, las respuestas llegan ahí.`, (
+        <div style={{ display: 'grid', gap: 14 }}>
+          <label htmlFor="email-remitente"><span style={ui.label}>Nombre del remitente (lo que se ve en la bandeja de entrada)</span><input id="email-remitente" maxLength={60} value={formEmails.nombreRemitente} onChange={e => setFormEmails({ ...formEmails, nombreRemitente: e.target.value })} placeholder={negocioMostrado?.nombre ? nombreClub(negocioMostrado.nombre) : 'Club ...'} style={ui.input} /></label>
+          <p style={{ ...ui.ayuda, margin: 0 }}>Vacío: se ve como &quot;Retornar&quot;. La dirección de envío no cambia.</p>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 14, cursor: 'pointer' }}>
+            <input type="checkbox" checked={formEmails.bienvenida} onChange={e => setFormEmails({ ...formEmails, bienvenida: e.target.checked })} style={{ marginTop: 3 }} />
+            <span>Mandar un email de bienvenida a cada clienta que se registra</span>
+          </label>
+        </div>
+      ), guardarEmails)}
+
+      {bloqueAjuste('Alerta de canje', 'Marca en Clientes a las clientas que ya pueden canjear este premio y todavía no contactaste, para escribirles por WhatsApp. Se usa el puntaje del premio (no lo cambia). Dejalo en "Sin alerta" para desactivarla.', (
+        <label htmlFor="alerta-premio"><span style={ui.label}>Avisar cuando una clienta llegue a</span>
+          <select id="alerta-premio" value={formAlertaPremio} onChange={e => setFormAlertaPremio(e.target.value)} style={ui.input}>
+            <option value="">Sin alerta</option>
+            {[...(negocioMostrado?.premios || [])].sort((a, b) => a.puntos - b.puntos).map(p => (
+              <option key={p.id} value={p.id}>{p.nombre} — {formatearMiles(p.puntos)} puntos</option>
+            ))}
+          </select>
+        </label>
+      ), guardarAlertaPremio)}
+
       {bloqueAjuste('Bases y condiciones', 'El texto legal del programa de puntos que ve tu clienta en "Bases y condiciones" (menú de su panel). Dejalo vacío si todavía no lo tenés — se le va a avisar que falta cargarlo.', (
         <textarea rows={10} aria-label="Bases y condiciones" value={formBasesCondiciones} onChange={e => setFormBasesCondiciones(e.target.value)} placeholder={'Ej: 1. ¿Qué es el Club?\n\nEs nuestro programa de beneficios...'} style={{ ...ui.input, resize: 'vertical' }} />
       ), guardarBasesCondiciones)}
@@ -1678,6 +2288,7 @@ export default function Home() {
     canjes: 'Canjes',
     integraciones: 'Integraciones',
     ajustes: 'Ajustes',
+    exportar: 'Exportar clientes',
   };
 
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
@@ -1710,12 +2321,32 @@ export default function Home() {
         </header>
 
         {(seccionActiva === 'inicio' || seccionActiva === 'clientes') && mostrarFormCliente && (
-          <div style={{ marginBottom: 36 }}>
+          <div role="group" aria-label="Agregar un cliente" style={{ marginBottom: 36 }}>
             <TituloBloque>Agregar un cliente</TituloBloque>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, margin: '12px 0 14px' }}>
-              <label><span style={ui.label}>Nombre *</span><input value={nuevoCliente.nombre} onChange={e => setNuevoCliente({...nuevoCliente, nombre: e.target.value})} placeholder="María González" style={ui.input} /></label>
-              <label><span style={ui.label}>Teléfono *</span><input value={nuevoCliente.telefono} onChange={e => setNuevoCliente({...nuevoCliente, telefono: e.target.value})} placeholder="2324123456" style={ui.input} /></label>
-              <label><span style={ui.label}>Email *</span><input value={nuevoCliente.email} onChange={e => setNuevoCliente({...nuevoCliente, email: e.target.value})} placeholder="maria@email.com" style={ui.input} /></label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, margin: '12px 0 14px' }}>
+              <label><span style={ui.label}>Nombre *</span><input value={nuevoCliente.nombre} onChange={e => setNuevoCliente({...nuevoCliente, nombre: e.target.value})} autoComplete="off" placeholder="María" style={ui.input} /></label>
+              <label><span style={ui.label}>Apellido *</span><input value={nuevoCliente.apellido} onChange={e => setNuevoCliente({...nuevoCliente, apellido: e.target.value})} autoComplete="off" placeholder="González" style={ui.input} /></label>
+              <label><span style={ui.label}>Email *</span><input type="email" value={nuevoCliente.email} onChange={e => setNuevoCliente({...nuevoCliente, email: e.target.value})} autoComplete="off" placeholder="maria@email.com" style={ui.input} /></label>
+              <label><span style={ui.label}>Fecha de nacimiento *</span><input type="date" value={nuevoCliente.fechaNacimiento} max={new Date().toISOString().split('T')[0]} onChange={e => setNuevoCliente({...nuevoCliente, fechaNacimiento: e.target.value})} style={ui.input} /></label>
+              <label><span style={ui.label}>DNI * (solo números)</span><input inputMode="numeric" pattern="[0-9]*" maxLength={8} value={nuevoCliente.dni} onChange={e => setNuevoCliente({...nuevoCliente, dni: e.target.value.replace(/\D/g, '')})} autoComplete="off" placeholder="12345678" style={ui.input} /></label>
+              <div>
+                <label htmlFor="nuevo-cliente-celular" style={ui.label}>Celular (WhatsApp) *</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select aria-label="País del celular" value={nuevoCliente.paisTelefono} onChange={e => setNuevoCliente({...nuevoCliente, paisTelefono: e.target.value})} style={{ ...ui.input, width: 'auto', flex: '0 0 auto' }}>
+                    {PAISES.map(p => <option key={p.codigo} value={p.codigo}>{p.codigo} +{p.prefijo}</option>)}
+                  </select>
+                  <input id="nuevo-cliente-celular" type="tel" inputMode="numeric" value={nuevoCliente.telefono} onChange={e => setNuevoCliente({...nuevoCliente, telefono: e.target.value.replace(/[^\d\s-]/g, '')})} autoComplete="off" placeholder={PAISES.find(p => p.codigo === nuevoCliente.paisTelefono)?.ejemplo} style={{ ...ui.input, flex: 1, minWidth: 0 }} />
+                </div>
+                <span style={{ display: 'block', fontSize: 12, color: tema.textoSecundario, marginTop: 4 }}>{nuevoCliente.paisTelefono === 'AR' ? 'Código de área y número, sin 0 ni 15' : 'Sin el código del país'}</span>
+              </div>
+              <label><span style={ui.label}>Género (opcional)</span>
+                <select value={nuevoCliente.sexo} onChange={e => setNuevoCliente({...nuevoCliente, sexo: e.target.value})} style={ui.input}>
+                  <option value="">Prefiero no decirlo</option>
+                  <option value="femenino">Femenino</option>
+                  <option value="masculino">Masculino</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </label>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" className="fid-btn-primary" onClick={agregarCliente} style={ui.botonPrimario}>Guardar cliente</button>
@@ -1729,9 +2360,19 @@ export default function Home() {
         {seccionActiva === 'premios' && VistaPremios()}
         {seccionActiva === 'integraciones' && VistaIntegraciones()}
         {seccionActiva === 'ajustes' && VistaAjustes()}
+        {seccionActiva === 'exportar' && VistaExportar()}
 
         {seccionActiva === 'inicio' && (
           <div>
+            {resumenAlerta?.premio && resumenAlerta.pendientes > 0 && (
+              <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 24px', padding: '12px 14px', background: tema.superficie, border: `1px solid ${tema.borde}`, borderLeft: '3px solid #b45309' }}>
+                <CircleAlert size={18} aria-hidden="true" style={{ color: '#b45309', flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0, fontSize: 14 }}>
+                  {resumenAlerta.pendientes === 1 ? '1 clienta ya puede canjear' : `${formatearMiles(resumenAlerta.pendientes)} clientas ya pueden canjear`} <strong>{resumenAlerta.premio.nombre}</strong>. Avisales por WhatsApp.
+                </span>
+                <button type="button" className="fid-btn-secondary" onClick={() => { setClientesSoloAlerta(true); setSeccionActiva('clientes'); }} style={{ ...ui.botonSecundario, flexShrink: 0 }}>Ver clientas</button>
+              </div>
+            )}
             <div className="fid-kpis" style={{ borderTop: `1px solid ${tema.texto}`, borderBottom: `1px solid ${tema.borde}`, marginBottom: 40 }}>
               {[
                 ['Clientes', formatearMiles(negocio.clientes?.length || 0), estadisticas?.clientesConCompraEsteMes != null ? `${formatearMiles(estadisticas.clientesConCompraEsteMes)} compraron este mes` : null],
@@ -1755,7 +2396,10 @@ export default function Home() {
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {clientesData?.items.map(c => (
                     <li key={c.id} style={{ display: 'flex', alignItems: 'baseline', gap: 12, padding: '12px 0', borderBottom: `1px solid ${tema.borde}` }}>
-                      <span style={{ flex: 1, minWidth: 0, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nombre || c.email}</span>
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {c.nombre || c.email}
+                        {c.alerta?.pendiente && <CircleAlert size={14} role="img" aria-label={`Ya puede canjear ${c.alerta.premio.nombre}`} style={{ display: 'inline-block', color: '#b45309', marginLeft: 6, verticalAlign: '-2px' }} />}
+                      </span>
                       <span style={{ fontFamily: tema.fuenteTitulo, fontSize: 18, ...ui.numero }}>{formatearMiles(c.puntos)}</span>
                     </li>
                   ))}
@@ -1824,6 +2468,26 @@ export default function Home() {
       );
     }
 
+    // Enlace de un premio con producto: la página intermedia de Retornar
+    // (consulta el stock y muestra alternativas), no la tienda directo.
+    const enlacePremio = (p) => (p.tiendanubeProductoId && negocioDelCliente.slug
+      ? `/club/${encodeURIComponent(negocioDelCliente.slug)}/producto/${encodeURIComponent(p.id)}`
+      : p.tiendanubeProductoUrl || null);
+    const TEXTO_STOCK = {
+      sin_stock: 'Sin stock por el momento',
+      otros_colores: 'Sin stock en este color · hay otros colores',
+      desconocido: 'Disponibilidad sin confirmar',
+    };
+    const etiquetaStock = (p) => {
+      const estado = p.tiendanubeProductoId ? stockPremios[p.id] : null;
+      if (!TEXTO_STOCK[estado]) return null;
+      const Icono = estado === 'desconocido' ? Info : PackageX;
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: estado === 'desconocido' ? tema.textoSecundario : '#b45309', marginTop: 2 }}>
+          <Icono size={13} aria-hidden="true" /> {TEXTO_STOCK[estado]}
+        </div>
+      );
+    };
     const premiosDisponibles = (negocioDelCliente.premios || []).filter(p => clientePropio.puntos >= p.puntos);
     const premiosBloqueados = (negocioDelCliente.premios || []).filter(p => clientePropio.puntos < p.puntos);
     // El premio más cercano que todavía no le alcanza (premios ya viene
@@ -1950,7 +2614,12 @@ export default function Home() {
 
           {modalCliente === 'cupon' && cuponMostrado && (() => {
             const { premio, codigo, error, pendiente, nuevo } = cuponMostrado;
-            const guia = guiaCupon(premio, { sitioWeb: negocioDelCliente.sitioWeb, negocioNombre: negocioDelCliente.nombre });
+            const guia = guiaCupon(premio, {
+              sitioWeb: negocioDelCliente.sitioWeb,
+              negocioNombre: negocioDelCliente.nombre,
+              // La página intermedia del premio (consulta el stock).
+              enlaceProducto: premio?.id && negocioDelCliente.slug ? `/club/${encodeURIComponent(negocioDelCliente.slug)}/producto/${encodeURIComponent(premio.id)}` : null,
+            });
             const titulo = !nuevo ? 'Tu cupón' : (error || pendiente) ? 'Canje confirmado' : '¡Premio canjeado!';
             const copiar = async () => {
               try {
@@ -2252,21 +2921,24 @@ export default function Home() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       {/* "Click en un premio → lleva al producto en Tiendanube" (Grupo 7): solo
                           clickeable cuando el negocio cargó una URL de producto para este premio. */}
-                      {p.tiendanubeProductoUrl ? (
-                        <a href={p.tiendanubeProductoUrl} target="_blank" rel="noopener noreferrer" style={{ fontFamily: tema.fuenteTitulo, fontSize: 20, lineHeight: 1.25, color: tema.texto, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>{p.nombre} <LinkIcon size={13} aria-label="ver producto" /></a>
+                      {enlacePremio(p) ? (
+                        <a href={enlacePremio(p)} style={{ fontFamily: tema.fuenteTitulo, fontSize: 20, lineHeight: 1.25, color: tema.texto, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>{p.nombre} <LinkIcon size={13} aria-label="ver producto" /></a>
                       ) : (
                         <div style={{ fontFamily: tema.fuenteTitulo, fontSize: 20, lineHeight: 1.25 }}>{p.nombre}</div>
                       )}
                       <div style={{ fontSize: 13, color: tema.textoSecundario, ...ui.numero }}>{formatearMiles(p.puntos)} puntos</div>
+                      {etiquetaStock(p)}
                     </div>
+                    {/* Sin stock en ninguna variante no se puede canjear (lo
+                        controla también app/api/canjes). */}
                     <button
                       type="button"
                       className="fid-btn-primary"
                       onClick={() => setConfirmacionCanje({ premio: p, clave: nuevaClaveCanje() })}
-                      disabled={canjeandoId === p.id}
-                      style={{ ...ui.botonPrimario, minHeight: 44, flexShrink: 0, cursor: canjeandoId === p.id ? 'not-allowed' : 'pointer', opacity: canjeandoId === p.id ? 0.7 : 1 }}
+                      disabled={canjeandoId === p.id || stockPremios[p.id] === 'sin_stock'}
+                      style={{ ...ui.botonPrimario, minHeight: 44, flexShrink: 0, cursor: canjeandoId === p.id || stockPremios[p.id] === 'sin_stock' ? 'not-allowed' : 'pointer', opacity: canjeandoId === p.id || stockPremios[p.id] === 'sin_stock' ? 0.55 : 1 }}
                     >
-                      {canjeandoId === p.id ? 'Canjeando...' : 'Canjear'}
+                      {canjeandoId === p.id ? 'Canjeando...' : stockPremios[p.id] === 'sin_stock' ? 'Sin stock' : 'Canjear'}
                     </button>
                   </li>
                 ))}
@@ -2282,13 +2954,14 @@ export default function Home() {
                     return (
                       <li key={p.id} style={{ padding: '14px 0 16px', borderBottom: `1px solid ${tema.borde}` }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-                          {p.tiendanubeProductoUrl ? (
-                            <a href={p.tiendanubeProductoUrl} target="_blank" rel="noopener noreferrer" style={{ fontFamily: tema.fuenteTitulo, fontSize: 20, lineHeight: 1.25, color: tema.texto, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>{p.nombre} <LinkIcon size={13} aria-label="ver producto" /></a>
+                          {enlacePremio(p) ? (
+                            <a href={enlacePremio(p)} style={{ fontFamily: tema.fuenteTitulo, fontSize: 20, lineHeight: 1.25, color: tema.texto, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>{p.nombre} <LinkIcon size={13} aria-label="ver producto" /></a>
                           ) : (
                             <span style={{ fontFamily: tema.fuenteTitulo, fontSize: 20, lineHeight: 1.25, minWidth: 0 }}>{p.nombre}</span>
                           )}
                           <span style={{ fontSize: 14, color: tema.textoSecundario, flexShrink: 0, ...ui.numero }}>{formatearMiles(p.puntos)}</span>
                         </div>
+                        {etiquetaStock(p)}
                         <div style={{ fontSize: 13, color: tema.textoSecundario, margin: '2px 0 8px' }}>Te faltan {formatearMiles(p.puntos - clientePropio.puntos)} puntos</div>
                         <div role="progressbar" aria-label={`Avance hacia ${p.nombre}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={avance} style={{ height: 2, background: tema.borde }}>
                           <div style={{ height: '100%', width: `${avance}%`, background: tema.primario }} />
@@ -2524,7 +3197,7 @@ export default function Home() {
               <div style={{ ...ui.etiqueta, marginTop: 6 }}>Panel del club</div>
             </div>
             <nav aria-label="Secciones" className="fid-sidebar-nav" style={{ padding: '8px 0', flex: 1 }}>
-              {[[HomeIcon, 'Inicio', 'inicio'], [Users, 'Clientes', 'clientes'], [Gift, 'Premios', 'premios'], [RefreshCw, 'Canjes', 'canjes'], [Plug, 'Integraciones', 'integraciones'], [Settings, 'Ajustes', 'ajustes']].map(([Icono, label, id]) => {
+              {[[HomeIcon, 'Inicio', 'inicio'], [Users, 'Clientes', 'clientes'], [FileSpreadsheet, 'Exportar clientes', 'exportar'], [Gift, 'Premios', 'premios'], [RefreshCw, 'Canjes', 'canjes'], [Plug, 'Integraciones', 'integraciones'], [Settings, 'Ajustes', 'ajustes']].map(([Icono, label, id]) => {
                 const activo = seccionActiva === id;
                 return (
                   <button
