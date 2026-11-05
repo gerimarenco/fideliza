@@ -138,6 +138,14 @@ model Premio {
   // carga el negocio a mano (copiada de su propia tienda), no se arma sola.
   tiendanubeProductoId  String?
   tiendanubeProductoUrl String?
+  // Variante del producto a la que apunta el enlace (ej. el pañuelo color
+  // visón). null = el producto en cualquier variante. Solo cambia qué se
+  // muestra en la página intermedia del premio (lib/disponibilidad.js): el
+  // cupón sigue valiendo para cualquier variante del producto.
+  tiendanubeVarianteId  String?
+  // Enlaces de auxilio: hasta 3 productos alternativos que se muestran si el
+  // producto del premio se queda sin stock (solo los que tienen stock).
+  alternativas          PremioAlternativa[]
   // Alternativa a lo de arriba: el premio da un % de descuento en toda la
   // tienda en vez de un producto puntual (ej. "10% descuento" → 10). Un
   // premio no debería tener las dos cosas cargadas a la vez, pero no hace
@@ -155,6 +163,25 @@ model Premio {
   tiendanubeDescuentoMontoMinimo  Int?
 
   @@index([negocioId])
+}
+
+// Producto alternativo de un premio ("enlace de auxilio"), elegido por el
+// negocio en Premios → Enlace y alternativas. Se muestra en la página
+// intermedia del premio solo si el producto del premio está sin stock y la
+// alternativa tiene stock confirmado en Tiendanube. Nombre y link se leen de
+// Tiendanube en el momento; `nombre` es solo lo que se vio al elegirla, para
+// el panel cuando la tienda no responde.
+model PremioAlternativa {
+  id                   String   @id @default(cuid())
+  premioId             String
+  premio               Premio   @relation(fields: [premioId], references: [id], onDelete: Cascade)
+  orden                Int
+  tiendanubeProductoId String
+  tiendanubeVarianteId String?
+  nombre               String?
+  createdAt            DateTime @default(now())
+
+  @@index([premioId])
 }
 
 model Canje {

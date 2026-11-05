@@ -315,6 +315,14 @@ puntos ya se descontaron: el error queda anotado en
 `Canje.tiendanubeCuponError` (visible en el historial de canjes del negocio)
 para que se resuelva el descuento a mano en vez de perder el canje.
 
+**Enlace con stock** (desde 2026-11-06, ver
+`docs/lanzamiento/enlaces-con-stock.md`): el enlace de un premio de producto
+lleva a una página de Retornar (`/club/<negocio>/producto/<premio>`) que
+consulta el stock en Tiendanube y, si está agotado, ofrece otros colores del
+mismo producto y hasta 3 alternativas con stock elegidas en Premios →
+"Enlace y alternativas". Si Tiendanube no responde, dice que no se pudo
+confirmar (nunca "disponible").
+
 **Cupón atado al producto** (desde 2026-11-05, ver
 `docs/lanzamiento/cupones-por-producto.md`): el cupón de "producto puntual"
 se crea con `products: [id]`, así que según las reglas documentadas de

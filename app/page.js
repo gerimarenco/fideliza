@@ -17,7 +17,7 @@ import {
   Home as HomeIcon, Store, Users, Gift, Star, RefreshCw, Plug, Settings, LogOut, Shield,
   AlertTriangle, MessageCircle, ScrollText, KeyRound, ClipboardList, Cake,
   ShoppingBag, Hourglass, Link as LinkIcon, Ticket, Info, Mail, Menu, Download,
-  ArrowRight, Check, X, Copy, ExternalLink, CircleCheck,
+  ArrowRight, Check, X, Copy, ExternalLink, CircleCheck, PackageX,
 } from 'lucide-react';
 
 // Una clave por confirmación de canje (ver confirmacionCanje).
@@ -93,6 +93,9 @@ export default function Home() {
   const [formEdicionNegocio, setFormEdicionNegocio] = useState({ nombre: '', tipo: '', ciudad: '', emoji: '', tema: { ...TEMA_DEFAULT } });
   const [clientePropio, setClientePropio] = useState(null);
   const [negocioDelCliente, setNegocioDelCliente] = useState(null);
+  // Stock del producto de cada premio en Tiendanube ({ [premioId]: estado },
+  // ver app/api/premios/disponibilidad): etiquetas del panel de la clienta.
+  const [stockPremios, setStockPremios] = useState({});
   const [mostrarMenuCliente, setMostrarMenuCliente] = useState(false);
   // null | 'info' | 'password' | 'bases' | 'movimientos' | 'referidos' — qué modal del menú del cliente está abierto
   const [modalCliente, setModalCliente] = useState(null);
@@ -133,6 +136,10 @@ export default function Home() {
   const [mostrarFormPremio, setMostrarFormPremio] = useState(false);
   const [nuevoPremio, setNuevoPremio] = useState({ nombre: '', puntos: '', emoji: '', tiendanubeProductoId: '', tiendanubeProductoUrl: '', tiendanubeDescuentoPorcentaje: '', tiendanubeDescuentoMonto: '', tiendanubeDescuentoMontoMinimo: '' });
   const [premioEditandoId, setPremioEditandoId] = useState(null);
+  // "Enlace y alternativas" de un premio (ver app/api/premios/[id]/enlace):
+  // { premioId, cargando, error, guardando, principal, alternativas,
+  //   buscandoPara: 'principal' | 'alternativa' | null, busqueda, resultados, buscando }
+  const [enlaceEditando, setEnlaceEditando] = useState(null);
   const [formEdicionPremio, setFormEdicionPremio] = useState({ nombre: '', puntos: '', emoji: '', tiendanubeProductoId: '', tiendanubeProductoUrl: '', tiendanubeDescuentoPorcentaje: '', tiendanubeDescuentoMonto: '', tiendanubeDescuentoMontoMinimo: '' });
   const [formIntegraciones, setFormIntegraciones] = useState({ tiendanubeStoreId: '', tiendanubeAccessToken: '', slug: '', dragonfishBaseDeDatos: '' });
   const [formPassword, setFormPassword] = useState({ actual: '', nueva: '', confirmar: '' });
@@ -209,6 +216,15 @@ export default function Home() {
   useEffect(() => {
     if (session) cargarNegocios(true);
   }, [session]);
+
+  const premiosConProducto = (negocioDelCliente?.premios || []).filter((p) => p.tiendanubeProductoId).map((p) => p.id).join(',');
+  useEffect(() => {
+    if (!isCliente || !negocioDelCliente?.id || !premiosConProducto) return;
+    fetch(`/api/premios/disponibilidad?negocioId=${negocioDelCliente.id}`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : {}))
+      .then(setStockPremios)
+      .catch(() => setStockPremios({}));
+  }, [isCliente, negocioDelCliente?.id, premiosConProducto]);
 
   const cargarEstadisticas = (negocioId) => {
     if (!negocioId) { setEstadisticas(null); return; }
@@ -533,6 +549,69 @@ export default function Home() {
       cargarNegocios();
     } catch (err) {
       alert('❌ Ocurrió un error al crear el premio. Probá de nuevo.');
+    }
+  };
+
+  // --- Enlace y alternativas de un premio (Premios) ---
+  const MAXIMO_ALTERNATIVAS = 3;
+  const abrirEnlacePremio = async (p) => {
+    setPremioEditandoId(null);
+    setEnlaceEditando({ premioId: p.id, cargando: true });
+    try {
+      const res = await fetch(`/api/premios/${p.id}/enlace`, { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) { setEnlaceEditando({ premioId: p.id, error: data.error || 'No se pudo abrir.' }); return; }
+      setEnlaceEditando({
+        premioId: p.id,
+        principal: data.principal,
+        alternativas: data.alternativas || [],
+        buscandoPara: data.principal ? null : 'principal',
+        busqueda: '',
+        resultados: null,
+      });
+    } catch {
+      setEnlaceEditando({ premioId: p.id, error: 'No se pudo abrir. Probá de nuevo.' });
+    }
+  };
+  const buscarProductosTienda = async () => {
+    const q = (enlaceEditando?.busqueda || '').trim();
+    if (q.length < 2) return;
+    setEnlaceEditando((e) => ({ ...e, buscando: true, errorBusqueda: null }));
+    try {
+      const res = await fetch(`/api/tiendanube/productos?negocioId=${negocioMostrado?.id}&q=${encodeURIComponent(q)}`, { cache: 'no-store' });
+      const data = await res.json();
+      setEnlaceEditando((e) => ({ ...e, buscando: false, resultados: res.ok ? data.items : [], errorBusqueda: res.ok ? null : data.error }));
+    } catch {
+      setEnlaceEditando((e) => ({ ...e, buscando: false, resultados: [], errorBusqueda: 'No se pudo buscar. Probá de nuevo.' }));
+    }
+  };
+  const elegirProductoTienda = (item) => {
+    const elegido = { productoId: item.id, varianteId: null, nombre: item.nombre, variantes: item.variantes, estado: item.variantes.some((v) => v.estado === 'con_stock') ? 'con_stock' : 'sin_stock' };
+    setEnlaceEditando((e) => (e.buscandoPara === 'principal'
+      ? { ...e, principal: elegido, alternativas: e.alternativas.filter((a) => a.productoId !== item.id), buscandoPara: null, resultados: null, busqueda: '' }
+      : { ...e, alternativas: [...e.alternativas, elegido].slice(0, MAXIMO_ALTERNATIVAS), buscandoPara: null, resultados: null, busqueda: '' }));
+  };
+  const guardarEnlacePremio = async () => {
+    const e = enlaceEditando;
+    if (!e?.principal) return;
+    setEnlaceEditando({ ...e, guardando: true, error: null });
+    try {
+      const res = await fetch(`/api/premios/${e.premioId}/enlace`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          principal: { productoId: e.principal.productoId, varianteId: e.principal.varianteId || null },
+          alternativas: e.alternativas.map((a) => ({ productoId: a.productoId, varianteId: a.varianteId || null })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setEnlaceEditando({ ...e, guardando: false, error: data.error || 'No se pudo guardar.' }); return; }
+      setEnlaceEditando(null);
+      mostrarToast('exito', 'Enlace y alternativas guardados.');
+      cargarPremios(negocioMostrado?.id, premiosPagina);
+      cargarNegocios();
+    } catch {
+      setEnlaceEditando({ ...e, guardando: false, error: 'No se pudo guardar. Probá de nuevo.' });
     }
   };
 
@@ -1400,6 +1479,120 @@ export default function Home() {
   );
 
   // Alta, edición y activar/desactivar premios del negocio
+  // Estado de stock de un producto o variante, en el panel del negocio.
+  const TEXTO_ESTADO_STOCK = { con_stock: 'con stock', sin_stock: 'sin stock', desconocido: 'sin confirmar', no_existe: 'ya no existe en la tienda' };
+  const colorEstadoStock = (estado) => (estado === 'con_stock' ? '#15803d' : estado === 'desconocido' ? tema.textoSecundario : '#b45309');
+
+  // Producto elegido (principal o alternativa) con su selector de color.
+  const filaProductoEnlace = (item, alCambiarVariante, alQuitar, etiqueta) => (
+    <div style={{ padding: '12px 0', borderBottom: `1px solid ${tema.borde}` }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ minWidth: 0 }}>
+          {etiqueta && <div style={{ fontSize: 12, color: tema.textoSecundario }}>{etiqueta}</div>}
+          <div style={{ fontSize: 15 }}>{item.nombre || `Producto ${item.productoId}`}</div>
+        </div>
+        {alQuitar && <button type="button" className="fid-link" onClick={alQuitar} style={{ ...ui.botonTexto, color: '#b91c1c' }}>Quitar</button>}
+      </div>
+      {item.variantes?.length > 0 ? (
+        <label style={{ display: 'block', marginTop: 8 }}>
+          <span style={ui.label}>Color o variante</span>
+          <select value={item.varianteId || ''} onChange={(ev) => alCambiarVariante(ev.target.value || null)} style={ui.input}>
+            <option value="">Cualquier color o variante</option>
+            {item.variantes.map((v) => (
+              <option key={v.id} value={v.id}>{(v.nombre || `Variante ${v.id}`)}{v.precio != null ? ` — $${formatearMiles(Math.round(v.precio))}` : ''} — {TEXTO_ESTADO_STOCK[v.estado]}</option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <div style={{ fontSize: 13, color: colorEstadoStock(item.estado), marginTop: 6 }}>Stock: {TEXTO_ESTADO_STOCK[item.estado] || 'sin confirmar'}</div>
+      )}
+    </div>
+  );
+
+  const editorEnlacePremio = () => {
+    const e = enlaceEditando;
+    if (!e) return null;
+    const cerrar = () => setEnlaceEditando(null);
+    return (
+      <div role="group" aria-label="Enlace y alternativas" style={{ marginTop: 14, padding: '16px 18px', background: tema.superficie, border: `1px solid ${tema.borde}` }}>
+        <div style={{ fontFamily: tema.fuenteTitulo, fontSize: 18 }}>Enlace y alternativas</div>
+        <p style={{ fontSize: 13, color: tema.textoSecundario, margin: '4px 0 10px', lineHeight: 1.5 }}>
+          El enlace del premio muestra el stock real de la tienda. Si el color elegido se agota, se ofrecen los otros colores del mismo producto; si se agota todo, las alternativas de abajo que tengan stock (recomendado: 2 o 3 del mismo tipo de producto).
+        </p>
+        {e.cargando && <Cargando />}
+        {e.error && <p role="alert" style={{ color: '#b91c1c', fontSize: 14 }}>{e.error}</p>}
+        {!e.cargando && (e.principal !== undefined || e.buscandoPara) && (
+          <>
+            {e.principal && filaProductoEnlace(
+              e.principal,
+              (varianteId) => setEnlaceEditando((x) => ({ ...x, principal: { ...x.principal, varianteId } })),
+              null,
+              'Producto del premio',
+            )}
+            {e.principal && e.buscandoPara !== 'principal' && (
+              <button type="button" className="fid-link" onClick={() => setEnlaceEditando((x) => ({ ...x, buscandoPara: 'principal', resultados: null, busqueda: '' }))} style={{ ...ui.botonTexto, marginTop: 8 }}>Cambiar producto</button>
+            )}
+
+            <div style={{ fontSize: 13, fontWeight: 500, marginTop: 18 }}>Alternativas si se agota ({e.alternativas?.length || 0} de {MAXIMO_ALTERNATIVAS})</div>
+            {(e.alternativas || []).map((a, i) => (
+              <div key={`${a.productoId}-${i}`}>
+                {filaProductoEnlace(
+                  a,
+                  (varianteId) => setEnlaceEditando((x) => ({ ...x, alternativas: x.alternativas.map((y, j) => (j === i ? { ...y, varianteId } : y)) })),
+                  () => setEnlaceEditando((x) => ({ ...x, alternativas: x.alternativas.filter((_, j) => j !== i) })),
+                  `Alternativa ${i + 1}`,
+                )}
+              </div>
+            ))}
+            {(e.alternativas?.length || 0) < MAXIMO_ALTERNATIVAS && e.principal && e.buscandoPara !== 'alternativa' && (
+              <button type="button" className="fid-link" onClick={() => setEnlaceEditando((x) => ({ ...x, buscandoPara: 'alternativa', resultados: null, busqueda: '' }))} style={{ ...ui.botonTexto, marginTop: 8 }}>+ Agregar alternativa</button>
+            )}
+
+            {e.buscandoPara && (
+              <div style={{ marginTop: 14 }}>
+                <label htmlFor="buscar-producto-tienda" style={ui.label}>{e.buscandoPara === 'principal' ? 'Buscá el producto del premio en la tienda' : 'Buscá una alternativa en la tienda'}</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input id="buscar-producto-tienda" value={e.busqueda || ''} onChange={(ev) => setEnlaceEditando((x) => ({ ...x, busqueda: ev.target.value }))} onKeyDown={(ev) => { if (ev.key === 'Enter') buscarProductosTienda(); }} placeholder="Ej. pañuelo" style={ui.input} />
+                  <button type="button" className="fid-btn-secondary" onClick={buscarProductosTienda} disabled={e.buscando} style={{ ...ui.botonSecundario, flexShrink: 0 }}>{e.buscando ? 'Buscando…' : 'Buscar'}</button>
+                </div>
+                {e.errorBusqueda && <p role="alert" style={{ color: '#b91c1c', fontSize: 14 }}>{e.errorBusqueda}</p>}
+                {e.resultados && e.resultados.length === 0 && !e.errorBusqueda && <p style={{ fontSize: 14, color: tema.textoSecundario }}>No encontramos productos con ese nombre.</p>}
+                {e.resultados?.length > 0 && (
+                  <ul aria-label="Productos encontrados" style={{ listStyle: 'none', margin: '8px 0 0', padding: 0, borderTop: `1px solid ${tema.borde}` }}>
+                    {e.resultados.map((r) => {
+                      const conStock = r.variantes.filter((v) => v.estado === 'con_stock').length;
+                      const yaElegido = r.id === e.principal?.productoId || e.alternativas.some((a) => a.productoId === r.id);
+                      return (
+                        <li key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: `1px solid ${tema.borde}` }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          {r.imagen ? <img src={r.imagen} alt="" width={40} height={40} style={{ width: 40, height: 40, objectFit: 'cover' }} /> : <span aria-hidden="true" style={{ width: 40, height: 40, background: tema.fondo }} />}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 14 }}>{r.nombre}{!r.publicado && <span style={{ color: tema.textoSecundario }}> (sin publicar)</span>}</div>
+                            <div style={{ fontSize: 12, color: tema.textoSecundario }}>{r.variantes.length} variante(s), {conStock} con stock</div>
+                          </div>
+                          <button type="button" className="fid-btn-secondary" disabled={yaElegido} onClick={() => elegirProductoTienda(r)} style={{ ...ui.botonSecundario, flexShrink: 0, opacity: yaElegido ? 0.5 : 1 }}>{yaElegido ? 'Elegido' : 'Elegir'}</button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {e.principal && <button type="button" className="fid-link" onClick={() => setEnlaceEditando((x) => ({ ...x, buscandoPara: null, resultados: null }))} style={{ ...ui.botonTexto, marginTop: 8 }}>Cancelar búsqueda</button>}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+              <button type="button" className="fid-btn-primary" onClick={guardarEnlacePremio} disabled={!e.principal || e.guardando} style={{ ...ui.botonPrimario, opacity: !e.principal || e.guardando ? 0.6 : 1 }}>{e.guardando ? 'Guardando…' : 'Guardar enlace'}</button>
+              <button type="button" className="fid-btn-secondary" onClick={cerrar} style={ui.botonSecundario}>Cancelar</button>
+            </div>
+          </>
+        )}
+        {(e.cargando || e.error) && !e.principal && !e.buscandoPara && (
+          <button type="button" className="fid-btn-secondary" onClick={cerrar} style={{ ...ui.botonSecundario, marginTop: 10 }}>Cerrar</button>
+        )}
+      </div>
+    );
+  };
+
   const VistaPremios = () => (
     <div>
       {mostrarFormPremio && (
@@ -1454,6 +1647,7 @@ export default function Home() {
                   <div style={{ fontSize: 13, color: tema.textoSecundario, display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: 6 }}>
                     <span style={ui.numero}>{formatearMiles(p.puntos)} puntos</span>
                     {p.tiendanubeProductoId && <span>· con precio de la tienda online</span>}
+                    {p.tiendanubeProductoId && p._count?.alternativas > 0 && <span>· {p._count.alternativas} alternativa(s)</span>}
                     {p.tiendanubeProductoUrl && (
                       <span>· <a href={p.tiendanubeProductoUrl} target="_blank" rel="noopener noreferrer" className="fid-link" style={{ color: tema.textoSecundario, display: 'inline-flex', alignItems: 'center', gap: 3 }}><LinkIcon size={12} aria-hidden="true" /> ver producto</a></span>
                     )}
@@ -1461,12 +1655,17 @@ export default function Home() {
                     {p.tiendanubeDescuentoMonto ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>· <Ticket size={12} aria-hidden="true" /> cupón ${formatearMiles(p.tiendanubeDescuentoMonto)}{p.tiendanubeDescuentoMontoMinimo ? ` (compra mín. $${formatearMiles(p.tiendanubeDescuentoMontoMinimo)})` : ''}</span> : null}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 16, flexShrink: 0, paddingTop: 4 }}>
+                <div style={{ display: 'flex', gap: 16, flexShrink: 0, paddingTop: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {/* Solo premios de producto (no los de % o monto, que son para toda la tienda). */}
+                  {!p.tiendanubeDescuentoPorcentaje && !p.tiendanubeDescuentoMonto && (
+                    <button type="button" className="fid-link" onClick={() => abrirEnlacePremio(p)} style={ui.botonTexto}>Enlace y alternativas</button>
+                  )}
                   <button type="button" className="fid-link" onClick={() => iniciarEdicionPremio(p)} style={ui.botonTexto}>Editar</button>
                   <button type="button" className="fid-link" onClick={() => togglePremioActivo(p)} style={{ ...ui.botonTexto, color: p.activo ? '#b91c1c' : '#15803d' }}>{p.activo ? 'Desactivar' : 'Reactivar'}</button>
                 </div>
               </div>
             )}
+            {enlaceEditando?.premioId === p.id && premioEditandoId !== p.id && editorEnlacePremio()}
           </li>
         ))}
       </ul>
@@ -1824,6 +2023,26 @@ export default function Home() {
       );
     }
 
+    // Enlace de un premio con producto: la página intermedia de Retornar
+    // (consulta el stock y muestra alternativas), no la tienda directo.
+    const enlacePremio = (p) => (p.tiendanubeProductoId && negocioDelCliente.slug
+      ? `/club/${encodeURIComponent(negocioDelCliente.slug)}/producto/${encodeURIComponent(p.id)}`
+      : p.tiendanubeProductoUrl || null);
+    const TEXTO_STOCK = {
+      sin_stock: 'Sin stock por el momento',
+      otros_colores: 'Sin stock en este color · hay otros colores',
+      desconocido: 'Disponibilidad sin confirmar',
+    };
+    const etiquetaStock = (p) => {
+      const estado = p.tiendanubeProductoId ? stockPremios[p.id] : null;
+      if (!TEXTO_STOCK[estado]) return null;
+      const Icono = estado === 'desconocido' ? Info : PackageX;
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: estado === 'desconocido' ? tema.textoSecundario : '#b45309', marginTop: 2 }}>
+          <Icono size={13} aria-hidden="true" /> {TEXTO_STOCK[estado]}
+        </div>
+      );
+    };
     const premiosDisponibles = (negocioDelCliente.premios || []).filter(p => clientePropio.puntos >= p.puntos);
     const premiosBloqueados = (negocioDelCliente.premios || []).filter(p => clientePropio.puntos < p.puntos);
     // El premio más cercano que todavía no le alcanza (premios ya viene
@@ -1950,7 +2169,12 @@ export default function Home() {
 
           {modalCliente === 'cupon' && cuponMostrado && (() => {
             const { premio, codigo, error, pendiente, nuevo } = cuponMostrado;
-            const guia = guiaCupon(premio, { sitioWeb: negocioDelCliente.sitioWeb, negocioNombre: negocioDelCliente.nombre });
+            const guia = guiaCupon(premio, {
+              sitioWeb: negocioDelCliente.sitioWeb,
+              negocioNombre: negocioDelCliente.nombre,
+              // La página intermedia del premio (consulta el stock).
+              enlaceProducto: premio?.id && negocioDelCliente.slug ? `/club/${encodeURIComponent(negocioDelCliente.slug)}/producto/${encodeURIComponent(premio.id)}` : null,
+            });
             const titulo = !nuevo ? 'Tu cupón' : (error || pendiente) ? 'Canje confirmado' : '¡Premio canjeado!';
             const copiar = async () => {
               try {
@@ -2252,21 +2476,24 @@ export default function Home() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       {/* "Click en un premio → lleva al producto en Tiendanube" (Grupo 7): solo
                           clickeable cuando el negocio cargó una URL de producto para este premio. */}
-                      {p.tiendanubeProductoUrl ? (
-                        <a href={p.tiendanubeProductoUrl} target="_blank" rel="noopener noreferrer" style={{ fontFamily: tema.fuenteTitulo, fontSize: 20, lineHeight: 1.25, color: tema.texto, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>{p.nombre} <LinkIcon size={13} aria-label="ver producto" /></a>
+                      {enlacePremio(p) ? (
+                        <a href={enlacePremio(p)} style={{ fontFamily: tema.fuenteTitulo, fontSize: 20, lineHeight: 1.25, color: tema.texto, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>{p.nombre} <LinkIcon size={13} aria-label="ver producto" /></a>
                       ) : (
                         <div style={{ fontFamily: tema.fuenteTitulo, fontSize: 20, lineHeight: 1.25 }}>{p.nombre}</div>
                       )}
                       <div style={{ fontSize: 13, color: tema.textoSecundario, ...ui.numero }}>{formatearMiles(p.puntos)} puntos</div>
+                      {etiquetaStock(p)}
                     </div>
+                    {/* Sin stock en ninguna variante no se puede canjear (lo
+                        controla también app/api/canjes). */}
                     <button
                       type="button"
                       className="fid-btn-primary"
                       onClick={() => setConfirmacionCanje({ premio: p, clave: nuevaClaveCanje() })}
-                      disabled={canjeandoId === p.id}
-                      style={{ ...ui.botonPrimario, minHeight: 44, flexShrink: 0, cursor: canjeandoId === p.id ? 'not-allowed' : 'pointer', opacity: canjeandoId === p.id ? 0.7 : 1 }}
+                      disabled={canjeandoId === p.id || stockPremios[p.id] === 'sin_stock'}
+                      style={{ ...ui.botonPrimario, minHeight: 44, flexShrink: 0, cursor: canjeandoId === p.id || stockPremios[p.id] === 'sin_stock' ? 'not-allowed' : 'pointer', opacity: canjeandoId === p.id || stockPremios[p.id] === 'sin_stock' ? 0.55 : 1 }}
                     >
-                      {canjeandoId === p.id ? 'Canjeando...' : 'Canjear'}
+                      {canjeandoId === p.id ? 'Canjeando...' : stockPremios[p.id] === 'sin_stock' ? 'Sin stock' : 'Canjear'}
                     </button>
                   </li>
                 ))}
@@ -2282,13 +2509,14 @@ export default function Home() {
                     return (
                       <li key={p.id} style={{ padding: '14px 0 16px', borderBottom: `1px solid ${tema.borde}` }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-                          {p.tiendanubeProductoUrl ? (
-                            <a href={p.tiendanubeProductoUrl} target="_blank" rel="noopener noreferrer" style={{ fontFamily: tema.fuenteTitulo, fontSize: 20, lineHeight: 1.25, color: tema.texto, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>{p.nombre} <LinkIcon size={13} aria-label="ver producto" /></a>
+                          {enlacePremio(p) ? (
+                            <a href={enlacePremio(p)} style={{ fontFamily: tema.fuenteTitulo, fontSize: 20, lineHeight: 1.25, color: tema.texto, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>{p.nombre} <LinkIcon size={13} aria-label="ver producto" /></a>
                           ) : (
                             <span style={{ fontFamily: tema.fuenteTitulo, fontSize: 20, lineHeight: 1.25, minWidth: 0 }}>{p.nombre}</span>
                           )}
                           <span style={{ fontSize: 14, color: tema.textoSecundario, flexShrink: 0, ...ui.numero }}>{formatearMiles(p.puntos)}</span>
                         </div>
+                        {etiquetaStock(p)}
                         <div style={{ fontSize: 13, color: tema.textoSecundario, margin: '2px 0 8px' }}>Te faltan {formatearMiles(p.puntos - clientePropio.puntos)} puntos</div>
                         <div role="progressbar" aria-label={`Avance hacia ${p.nombre}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={avance} style={{ height: 2, background: tema.borde }}>
                           <div style={{ height: '100%', width: `${avance}%`, background: tema.primario }} />

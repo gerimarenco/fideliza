@@ -1990,3 +1990,27 @@ límites y prueba real en `docs/lanzamiento/cupones-por-producto.md`.
   un premio-producto, también el que hace el negocio en el local, se rechaza
   si la tienda online no tiene stock. Hay que distinguir el stock de la
   tienda online del stock físico del negocio.
+
+## 79. Enlaces de premios con stock real y alternativas (2026-11-06)
+
+Los enlaces de los premios con producto (panel de la clienta, cartel del
+cupón, mail de canje) pasan por una página intermedia de Retornar
+(`/club/<negocio>/producto/<premio>`) que consulta el stock en Tiendanube:
+disponible, sin stock (con los otros colores del mismo producto, primero los
+del mismo precio, y hasta 3 alternativas elegidas por el negocio, solo las
+que tienen stock) o "no pudimos confirmar" (nunca "disponible"). En el panel
+de la clienta, etiquetas de stock y el canje deshabilitado si no hay stock en
+ninguna variante. En Premios → "Enlace y alternativas" el negocio busca el
+producto en la tienda, elige el color y las alternativas. Solo lectura de
+Tiendanube. Detalle en `docs/lanzamiento/enlaces-con-stock.md`.
+
+Migración `20261106120000_premio_alternativas`: agrega `Premio.tiendanubeVarianteId`
+(vacía) y la tabla `PremioAlternativa`; no toca filas existentes.
+
+**Pendiente**:
+- Correr `scripts/diagnostico-productos-tiendanube.mjs` (solo lectura) contra
+  la tienda real para ver si hay varias ubicaciones de stock (local y online)
+  y decidir cuál cuenta para la tienda online.
+- Probar en la tienda real que `?variant=<id>` abre el color y que el
+  buscador encuentra los productos.
+- Cargar el enlace y 2 o 3 alternativas de cada premio de producto.

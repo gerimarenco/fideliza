@@ -2,8 +2,12 @@
 // desarrollo): registra cada cupón creado en un archivo. Nada sale a internet.
 // Si el archivo de control dice fallar=true, la creación del cupón responde 500.
 //
-// Productos: tn-productos.json ({ "<id>": { variants, published } }); un id
-// que no está ahí responde un producto de $15.000 sin control de stock.
+// Productos: tn-productos.json ({ "<id>": { name, variants, published,
+// canonical_url, images } }); un id que no está ahí responde un producto de
+// $15.000 sin control de stock. GET /products?q= busca por nombre.
+// productosLentos=<ms> demora la lectura de productos (para el tiempo máximo);
+// productosFallan=[ids] → esos productos responden 503.
+// Cada pedido queda en tn-pedidos.log ("MÉTODO /ruta").
 // Control: productosFalla=true → la lectura de productos responde 503;
 // ignorarProductos=true → la tienda guarda el cupón SIN el campo products
 // (como si la API lo ignorara), para probar que Retornar no lo entrega.
@@ -16,6 +20,19 @@ const CONTROL = `${DIR}/tn-control.json`
 const fetchReal = globalThis.fetch
 globalThis.fetch = async (url, opciones = {}) => {
   const u = typeof url === 'string' ? url : url?.url
+  // Registro de cada pedido a la API (método y ruta), para comprobar que
+  // Retornar nunca escribe en productos.
+  if (u && u.startsWith('https://api.tiendanube.com/')) fs.appendFileSync(DIR + '/tn-pedidos.log', `${opciones.method || 'GET'} ${u.replace(/^https:\/\/api\.tiendanube\.com\/2025-03\/\d+/, '')}\n`)
+  // Búsqueda de productos (GET /products?q=): por nombre, en tn-productos.json.
+  const busqueda = u && u.match(/^https:\/\/api\.tiendanube\.com\/2025-03\/\d+\/products\?(.+)$/)
+  if (busqueda && (!opciones.method || opciones.method === 'GET')) {
+    const control = fs.existsSync(CONTROL) ? JSON.parse(fs.readFileSync(CONTROL, 'utf8')) : {}
+    if (control.productosFalla) return new Response('{"error":"simulado"}', { status: 503 })
+    const q = (new URLSearchParams(busqueda[1]).get('q') || '').toLowerCase()
+    const productos = fs.existsSync(DIR + '/tn-productos.json') ? JSON.parse(fs.readFileSync(DIR + '/tn-productos.json', 'utf8')) : {}
+    const lista = Object.entries(productos).filter(([, p]) => p && JSON.stringify(p.name || '').toLowerCase().includes(q)).map(([id, p]) => ({ id: Number(id), published: true, ...p }))
+    return new Response(JSON.stringify(lista), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  }
   // Listado de cupones (GET /coupons?...): los creados, con los usos y bajas
   // que indique tn-estado-cupones.json ({ CODIGO: { used, valid, borrado,
   // sinUsed } }). Como la API real: encabezados x-total-count y Link
@@ -89,6 +106,14 @@ globalThis.fetch = async (url, opciones = {}) => {
     }
     if (m[3]) {
       if (control.productosFalla) return json({ error: 'simulado' }, 503)
+      if ((control.productosFallan || []).includes(m[3])) return json({ error: 'simulado' }, 503)
+      // Como el fetch real: si quien llama corta (AbortSignal), se corta.
+      if (control.productosLentos) {
+        await new Promise((ok, falla) => {
+          const t = setTimeout(ok, control.productosLentos)
+          opciones.signal?.addEventListener('abort', () => { clearTimeout(t); falla(opciones.signal.reason ?? new Error('aborted')) })
+        })
+      }
       const productos = fs.existsSync(DIR + '/tn-productos.json') ? JSON.parse(fs.readFileSync(DIR + '/tn-productos.json', 'utf8')) : {}
       const producto = productos[m[3]]
       if (producto === null) return json({ code: 404, message: 'Not Found' }, 404)

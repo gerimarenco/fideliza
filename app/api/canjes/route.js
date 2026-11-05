@@ -131,7 +131,7 @@ export async function POST(request) {
 
   const premio = await prisma.premio.findUnique({
     where: { id: premioId },
-    include: { negocio: { select: { activo: true, nombre: true } } },
+    include: { negocio: { select: { activo: true, nombre: true, slug: true } } },
   })
 
   // Un negocio desactivado (ver app/api/negocios) no debería seguir dejando
@@ -272,6 +272,9 @@ export async function POST(request) {
       negocioId: premio.negocioId,
       cuponCodigo,
       tiendanubeProductoUrl: premio.tiendanubeProductoUrl,
+      // El link del mail va a la página intermedia del premio (consulta el
+      // stock), si el premio tiene producto y el negocio tiene slug.
+      enlaceProducto: premio.tiendanubeProductoId && premio.negocio.slug ? `/club/${encodeURIComponent(premio.negocio.slug)}/producto/${encodeURIComponent(premio.id)}` : null,
     })
 
     const { cuponCodigoPrevisto: _codigoPrevisto, ...datosCanje } = canje
