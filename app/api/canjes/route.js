@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { premioGeneraCupon, generarCuponDeCanje } from '@/lib/cuponCanje'
+import { premioGeneraCupon, generarCuponDeCanje, codigoPrevistoDeCanje, verificarPremioEnTienda } from '@/lib/cuponCanje'
 import { beneficioDePremio } from '@/lib/guiaCupon'
 import { enviarEmailCanje } from '@/lib/email'
 
@@ -89,6 +89,11 @@ export async function GET(request) {
 
 const CLAVE_VALIDA = /^[A-Za-z0-9-]{8,100}$/
 
+// El detalle del error del cupón (puede nombrar un código que hay que
+// desactivar a mano) se ve solo en el historial de canjes del negocio; quien
+// canjea recibe un aviso genérico.
+const errorParaRespuesta = (error) => (error ? 'No se pudo generar el cupón automáticamente' : error)
+
 // Respuesta a un canje repetido: los mismos datos que el canje original, sin
 // tocar nada. Si la clave es de otro canje (otra clienta u otro premio), se
 // rechaza: no se reutiliza una confirmación para otra cosa.
@@ -96,8 +101,12 @@ function respuestaCanjeRepetido(previo, clienteId, premio) {
   if (previo.clienteId !== clienteId || previo.premioId !== premio.id) {
     return NextResponse.json({ error: 'Esta confirmación ya se usó para otro canje' }, { status: 409 })
   }
+  // cuponCodigoPrevisto no se devuelve: el código solo se muestra cuando
+  // Tiendanube confirmó el cupón (tiendanubeCuponCodigo).
+  const { cuponCodigoPrevisto: _previsto, ...datosPrevio } = previo
   return NextResponse.json({
-    ...previo,
+    ...datosPrevio,
+    tiendanubeCuponError: errorParaRespuesta(previo.tiendanubeCuponError),
     tiendanubeProductoUrl: premio.tiendanubeProductoUrl,
     repetido: true,
     // El primer pedido todavía está generando el cupón.
@@ -180,6 +189,13 @@ export async function POST(request) {
     if (previo) return respuestaCanjeRepetido(previo, clienteId, premio)
   }
 
+  // Premio-producto: antes de descontar puntos, que se pueda comprar hoy en
+  // la tienda (con stock y publicado). Si no, no se descuenta nada.
+  const enTienda = await verificarPremioEnTienda(premio)
+  if (enTienda.error) {
+    return NextResponse.json({ error: enTienda.error }, { status: enTienda.status })
+  }
+
   try {
     // updateMany con el saldo en el WHERE: Postgres serializa los UPDATE
     // concurrentes sobre la misma fila, así que si dos canjes llegan al
@@ -200,7 +216,7 @@ export async function POST(request) {
 
       await consumirPuntosFifo(tx, clienteId, premio.puntos)
 
-      return tx.canje.create({
+      const creado = await tx.canje.create({
         data: {
           clienteId,
           premioId,
@@ -210,6 +226,10 @@ export async function POST(request) {
           premioBeneficio: beneficioDePremio(premio),
         },
       })
+      // El código del cupón se fija ahora, antes de pedírselo a Tiendanube
+      // (ver Canje.cuponCodigoPrevisto).
+      if (!premioGeneraCupon(premio)) return creado
+      return tx.canje.update({ where: { id: creado.id }, data: { cuponCodigoPrevisto: codigoPrevistoDeCanje(creado.id, premio) } })
     })
 
     // El cupón de Tiendanube se genera después de confirmar el canje, nunca
@@ -220,7 +240,7 @@ export async function POST(request) {
     // clienta, solo se guarda para que el negocio lo resuelva a mano).
     let cuponCodigo, cuponError
     if (premioGeneraCupon(premio)) {
-      const resultadoCupon = await generarCuponDeCanje(premio, canje.id)
+      const resultadoCupon = await generarCuponDeCanje(premio, canje, { producto: enTienda.producto })
       cuponCodigo = resultadoCupon.cuponCodigo
       cuponError = resultadoCupon.cuponError
 
@@ -254,7 +274,8 @@ export async function POST(request) {
       tiendanubeProductoUrl: premio.tiendanubeProductoUrl,
     })
 
-    return NextResponse.json({ ...canje, tiendanubeCuponCodigo: cuponCodigo, tiendanubeCuponError: cuponError, tiendanubeProductoUrl: premio.tiendanubeProductoUrl })
+    const { cuponCodigoPrevisto: _codigoPrevisto, ...datosCanje } = canje
+    return NextResponse.json({ ...datosCanje, tiendanubeCuponCodigo: cuponCodigo, tiendanubeCuponError: errorParaRespuesta(cuponError), tiendanubeProductoUrl: premio.tiendanubeProductoUrl })
   } catch (error) {
     if (error.message === 'PUNTOS_INSUFICIENTES') {
       return NextResponse.json({ error: 'Puntos insuficientes' }, { status: 400 })

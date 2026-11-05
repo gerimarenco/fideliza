@@ -90,7 +90,7 @@ const diez = await prisma.premio.findFirst({ where: { nombre: '10% en toda la ti
 const monto = await prisma.premio.findFirst({ where: { nombre: '$70.000 de descuento' } })
 const c1 = await post(pañuelo.id), c2 = await post(diez.id), c3 = await post(diez.id), c4 = await post(monto.id), c5 = await post(diez.id)
 const codigos = [c1, c2, c3, c4, c5].map((c) => c.tiendanubeCuponCodigo)
-chequear(new Set(codigos).size === 5 && codigos.every((x) => /^RETORNAR-[A-Z0-9]{8}$/.test(x)), `5 canjes → 5 códigos distintos (${codigos.join(', ')})`)
+chequear(new Set(codigos).size === 5 && codigos.every((x) => /^RETORNAR-[A-Z0-9]+-[A-Z0-9]{8}$/.test(x)), `5 canjes → 5 códigos distintos (${codigos.join(', ')})`)
 chequear(cupones().length === 5 && cupones().every((c) => c.max_uses === 1), 'cada cupón se crea en Tiendanube con max_uses: 1 (un uso en total, para cualquier cuenta)')
 chequear(cupones().every((c) => !('max_uses_per_client' in c) && !('first_consumer_purchase' in c)), 'sin límites por clienta: el límite es global')
 

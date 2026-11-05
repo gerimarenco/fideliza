@@ -51,12 +51,12 @@ pocos puntos creados para la prueba, y borrar los cupones al terminar
 
 | # | Premio de prueba | Qué comprobar | Hecho |
 |---|---|---|---|
-| C1 | Producto gratis (con ID de producto) | Al canjear aparece un código `RETORNAR-...`; en Tiendanube el cupón existe con el valor del producto, 1 uso; aplicado a un carrito con ese producto lo deja en $0 + envío | [ ] |
+| C1 | Producto gratis (con ID de producto) | Pruebas R1–R7 de `cupones-por-producto.md`: código `RETORNAR-<PREMIO>-...`, limitado al producto en Tiendanube, $0 + envío con ese producto en cualquier color, rechazado con otro producto o combinado, un solo uso, sin stock no se canjea | [ ] |
 | C2 | 10% de descuento | El cupón descuenta el 10% del carrito; no se puede usar dos veces | [ ] |
 | C3 | Descuento fijo (ej. $1.000 desde $2.000) | Con carrito de $1.999 **no** se aplica; con $2.000 sí y se paga $1.000 | [ ] |
 | C4 | C3 con una promoción automática activa en la tienda | ¿Tiendanube compara la compra mínima antes o después de la promoción? Anotar el resultado | [ ] |
 | C5 | C3 con envío | ¿El envío cuenta para llegar a la compra mínima? Anotar el resultado | [ ] |
-| C6 | Desconectar/reconectar no aplica: forzar un error (ej. premio con ID de producto inexistente) | El canje queda con error y "Reintentar cupón" en Canjes; al corregir el premio y reintentar, se genera | [ ] |
+| C6 | Desconectar/reconectar no aplica: forzar un error (ej. premio de 10% con la app sin permiso de cupones) | El canje queda con error y "Reintentar cupón" en Canjes; al corregir y reintentar, se genera. (Un premio con ID de producto inexistente ya no se puede canjear: avisa que no está disponible y no descuenta puntos) | [ ] |
 
 Si C4 o C5 muestran que el descuento puede superar la mitad de lo pagado,
 ajustar la compra mínima del premio de $70.000 en consecuencia.

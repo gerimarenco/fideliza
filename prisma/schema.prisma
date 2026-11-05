@@ -173,6 +173,11 @@ model Canje {
   // negocio tiene que entregar el descuento a mano.
   tiendanubeCuponCodigo String?
   tiendanubeCuponError  String?
+  // Código que se le pide a Tiendanube para este canje
+  // (RETORNAR-<PREMIO>-<8 caracteres>), guardado al crear el canje, antes de
+  // llamar a Tiendanube: el reintento usa siempre el mismo. null en los
+  // canjes anteriores (usan el formato viejo RETORNAR-<8 caracteres>).
+  cuponCodigoPrevisto   String?
   // Estado del cupón según Tiendanube (ver lib/estadoCupon.js): "disponible",
   // "utilizado", "vencido" o "anulado". null = todavía no se pudo verificar.
   // cuponVerificadoEn: última vez que se consultó a Tiendanube. Un cupón

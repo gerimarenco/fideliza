@@ -172,12 +172,9 @@ negocio lo pueda consultar después en el historial de canjes.
   lectura de productos y escritura de cupones/descuentos — se generó en su
   momento solo pensando en leer órdenes para acreditar puntos, puede que
   haga falta regenerarlo con más permisos desde el panel de Tiendanube.
-- Limitación de la API de Tiendanube (no de este código): un cupón no se
-  puede atar técnicamente a un producto específico, así que el de
-  "producto puntual" es, en rigor, un cupón por ese valor con un piso de
-  compra igual al precio del producto — ver el detalle completo en el
-  README antes de prometerle a una clienta que el cupón "solo sirve para
-  ese producto".
+- ~~Limitación de la API de Tiendanube (no de este código): un cupón no se
+  puede atar técnicamente a un producto específico~~ — corregido el
+  2026-11-05: la API sí tiene `products`; ver ítem 78.
 
 ## 10. Vencimiento de puntos a los 6 meses — código hecho, falta activarlo (2026-09-07)
 
@@ -1965,3 +1962,27 @@ Decisión de Genaro: el registro público vuelve a pedir DNI, para que una misma
   confirmó que no le hace falta por ahora (su contraseña sigue saliendo
   de `ADMIN_PASSWORD_HASH`). En cambio sí se resolvió la recuperación de
   contraseña de clientes y negocios, ver ítem 60.
+
+## 78. Cupones de premios atados al producto (2026-11-05)
+
+El cupón del pañuelo ($29.000) servía para cualquier producto (con un
+aromatizante de $32.000 se pagaban $3.000). Ahora se crea en Tiendanube con
+`products: [id]`: según la documentación de Tiendanube solo se acepta si el
+carrito tiene únicamente ese producto, en cualquier color o variante. Detalle,
+límites y prueba real en `docs/lanzamiento/cupones-por-producto.md`.
+
+- Código `RETORNAR-<PREMIO>-<8 caracteres>` (ej. `RETORNAR-PANUELO-AB12CD34`),
+  guardado en `Canje.cuponCodigoPrevisto` antes de pedirlo (migración
+  `20261105120000_canje_codigo_previsto`, solo agrega la columna).
+- Vale una unidad de la variante más barata con stock (decisión de Genaro).
+- Si Tiendanube no lo guarda atado al producto, se retira y no se entrega.
+- Sin stock, sin publicar o borrado en la tienda: el canje se rechaza sin
+  descontar puntos.
+- Puntos, valor de los premios, premios de % y de monto fijo, y negocios sin
+  Tiendanube: sin cambios.
+
+**Pendiente**:
+- Prueba real en la tienda (R1–R7 del documento), con autorización.
+- Decidir qué hacer con los cupones de producto ya emitidos sin restricción
+  (`scripts/cupones-producto-sin-restriccion.mjs`, solo lectura): dejarlos o
+  reemplazarlos (requiere autorización). No se tocó ninguno.

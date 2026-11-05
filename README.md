@@ -315,15 +315,16 @@ puntos ya se descontaron: el error queda anotado en
 `Canje.tiendanubeCuponError` (visible en el historial de canjes del negocio)
 para que se resuelva el descuento a mano en vez de perder el canje.
 
-**Limitación conocida**: la API de cupones de Tiendanube no permite atarlos
-a un producto específico (eso existe para "Descuentos" vía un partner app
-con webhook de checkout — una integración mucho más pesada, pensada para
-apps públicas de terceros, que no corresponde para el uso interno de un solo
-negocio). Por eso el cupón de "producto puntual" en realidad es un cupón por
-el valor de ese producto con un piso de compra (`min_price`) igual a ese
-valor — cubre el precio del producto si es lo único que hay en el carrito,
-pero Tiendanube no impide técnicamente usarlo con otra combinación de
-productos que sume ese piso. "No acumulable" tampoco es un campo de la API:
+**Cupón atado al producto** (desde 2026-11-05, ver
+`docs/lanzamiento/cupones-por-producto.md`): el cupón de "producto puntual"
+se crea con `products: [id]`, así que según las reglas documentadas de
+Tiendanube solo se acepta si el carrito tiene únicamente ese producto (en
+cualquiera de sus variantes). Vale una unidad de la variante más barata con
+stock, se comprueba que Tiendanube lo haya guardado atado al producto (si
+no, se retira y no se entrega) y no se canjea un producto sin stock. El
+código es `RETORNAR-<PREMIO>-<8 caracteres>`. Los cupones emitidos antes
+siguen sin restricción (`scripts/cupones-producto-sin-restriccion.mjs`, solo
+lectura). "No acumulable" tampoco es un campo de la API:
 Tiendanube ya limita a un cupón por pedido en el checkout, así que un cupón
 de un solo uso (`max_uses: 1`) no se puede combinar con *otro* cupón, pero
 si el negocio tiene una promoción automática configurada aparte en su panel
