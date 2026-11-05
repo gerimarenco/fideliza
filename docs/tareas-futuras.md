@@ -2055,3 +2055,24 @@ Detalle en `docs/lanzamiento/alertas-canje.md`.
   pañuelo cuesta 4.000 puntos en producción; si no, consultarlo antes de
   cambiar nada.
 - Activar la alerta en Ajustes de Peperina después del deploy.
+
+## 82. Exportar clientes a Google Sheets (2026-11-09)
+
+Sección nueva "Exportar clientes" en el panel del negocio: conectar la cuenta
+de Google del negocio (OAuth, solo `drive.file`), crear una hoja o elegir una
+existente con el selector de Google y exportar las clientas. Al volver a
+exportar actualiza por ID interno, agrega las nuevas al final y no toca
+columnas, filas, pestañas ni formatos propios. Sin DNI ni datos sensibles.
+Token cifrado; una conexión por negocio. La descarga para Excel se mantiene en
+la misma sección. Migración `20261109120000_conexion_google` (tabla nueva).
+Detalle en `docs/lanzamiento/google-sheets.md`.
+
+**Pendiente** (con autorización):
+- Google Cloud: habilitar Sheets API y Picker API, cliente OAuth con la URI
+  `https://retornar.com.ar/api/google-sheets/callback`, permiso `drive.file` en
+  la pantalla de consentimiento (publicada "En producción"), clave de API
+  restringida.
+- Netlify: `GOOGLE_SHEETS_CLIENT_ID`, `GOOGLE_SHEETS_CLIENT_SECRET`,
+  `GOOGLE_PICKER_API_KEY`, `GOOGLE_CLOUD_PROJECT_NUMBER`.
+- Probar con una cuenta de Google de prueba (no la de Peperina) antes de
+  usarla con la cuenta real.

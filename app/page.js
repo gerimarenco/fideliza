@@ -18,7 +18,7 @@ import {
   Home as HomeIcon, Store, Users, Gift, Star, RefreshCw, Plug, Settings, LogOut, Shield,
   AlertTriangle, MessageCircle, ScrollText, KeyRound, ClipboardList, Cake,
   ShoppingBag, Hourglass, Link as LinkIcon, Ticket, Info, Mail, Menu, Download,
-  ArrowRight, Check, X, Copy, ExternalLink, CircleCheck, PackageX, CircleAlert,
+  ArrowRight, Check, X, Copy, ExternalLink, CircleCheck, PackageX, CircleAlert, FileSpreadsheet,
 } from 'lucide-react';
 
 // Una clave por confirmación de canje (ver confirmacionCanje).
@@ -116,6 +116,10 @@ export default function Home() {
   const [toast, setToast] = useState(null);
   const [estadisticas, setEstadisticas] = useState(null);
   const [seccionActiva, setSeccionActiva] = useState('inicio');
+  // Exportar clientes → Google Sheets: estado de la conexión del negocio
+  // (app/api/google-sheets/estado) y qué acción está en curso.
+  const [estadoGoogle, setEstadoGoogle] = useState(null);
+  const [ocupadoGoogle, setOcupadoGoogle] = useState(null);
   const [clientesPagina, setClientesPagina] = useState(1);
   // Alerta de canje (lib/alertaCanje.js): ver solo las clientas que ya
   // pueden canjear el premio de la alerta, y el resumen { premio, pendientes }.
@@ -224,6 +228,36 @@ export default function Home() {
   useEffect(() => {
     if (session) cargarNegocios(true);
   }, [session]);
+
+  // Vuelta del OAuth de Google (app/api/google-sheets/callback): abre
+  // "Exportar clientes" y avisa el resultado; después limpia la URL.
+  useEffect(() => {
+    if (!isNegocio || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('seccion') !== 'exportar') return;
+    const resultado = params.get('google');
+    const MENSAJES = {
+      conectado: ['exito', 'Cuenta de Google conectada.'],
+      cancelado: ['error', 'No se conectó: cancelaste el permiso en Google.'],
+      'sin-permiso': ['error', 'No se conectó: hace falta dar permiso para crear y editar la hoja.'],
+      rechazado: ['error', 'No se pudo conectar (el pedido venció o no es de esta sesión). Probá de nuevo.'],
+      error: ['error', 'No se pudo conectar con Google. Probá de nuevo en unos minutos.'],
+    };
+    window.history.replaceState(null, '', window.location.pathname);
+    const t = setTimeout(() => {
+      setSeccionActiva('exportar');
+      if (MENSAJES[resultado]) setToast({ tipo: MENSAJES[resultado][0], mensaje: MENSAJES[resultado][1] });
+    }, 0);
+    return () => clearTimeout(t);
+  }, [isNegocio]);
+
+  useEffect(() => {
+    if (seccionActiva !== 'exportar' || !isNegocio) return;
+    fetch('/api/google-sheets/estado', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then(setEstadoGoogle)
+      .catch(() => setEstadoGoogle(null));
+  }, [seccionActiva, isNegocio]);
 
   const premiosConProducto = (negocioDelCliente?.premios || []).filter((p) => p.tiendanubeProductoId).map((p) => p.id).join(',');
   useEffect(() => {
@@ -1901,6 +1935,138 @@ export default function Home() {
     </div>
   );
 
+  // --- Exportar clientes (Excel y Google Sheets) ---
+  const recargarEstadoGoogle = () => fetch('/api/google-sheets/estado', { cache: 'no-store' })
+    .then((res) => (res.ok ? res.json() : null))
+    .then(setEstadoGoogle)
+    .catch(() => {});
+  const accionGoogle = async (clave, url, cuerpo, mensajeExito) => {
+    setOcupadoGoogle(clave);
+    try {
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo || {}) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { mostrarToast('error', data.error || 'No se pudo completar.'); return null; }
+      if (mensajeExito) mostrarToast('exito', typeof mensajeExito === 'function' ? mensajeExito(data) : mensajeExito);
+      return data;
+    } catch {
+      mostrarToast('error', 'No se pudo completar. Probá de nuevo.');
+      return null;
+    } finally {
+      setOcupadoGoogle(null);
+      recargarEstadoGoogle();
+    }
+  };
+  const crearHojaGoogle = () => accionGoogle('hoja', '/api/google-sheets/hoja', { accion: 'crear' }, 'Hoja creada en tu Drive.');
+  const exportarGoogle = () => accionGoogle('exportar', '/api/google-sheets/exportar', null, (d) => `Exportación lista: ${d.info}.`);
+  const desconectarGoogle = () => {
+    if (!window.confirm('¿Desconectar tu cuenta de Google? La hoja queda en tu Drive, pero Retornar deja de actualizarla.')) return;
+    accionGoogle('desconectar', '/api/google-sheets/desconectar', null, 'Cuenta de Google desconectada.');
+  };
+  // Elegir una hoja existente con el selector de Google (Picker): con el
+  // permiso drive.file, Retornar solo puede abrir las hojas elegidas ahí.
+  const elegirHojaGoogle = async () => {
+    setOcupadoGoogle('elegir');
+    try {
+      const res = await fetch('/api/google-sheets/token', { cache: 'no-store' });
+      const datos = await res.json();
+      if (!res.ok) { mostrarToast('error', datos.error || 'No se pudo abrir el selector.'); setOcupadoGoogle(null); return; }
+      if (!window.gapi) {
+        await new Promise((ok, falla) => {
+          const script = document.createElement('script');
+          script.src = 'https://apis.google.com/js/api.js';
+          script.onload = ok;
+          script.onerror = falla;
+          document.head.appendChild(script);
+        });
+      }
+      await new Promise((ok) => window.gapi.load('picker', ok));
+      const picker = new window.google.picker.PickerBuilder()
+        .addView(window.google.picker.ViewId.SPREADSHEETS)
+        .setOAuthToken(datos.accessToken)
+        .setDeveloperKey(datos.apiKey)
+        .setAppId(datos.appId)
+        .setCallback((r) => {
+          if (r.action === window.google.picker.Action.PICKED && r.docs?.[0]?.id) {
+            accionGoogle('hoja', '/api/google-sheets/hoja', { accion: 'elegir', hojaId: r.docs[0].id }, 'Hoja elegida.');
+          } else if (r.action === window.google.picker.Action.CANCEL) {
+            setOcupadoGoogle(null);
+          }
+        })
+        .build();
+      picker.setVisible(true);
+    } catch {
+      mostrarToast('error', 'No se pudo abrir el selector de Google.');
+      setOcupadoGoogle(null);
+    }
+  };
+
+  const VistaExportar = () => {
+    const e = estadoGoogle;
+    const c = e?.conexion;
+    const ocupado = (clave) => ocupadoGoogle === clave;
+    const botonesHoja = (
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <button type="button" className="fid-btn-secondary" onClick={crearHojaGoogle} disabled={!!ocupadoGoogle} style={ui.botonSecundario}>{ocupado('hoja') ? 'Creando…' : 'Crear una hoja nueva'}</button>
+        {e?.selectorHojas && <button type="button" className="fid-btn-secondary" onClick={elegirHojaGoogle} disabled={!!ocupadoGoogle} style={ui.botonSecundario}>{ocupado('elegir') ? 'Abriendo…' : 'Elegir una hoja existente'}</button>}
+      </div>
+    );
+    return (
+      <div style={{ display: 'grid', gap: 40, maxWidth: 720 }}>
+        <section aria-labelledby="exportar-google">
+          <TituloBloque><span id="exportar-google">Google Sheets</span></TituloBloque>
+          <p style={{ ...ui.ayuda, marginTop: 8 }}>Una hoja de cálculo online con tus clientas, para trabajarla en equipo. Cada vez que exportás se actualizan las que ya están (por su ID de Retornar) y se agregan las nuevas: no se duplican ni se borran filas, y las columnas que agregues a la derecha no se tocan.</p>
+          {!e && <Cargando />}
+          {e && !e.configurada && (
+            <p role="status" style={{ fontSize: 14, borderLeft: `2px solid ${tema.borde}`, paddingLeft: 12 }}>La conexión con Google todavía no está habilitada en Retornar. Mientras tanto podés descargar el archivo para Excel (abajo).</p>
+          )}
+          {e?.configurada && !c && (
+            <div style={{ display: 'grid', gap: 12 }}>
+              <p style={{ fontSize: 14, margin: 0 }}>Conectá la cuenta de Google del negocio. Retornar solo va a poder ver y editar las hojas que cree o que elijas, nunca el resto de tu Drive.</p>
+              <a href="/api/google-sheets/conectar" className="fid-btn-primary" style={{ ...ui.botonPrimario, display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none', width: 'fit-content' }}>
+                <FileSpreadsheet size={16} aria-hidden="true" /> Conectar cuenta de Google
+              </a>
+            </div>
+          )}
+          {e?.configurada && c && (
+            <div style={{ display: 'grid', gap: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', fontSize: 14 }}>
+                <span><CircleCheck size={15} aria-hidden="true" style={{ display: 'inline-block', verticalAlign: '-3px', color: '#15803d', marginRight: 6 }} />Conectada{c.email ? <> como <strong>{c.email}</strong></> : ''}</span>
+                <button type="button" className="fid-link" onClick={desconectarGoogle} disabled={!!ocupadoGoogle} style={{ ...ui.botonTexto, color: '#b91c1c' }}>Desconectar</button>
+              </div>
+              <div style={{ display: 'grid', gap: 10 }}>
+                <div style={ui.etiqueta}>Hoja</div>
+                {c.hoja ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', fontSize: 15 }}>
+                    <span>{c.hoja.nombre || 'Hoja sin nombre'}</span>
+                    <a href={c.hoja.url} target="_blank" rel="noopener noreferrer" className="fid-link" style={{ fontSize: 14, color: tema.texto, display: 'inline-flex', alignItems: 'center', gap: 4 }}>Abrir <ExternalLink size={13} aria-hidden="true" /></a>
+                  </div>
+                ) : <p style={{ fontSize: 14, margin: 0, color: tema.textoSecundario }}>Todavía no elegiste dónde exportar.</p>}
+                {botonesHoja}
+              </div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <button type="button" className="fid-btn-primary" onClick={exportarGoogle} disabled={!c.hoja || !!ocupadoGoogle} style={{ ...ui.botonPrimario, width: 'fit-content', opacity: !c.hoja || ocupadoGoogle ? 0.6 : 1 }}>{ocupado('exportar') ? 'Exportando…' : 'Exportar clientes a la hoja'}</button>
+                {c.ultimaExportacionEn && <p style={{ ...ui.ayuda, margin: 0 }}>Última exportación: {new Date(c.ultimaExportacionEn).toLocaleString('es-AR')} · {c.ultimaExportacionInfo}</p>}
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section aria-labelledby="exportar-excel">
+          <TituloBloque><span id="exportar-excel">Archivo para Excel</span></TituloBloque>
+          <p style={{ ...ui.ayuda, marginTop: 8 }}>Descarga todas tus clientas en un archivo que Excel abre directo (también Google Sheets, importándolo). No hace falta conectar nada. En Clientes podés exportar solo una búsqueda o un nivel.</p>
+          <a href={`/api/clientes/exportar?negocioId=${negocioMostrado?.id}`} className="fid-btn-secondary" style={{ ...ui.botonSecundario, display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none', width: 'fit-content' }}>
+            <Download size={15} aria-hidden="true" /> Descargar para Excel
+          </a>
+        </section>
+
+        <section aria-labelledby="exportar-datos">
+          <TituloBloque><span id="exportar-datos">Qué datos se exportan</span></TituloBloque>
+          <p style={{ ...ui.ayuda, marginTop: 8 }}>A la hoja de Google: ID de Retornar, nombre y apellido, email, teléfono, fecha de registro, puntos actuales, nivel, puntos ganados en total, compras registradas, última actividad, cumpleaños (día y mes) y la fecha de actualización; no van el DNI, la contraseña, el género ni el año de nacimiento. El archivo para Excel trae nombre, email, teléfono, fecha de nacimiento, puntos, nivel, compras, fecha de alta y última actividad; tampoco el DNI. En los dos casos, solo tus clientas: nunca las de otro negocio.</p>
+        </section>
+      </div>
+    );
+  };
+
   // Un bloque de Ajustes: título, explicación, el campo y su botón Guardar.
   // Se llama como función (no como <Componente/>) para que los inputs no
   // pierdan el foco al tipear.
@@ -2044,6 +2210,7 @@ export default function Home() {
     canjes: 'Canjes',
     integraciones: 'Integraciones',
     ajustes: 'Ajustes',
+    exportar: 'Exportar clientes',
   };
 
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
@@ -2095,6 +2262,7 @@ export default function Home() {
         {seccionActiva === 'premios' && VistaPremios()}
         {seccionActiva === 'integraciones' && VistaIntegraciones()}
         {seccionActiva === 'ajustes' && VistaAjustes()}
+        {seccionActiva === 'exportar' && VistaExportar()}
 
         {seccionActiva === 'inicio' && (
           <div>
@@ -2931,7 +3099,7 @@ export default function Home() {
               <div style={{ ...ui.etiqueta, marginTop: 6 }}>Panel del club</div>
             </div>
             <nav aria-label="Secciones" className="fid-sidebar-nav" style={{ padding: '8px 0', flex: 1 }}>
-              {[[HomeIcon, 'Inicio', 'inicio'], [Users, 'Clientes', 'clientes'], [Gift, 'Premios', 'premios'], [RefreshCw, 'Canjes', 'canjes'], [Plug, 'Integraciones', 'integraciones'], [Settings, 'Ajustes', 'ajustes']].map(([Icono, label, id]) => {
+              {[[HomeIcon, 'Inicio', 'inicio'], [Users, 'Clientes', 'clientes'], [FileSpreadsheet, 'Exportar clientes', 'exportar'], [Gift, 'Premios', 'premios'], [RefreshCw, 'Canjes', 'canjes'], [Plug, 'Integraciones', 'integraciones'], [Settings, 'Ajustes', 'ajustes']].map(([Icono, label, id]) => {
                 const activo = seccionActiva === id;
                 return (
                   <button

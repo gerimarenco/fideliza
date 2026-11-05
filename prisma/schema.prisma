@@ -61,6 +61,8 @@ model Negocio {
   // nunca contradice lo que cuesta. null = sin alerta. No es una relación de
   // la base a propósito: se valida al guardar (premio activo del negocio).
   alertaCanjePremioId  String?
+  // Exportar clientes a Google Sheets (una conexión por negocio).
+  conexionGoogle       ConexionGoogle?
   // Solo dígitos, con código de país y área (ej. 5492324123456) para wa.me.
   soporteWhatsapp       String?
   // Meses sin usar un lote de puntos para que venza (ver
@@ -366,4 +368,26 @@ model IntentoLogin {
   @@index([emailHash, ipHash, createdAt])
   @@index([ipHash, createdAt])
   @@index([createdAt])
+}
+
+// Conexión de un negocio con su cuenta de Google para exportar sus clientes a
+// Google Sheets (Exportar clientes, ver lib/googleSheets.js). Una por
+// negocio. El token de actualización se guarda CIFRADO (lib/cifrado.js) y
+// nunca sale del servidor. El permiso pedido es solo drive.file: Retornar
+// ve únicamente las hojas que crea o que el negocio elige, nada más del Drive.
+model ConexionGoogle {
+  id                    String    @id @default(cuid())
+  negocioId             String    @unique
+  negocio               Negocio   @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  // Cuenta de Google conectada (para mostrarla en el panel).
+  email                 String?
+  refreshTokenCifrado   String
+  conectadaEn           DateTime  @default(now())
+  // Hoja elegida o creada para exportar.
+  hojaId                String?
+  hojaNombre            String?
+  // Última exportación (para mostrarla y evitar dos a la vez).
+  exportandoDesde       DateTime?
+  ultimaExportacionEn   DateTime?
+  ultimaExportacionInfo String?
 }
