@@ -128,7 +128,7 @@ const textoCaja = await caja.innerText()
 chequear(textoCaja.includes('Ya puede canjear Pañuelo de seda.') && textoCaja.includes('Tiene 4.000 puntos.') && textoCaja.includes('Le faltan 8.500 para el siguiente premio, $70.000 de descuento (12.500).'), 'detalle: puede canjear el pañuelo, tiene 4.000, le faltan 8.500 para el siguiente')
 const href = await caja.getByRole('link', { name: 'Avisarle por WhatsApp' }).getAttribute('href')
 const esperado = '¡Hola! ¿Cómo estás? Te contamos que ya tenés los puntos necesarios para canjear tu pañuelo de seda en Club Peperina. Además, estás cada vez más cerca de conseguir tu próximo premio.'
-chequear(href === `https://wa.me/2324555000?text=${encodeURIComponent(esperado)}`, 'WhatsApp con el mensaje sugerido, para que la empleada lo revise y lo mande ella')
+chequear(href === `https://wa.me/5492324555000?text=${encodeURIComponent(esperado)}`, 'WhatsApp con el mensaje sugerido, para que la empleada lo revise y lo mande ella')
 await neg.page.screenshot({ path: `${DIR}/alerta-clientes.png`, fullPage: true })
 await caja.getByRole('button', { name: 'Marcar como contactada' }).click()
 await neg.page.getByText('Marcada como contactada.').waitFor({ timeout: 30000 })

@@ -11,6 +11,8 @@ import { fechaArgentina } from '@/lib/bienvenida';
 import { mensajeAlerta } from '@/lib/alertaCanje';
 import { estadoVisible } from '@/lib/estadoCupon';
 import { calcularPuntosPorCompra } from '@/lib/puntos';
+import { PAISES, PAIS_PREDETERMINADO, normalizarCelular, numeroWhatsapp } from '@/lib/telefono';
+import { normalizarDni, MENSAJE_DNI_INVALIDO } from '@/lib/dni';
 import { estadoAgente, textoTiempo } from '@/lib/estadoAgente';
 import { ICONOS_PREMIO, IconoPremio } from '@/lib/premioIconos';
 import { TEMA_DEFAULT, FUENTE_TEXTO, resolverTema } from '@/lib/tema';
@@ -18,7 +20,7 @@ import {
   Home as HomeIcon, Store, Users, Gift, Star, RefreshCw, Plug, Settings, LogOut, Shield,
   AlertTriangle, MessageCircle, ScrollText, KeyRound, ClipboardList, Cake,
   ShoppingBag, Hourglass, Link as LinkIcon, Ticket, Info, Mail, Menu, Download,
-  ArrowRight, Check, X, Copy, ExternalLink, CircleCheck, PackageX, CircleAlert, FileSpreadsheet,
+  ArrowRight, Check, X, Copy, ExternalLink, CircleCheck, PackageX, CircleAlert, FileSpreadsheet, Trash2,
 } from 'lucide-react';
 
 // Una clave por confirmación de canje (ver confirmacionCanje).
@@ -87,7 +89,9 @@ export default function Home() {
   const [clienteSeleccionado, setClienteSeleccionado] = useState('');
   const [loading, setLoading] = useState(true);
   const [mostrarFormCliente, setMostrarFormCliente] = useState(false);
-  const [nuevoCliente, setNuevoCliente] = useState({ nombre: '', telefono: '', email: '' });
+  // Mismos campos que el registro público de la clienta (lib/datosCliente.js).
+  const CLIENTE_VACIO = { nombre: '', apellido: '', email: '', fechaNacimiento: '', dni: '', paisTelefono: PAIS_PREDETERMINADO, telefono: '', sexo: '' };
+  const [nuevoCliente, setNuevoCliente] = useState(CLIENTE_VACIO);
   const [mostrarFormNegocio, setMostrarFormNegocio] = useState(false);
   const [nuevoNegocio, setNuevoNegocio] = useState({ nombre: '', tipo: '', ciudad: '', emoji: '', email: '' });
   const [negocioEditandoId, setNegocioEditandoId] = useState(null);
@@ -129,6 +133,9 @@ export default function Home() {
   const [clientesBusqueda, setClientesBusqueda] = useState('');
   const [clientesBusquedaDebounced, setClientesBusquedaDebounced] = useState('');
   const [clientesNivelFiltro, setClientesNivelFiltro] = useState('');
+  // Solo cuentas sin nombre propio (vacío o un email), para revisarlas y
+  // borrarlas (ver app/api/clientes/[id]).
+  const [clientesSinNombre, setClientesSinNombre] = useState(false);
   const [clienteExpandidoId, setClienteExpandidoId] = useState(null);
   const [premioParaCanjear, setPremioParaCanjear] = useState('');
   const [canjeandoClienteId, setCanjeandoClienteId] = useState(null);
@@ -280,12 +287,13 @@ export default function Home() {
     cargarEstadisticas(negocioMostrado?.id);
   }, [negocioMostrado?.id]);
 
-  const cargarClientes = (negocioId, page = 1, busqueda = '', nivel = '', soloAlerta = false) => {
+  const cargarClientes = (negocioId, page = 1, busqueda = '', nivel = '', soloAlerta = false, sinNombre = false) => {
     if (!negocioId) { setClientesData(null); return; }
     const q = busqueda.trim() ? `&q=${encodeURIComponent(busqueda.trim())}` : '';
     const n = nivel ? `&nivel=${encodeURIComponent(nivel)}` : '';
     const a = soloAlerta ? '&alerta=1' : '';
-    fetch(`/api/clientes?negocioId=${negocioId}&page=${page}&pageSize=10${q}${n}${a}`)
+    const sn = sinNombre ? '&sinNombre=1' : '';
+    fetch(`/api/clientes?negocioId=${negocioId}&page=${page}&pageSize=10${q}${n}${a}${sn}`)
       .then(res => res.json())
       .then(setClientesData)
       .catch(() => {});
@@ -357,11 +365,11 @@ export default function Home() {
 
   useEffect(() => {
     setClientesPagina(1);
-  }, [clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta]);
+  }, [clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta, clientesSinNombre]);
 
   useEffect(() => {
-    cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta);
-  }, [negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta]);
+    cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta, clientesSinNombre);
+  }, [negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta, clientesSinNombre]);
 
   useEffect(() => {
     if ((seccionActiva !== 'inicio' && seccionActiva !== 'clientes') || !negocioMostrado?.id) return;
@@ -475,15 +483,26 @@ export default function Home() {
 
   const agregarCliente = async () => {
     const negocio = isAdmin ? negocioActivo : negocioPropio;
-    if (!nuevoCliente.nombre || !nuevoCliente.telefono || !nuevoCliente.email) {
-      mostrarToast('error', 'Nombre, teléfono y email son obligatorios');
+    const nombreCompleto = `${nuevoCliente.nombre.trim()} ${nuevoCliente.apellido.trim()}`.trim();
+    if (!nuevoCliente.nombre.trim() || !nuevoCliente.apellido.trim() || !nuevoCliente.email.trim() || !nuevoCliente.fechaNacimiento || !nuevoCliente.dni || !nuevoCliente.telefono) {
+      mostrarToast('error', 'Completá nombre, apellido, email, fecha de nacimiento, DNI y celular.');
+      return;
+    }
+    // Mismas validaciones que el servidor y que el registro de la clienta.
+    if (!normalizarDni(nuevoCliente.dni)) {
+      mostrarToast('error', MENSAJE_DNI_INVALIDO);
+      return;
+    }
+    const celular = normalizarCelular(nuevoCliente.telefono, nuevoCliente.paisTelefono);
+    if (celular.error) {
+      mostrarToast('error', celular.error);
       return;
     }
     try {
       const res = await fetch('/api/clientes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...nuevoCliente, negocioId: negocio.id })
+        body: JSON.stringify({ ...nuevoCliente, nombre: nombreCompleto, negocioId: negocio.id })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -492,8 +511,8 @@ export default function Home() {
       }
       // Alert bloqueante a propósito (no toast): incluye la contraseña
       // generada, que hay que copiar antes de que desaparezca.
-      alert(`✅ Cliente ${nuevoCliente.nombre} agregado!\n\nEmail: ${nuevoCliente.email}\nContraseña: ${data.passwordGenerada}\n\n(Guardá esta contraseña para pasársela al cliente)`);
-      setNuevoCliente({ nombre: '', telefono: '', email: '' });
+      alert(`Cliente ${nombreCompleto} agregado.\n\nEmail: ${data.email}\nContraseña: ${data.passwordGenerada}\n\n(Guardá esta contraseña para pasársela al cliente)`);
+      setNuevoCliente(CLIENTE_VACIO);
       setMostrarFormCliente(false);
       cargarNegocios();
       cargarEstadisticas(negocio.id);
@@ -1113,7 +1132,7 @@ export default function Home() {
         alert(`✅ Canjeaste "${premio?.nombre}" para ${nombreCliente}.`);
       }
       setPremioParaCanjear('');
-      cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta);
+      cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta, clientesSinNombre);
       cargarResumenAlerta(negocioMostrado?.id);
     } catch (err) {
       mostrarToast('error', 'Ocurrió un error al canjear el premio.');
@@ -1366,18 +1385,63 @@ export default function Home() {
     </div>
   );
 
+  // Borrar una cuenta sin nombre propio (vacío o un email): primero se
+  // muestra qué se pierde (puntos, compras, canjes, invitadas, cupones de
+  // Tiendanube todavía vivos) y se pide confirmar. Las cuentas con nombre no
+  // se pueden borrar desde acá (lo controla también el servidor).
+  const eliminarCuentaSinNombre = async (c) => {
+    try {
+      const resImpacto = await fetch(`/api/clientes/${c.id}`);
+      const impacto = await resImpacto.json();
+      if (!resImpacto.ok) {
+        mostrarToast('error', impacto.error || 'No se pudo revisar la cuenta.');
+        return;
+      }
+      const ESTADO_CUPON = { disponible: 'disponible', utilizado: 'utilizado', vencido: 'vencido', anulado: 'anulado' };
+      const cuponesTexto = impacto.cupones.length
+        ? impacto.cupones.map((k) => `  - ${k.codigo}: ${ESTADO_CUPON[k.estado] || 'sin verificar'}`).join('\n')
+        : '  (ninguno)';
+      const detalle = [
+        `Cuenta: ${c.email}`,
+        '',
+        'Se pierde:',
+        `- Puntos: ${formatearMiles(impacto.puntos)}`,
+        `- Movimientos de puntos (compras, bonos, canjes, vencimientos): ${impacto.movimientos}`,
+        `- Canjes: ${impacto.canjes}`,
+        `- Cupones de Tiendanube de esos canjes: ${impacto.cupones.length}`,
+        cuponesTexto,
+        impacto.cuponesVivos.length
+          ? `ATENCIÓN: ${impacto.cuponesVivos.length} cupón(es) pueden seguir activos en la tienda (${impacto.cuponesVivos.join(', ')}). Borrar la cuenta NO los desactiva: desactivalos a mano en Tiendanube.`
+          : 'Ningún cupón queda activo en la tienda.',
+        `- Referidos: invitó a ${impacto.invitadas} clienta(s)${impacto.invitadas ? '; a esas se les borra quién las invitó (sus puntos y movimientos no cambian)' : ''}.`,
+      ].join('\n');
+      if (!window.confirm(`¿Eliminar esta cuenta para siempre? Se borra con todo su historial y no se puede deshacer.\n\n${detalle}`)) return;
+      const res = await fetch(`/api/clientes/${c.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) {
+        mostrarToast('error', data.error || 'No se pudo eliminar la cuenta.');
+        return;
+      }
+      mostrarToast('exito', data.cuponesVivos?.length ? `Cuenta eliminada. Desactivá a mano en Tiendanube: ${data.cuponesVivos.join(', ')}` : 'Cuenta eliminada.');
+      setClienteExpandidoId(null);
+      cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta, clientesSinNombre);
+      cargarNegocios();
+    } catch (err) {
+      mostrarToast('error', 'Ocurrió un error al eliminar la cuenta.');
+    }
+  };
+
   // Link de WhatsApp con un mensaje sugerido a partir de datos reales del
   // cliente (cuánto le falta para el próximo premio que todavía no puede
   // pagar) — wa.me no necesita ninguna cuenta ni API key: el negocio lo
-  // revisa y lo manda desde su propio WhatsApp. El número se usa tal cual
-  // está cargado (solo se le sacan los caracteres que no son dígitos): si
-  // no abre el chat esperado, hay que revisar cómo lo cargó esa clienta en
-  // particular al registrarse.
+  // revisa y lo manda desde su propio WhatsApp. Los celulares nuevos se
+  // guardan con código de país (+549…); a los viejos sin código, si tienen
+  // forma de número argentino, se les agrega el 549 (lib/telefono.js).
   // Alerta de canje: WhatsApp con el mensaje sugerido (la empleada lo revisa
   // y lo manda ella; nada sale solo) y marcar el contacto.
   const armarLinkWhatsappAlerta = (c) => {
-    if (!c.telefono || !c.alerta) return null;
-    const numero = c.telefono.replace(/\D/g, '');
+    const numero = c.alerta ? numeroWhatsapp(c.telefono) : null;
+    if (!numero) return null;
     const mensaje = mensajeAlerta({ premioNombre: c.alerta.premio.nombre, club: nombreClub(negocioMostrado?.nombre || ''), haySiguiente: !!c.alerta.siguiente });
     return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
   };
@@ -1387,7 +1451,7 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) { mostrarToast('error', data.error || 'No se pudo guardar.'); return; }
       mostrarToast('exito', contactada ? 'Marcada como contactada.' : 'Se volvió a marcar para contactar.');
-      cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta);
+      cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta, clientesSinNombre);
       cargarResumenAlerta(negocioMostrado?.id);
     } catch {
       mostrarToast('error', 'No se pudo guardar. Probá de nuevo.');
@@ -1411,8 +1475,8 @@ export default function Home() {
   };
 
   const armarLinkWhatsapp = (c) => {
-    if (!c.telefono) return null;
-    const numero = c.telefono.replace(/\D/g, '');
+    const numero = numeroWhatsapp(c.telefono);
+    if (!numero) return null;
     const club = nombreClub(negocioMostrado?.nombre || '');
     const proximoPremio = (premiosData?.items || [])
       .filter(p => p.activo && p.puntos > c.puntos)
@@ -1450,6 +1514,10 @@ export default function Home() {
             <option value="diamante">Diamante</option>
             <option value="vip">VIP</option>
           </select>
+        </label>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minHeight: 42, fontSize: 14, color: tema.textoSecundario, cursor: 'pointer' }}>
+          <input type="checkbox" checked={clientesSinNombre} onChange={e => setClientesSinNombre(e.target.checked)} />
+          Solo cuentas sin nombre
         </label>
         <a
           href={`/api/clientes/exportar?negocioId=${negocioMostrado?.id}${clientesBusquedaDebounced.trim() ? `&q=${encodeURIComponent(clientesBusquedaDebounced.trim())}` : ''}${clientesNivelFiltro ? `&nivel=${encodeURIComponent(clientesNivelFiltro)}` : ''}`}
@@ -1490,7 +1558,7 @@ export default function Home() {
       {!clientesData && <Cargando />}
       {clientesData && clientesData.items.length === 0 && (
         <Vacio>
-          {clientesSoloAlerta ? 'No hay clientas para contactar por ahora.' : clientesBusqueda.trim() || clientesNivelFiltro ? 'No encontramos clientes que coincidan con ese filtro.' : 'Todavía no hay clientes. Se suman cuando se registran desde el link o el QR del club.'}
+          {clientesSoloAlerta ? 'No hay clientas para contactar por ahora.' : clientesBusqueda.trim() || clientesNivelFiltro || clientesSinNombre ? 'No encontramos clientes que coincidan con ese filtro.' : 'Todavía no hay clientes. Se suman cuando se registran desde el link o el QR del club.'}
         </Vacio>
       )}
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, borderTop: clientesData?.items.length ? `1px solid ${tema.texto}` : 'none' }}>
@@ -1510,7 +1578,8 @@ export default function Home() {
               >
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                    <span style={{ fontFamily: tema.fuenteTitulo, fontSize: 19, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{c.nombre || c.email}</span>
+                    <span style={{ fontFamily: tema.fuenteTitulo, fontSize: 19, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{c.sinNombre ? c.email : c.nombre}</span>
+                    {c.sinNombre && <span style={{ flexShrink: 0, fontFamily: FUENTE_TEXTO, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#9a3412', border: '1px solid #c2410c', padding: '1px 6px', whiteSpace: 'nowrap' }}>Sin nombre</span>}
                     {c.alerta?.pendiente && (
                       <span title={`Ya puede canjear ${c.alerta.premio.nombre}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, fontSize: 12, color: '#b45309', border: '1px solid #b45309', padding: '1px 7px', whiteSpace: 'nowrap' }}>
                         <CircleAlert size={13} aria-hidden="true" /> Puede canjear
@@ -1603,6 +1672,15 @@ export default function Home() {
                     </a>
                   ) : (
                     <div style={{ fontSize: 13, color: tema.textoSecundario }}>Sin celular cargado — no se le puede mandar WhatsApp.</div>
+                  )}
+
+                  {c.sinNombre && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', fontSize: 13, color: tema.textoSecundario, borderLeft: '2px solid #c2410c', paddingLeft: 10 }}>
+                      <span>Cuenta sin nombre (cargada con el email como nombre o creada sola por Dragon Fish).{!c.eliminable && ' Está protegida: no se puede eliminar.'}</span>
+                      {c.eliminable && <button type="button" className="fid-btn-secondary" onClick={() => eliminarCuentaSinNombre(c)} style={{ ...ui.botonSecundario, color: '#b91c1c', borderColor: '#b91c1c' }}>
+                        <Trash2 size={15} aria-hidden="true" /> Eliminar cuenta
+                      </button>}
+                    </div>
                   )}
 
                   {/* Canje presencial: la empleada elige el premio y lo
@@ -2243,12 +2321,32 @@ export default function Home() {
         </header>
 
         {(seccionActiva === 'inicio' || seccionActiva === 'clientes') && mostrarFormCliente && (
-          <div style={{ marginBottom: 36 }}>
+          <div role="group" aria-label="Agregar un cliente" style={{ marginBottom: 36 }}>
             <TituloBloque>Agregar un cliente</TituloBloque>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, margin: '12px 0 14px' }}>
-              <label><span style={ui.label}>Nombre *</span><input value={nuevoCliente.nombre} onChange={e => setNuevoCliente({...nuevoCliente, nombre: e.target.value})} placeholder="María González" style={ui.input} /></label>
-              <label><span style={ui.label}>Teléfono *</span><input value={nuevoCliente.telefono} onChange={e => setNuevoCliente({...nuevoCliente, telefono: e.target.value})} placeholder="2324123456" style={ui.input} /></label>
-              <label><span style={ui.label}>Email *</span><input value={nuevoCliente.email} onChange={e => setNuevoCliente({...nuevoCliente, email: e.target.value})} placeholder="maria@email.com" style={ui.input} /></label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, margin: '12px 0 14px' }}>
+              <label><span style={ui.label}>Nombre *</span><input value={nuevoCliente.nombre} onChange={e => setNuevoCliente({...nuevoCliente, nombre: e.target.value})} autoComplete="off" placeholder="María" style={ui.input} /></label>
+              <label><span style={ui.label}>Apellido *</span><input value={nuevoCliente.apellido} onChange={e => setNuevoCliente({...nuevoCliente, apellido: e.target.value})} autoComplete="off" placeholder="González" style={ui.input} /></label>
+              <label><span style={ui.label}>Email *</span><input type="email" value={nuevoCliente.email} onChange={e => setNuevoCliente({...nuevoCliente, email: e.target.value})} autoComplete="off" placeholder="maria@email.com" style={ui.input} /></label>
+              <label><span style={ui.label}>Fecha de nacimiento *</span><input type="date" value={nuevoCliente.fechaNacimiento} max={new Date().toISOString().split('T')[0]} onChange={e => setNuevoCliente({...nuevoCliente, fechaNacimiento: e.target.value})} style={ui.input} /></label>
+              <label><span style={ui.label}>DNI * (solo números)</span><input inputMode="numeric" pattern="[0-9]*" maxLength={8} value={nuevoCliente.dni} onChange={e => setNuevoCliente({...nuevoCliente, dni: e.target.value.replace(/\D/g, '')})} autoComplete="off" placeholder="12345678" style={ui.input} /></label>
+              <div>
+                <label htmlFor="nuevo-cliente-celular" style={ui.label}>Celular (WhatsApp) *</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select aria-label="País del celular" value={nuevoCliente.paisTelefono} onChange={e => setNuevoCliente({...nuevoCliente, paisTelefono: e.target.value})} style={{ ...ui.input, width: 'auto', flex: '0 0 auto' }}>
+                    {PAISES.map(p => <option key={p.codigo} value={p.codigo}>{p.codigo} +{p.prefijo}</option>)}
+                  </select>
+                  <input id="nuevo-cliente-celular" type="tel" inputMode="numeric" value={nuevoCliente.telefono} onChange={e => setNuevoCliente({...nuevoCliente, telefono: e.target.value.replace(/[^\d\s-]/g, '')})} autoComplete="off" placeholder={PAISES.find(p => p.codigo === nuevoCliente.paisTelefono)?.ejemplo} style={{ ...ui.input, flex: 1, minWidth: 0 }} />
+                </div>
+                <span style={{ display: 'block', fontSize: 12, color: tema.textoSecundario, marginTop: 4 }}>{nuevoCliente.paisTelefono === 'AR' ? 'Código de área y número, sin 0 ni 15' : 'Sin el código del país'}</span>
+              </div>
+              <label><span style={ui.label}>Género (opcional)</span>
+                <select value={nuevoCliente.sexo} onChange={e => setNuevoCliente({...nuevoCliente, sexo: e.target.value})} style={ui.input}>
+                  <option value="">Prefiero no decirlo</option>
+                  <option value="femenino">Femenino</option>
+                  <option value="masculino">Masculino</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </label>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" className="fid-btn-primary" onClick={agregarCliente} style={ui.botonPrimario}>Guardar cliente</button>
