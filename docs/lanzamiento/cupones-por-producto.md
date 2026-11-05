@@ -73,6 +73,7 @@ Eso cubre lo pedido:
   más que una unidad con descuento. No se ve por API.
 - **Variantes más caras**: con la variante más barata sale gratis; con una
   más cara, la clienta paga la diferencia (decisión tomada).
+- **Canje en el local**: la verificación de stock mira la tienda online, también cuando el negocio canjea en el local. Pendiente de revisar: distinguir el stock online del stock físico.
 - **Stock que se agota después del canje**: el cupón sigue valiendo y sirve
   cuando vuelva a haber stock (no tiene fecha de vencimiento).
 
@@ -86,7 +87,7 @@ cualquier producto** hasta que se usen. Para verlos (solo lectura):
 DATABASE_URL=... node scripts/cupones-producto-sin-restriccion.mjs --mostrar
 ```
 
-Opciones, a decidir por Genaro (ninguna está implementada):
+**Decisión de Genaro (2026-11-05): se dejan como están por ahora**, sin desactivar ni reemplazar ninguno. Opciones para más adelante (ninguna está implementada):
 
 1. **Dejarlos como están** (recomendado si son pocos): se respetan los que
    ya se entregaron; los nuevos ya salen atados.

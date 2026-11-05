@@ -1983,6 +1983,10 @@ límites y prueba real en `docs/lanzamiento/cupones-por-producto.md`.
 
 **Pendiente**:
 - Prueba real en la tienda (R1–R7 del documento), con autorización.
-- Decidir qué hacer con los cupones de producto ya emitidos sin restricción
-  (`scripts/cupones-producto-sin-restriccion.mjs`, solo lectura): dejarlos o
-  reemplazarlos (requiere autorización). No se tocó ninguno.
+- ~~Decidir qué hacer con los cupones de producto ya emitidos sin
+  restricción~~ — decisión de Genaro (2026-11-05): se dejan como están, sin
+  desactivar ni reemplazar ninguno, por ahora.
+- Stock en los canjes presenciales (a revisar más adelante): hoy el canje de
+  un premio-producto, también el que hace el negocio en el local, se rechaza
+  si la tienda online no tiene stock. Hay que distinguir el stock de la
+  tienda online del stock físico del negocio.
