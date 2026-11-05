@@ -1235,14 +1235,24 @@ export default function Home() {
         mostrarToast('error', impacto.error || 'No se pudo revisar la cuenta.');
         return;
       }
+      const ESTADO_CUPON = { disponible: 'disponible', utilizado: 'utilizado', vencido: 'vencido', anulado: 'anulado' };
+      const cuponesTexto = impacto.cupones.length
+        ? impacto.cupones.map((k) => `  - ${k.codigo}: ${ESTADO_CUPON[k.estado] || 'sin verificar'}`).join('\n')
+        : '  (ninguno)';
       const detalle = [
         `Cuenta: ${c.email}`,
-        `Puntos: ${formatearMiles(impacto.puntos)}`,
-        `Movimientos de puntos (compras, bonos, canjes): ${impacto.movimientos}`,
-        `Canjes: ${impacto.canjes}`,
-        impacto.invitadas ? `Invitó a ${impacto.invitadas} clienta(s): a esas se les borra quién las invitó (sus puntos no cambian).` : null,
-        impacto.cuponesVivos.length ? `Cupones de Tiendanube que siguen vivos en la tienda (desactivalos a mano): ${impacto.cuponesVivos.join(', ')}` : null,
-      ].filter(Boolean).join('\n');
+        '',
+        'Se pierde:',
+        `- Puntos: ${formatearMiles(impacto.puntos)}`,
+        `- Movimientos de puntos (compras, bonos, canjes, vencimientos): ${impacto.movimientos}`,
+        `- Canjes: ${impacto.canjes}`,
+        `- Cupones de Tiendanube de esos canjes: ${impacto.cupones.length}`,
+        cuponesTexto,
+        impacto.cuponesVivos.length
+          ? `ATENCIÓN: ${impacto.cuponesVivos.length} cupón(es) pueden seguir activos en la tienda (${impacto.cuponesVivos.join(', ')}). Borrar la cuenta NO los desactiva: desactivalos a mano en Tiendanube.`
+          : 'Ningún cupón queda activo en la tienda.',
+        `- Referidos: invitó a ${impacto.invitadas} clienta(s)${impacto.invitadas ? '; a esas se les borra quién las invitó (sus puntos y movimientos no cambian)' : ''}.`,
+      ].join('\n');
       if (!window.confirm(`¿Eliminar esta cuenta para siempre? Se borra con todo su historial y no se puede deshacer.\n\n${detalle}`)) return;
       const res = await fetch(`/api/clientes/${c.id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -1250,7 +1260,7 @@ export default function Home() {
         mostrarToast('error', data.error || 'No se pudo eliminar la cuenta.');
         return;
       }
-      mostrarToast('exito', 'Cuenta eliminada.');
+      mostrarToast('exito', data.cuponesVivos?.length ? `Cuenta eliminada. Desactivá a mano en Tiendanube: ${data.cuponesVivos.join(', ')}` : 'Cuenta eliminada.');
       setClienteExpandidoId(null);
       cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSinNombre);
       cargarNegocios();
@@ -1410,10 +1420,10 @@ export default function Home() {
 
                   {c.sinNombre && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', fontSize: 13, color: tema.textoSecundario, borderLeft: '2px solid #c2410c', paddingLeft: 10 }}>
-                      <span>Cuenta sin nombre (cargada con el email como nombre o creada sola por Dragon Fish).</span>
-                      <button type="button" className="fid-btn-secondary" onClick={() => eliminarCuentaSinNombre(c)} style={{ ...ui.botonSecundario, color: '#b91c1c', borderColor: '#b91c1c' }}>
+                      <span>Cuenta sin nombre (cargada con el email como nombre o creada sola por Dragon Fish).{!c.eliminable && ' Está protegida: no se puede eliminar.'}</span>
+                      {c.eliminable && <button type="button" className="fid-btn-secondary" onClick={() => eliminarCuentaSinNombre(c)} style={{ ...ui.botonSecundario, color: '#b91c1c', borderColor: '#b91c1c' }}>
                         <Trash2 size={15} aria-hidden="true" /> Eliminar cuenta
-                      </button>
+                      </button>}
                     </div>
                   )}
 

@@ -80,10 +80,11 @@ await pub.waitForURL((u) => u.pathname === '/', { timeout: 90000 }).catch(() => 
 chequear((await cuenta('pantalla.tel@prueba.test'))?.telefono === '+5492324500298' && (await cuenta('pantalla.tel@prueba.test'))?.origen === 'registro', 'registrándose desde la pantalla: "+5492324500298", origen "registro"')
 
 console.log('"Nuevo cliente" del panel: mismos datos y reglas')
+const dialogos = []
 async function sesion(email, password) {
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } })
   const page = await ctx.newPage()
-  page.on('dialog', (d) => d.accept())
+  page.on('dialog', (d) => { dialogos.push(d.message()); d.accept() })
   await page.goto(`${BASE}/login`)
   await page.fill('input[type="email"]', email)
   await page.fill('input[type="password"]', password)
@@ -172,8 +173,27 @@ await prisma.movimientoPuntos.create({ data: { clienteId: conActividad.id, negoc
 const invitada = await prisma.cliente.create({ data: { nombre: 'Amiga Real', email: 'amiga.real2@prueba.test', password: 'x', negocioId: pep.id, puntos: 300, referidoPorId: conActividad.id } })
 const vacia = await prisma.cliente.create({ data: { nombre: null, email: 'sin.nombre2@prueba.test', password: 'x', negocioId: pep.id } })
 const enDemo = await prisma.cliente.create({ data: { nombre: 'endemo2@prueba.test', email: 'endemo2@prueba.test', password: 'x', negocioId: demo.id } })
+// Cuenta protegida (pedido de Genaro): sin nombre propio, pero no se borra nunca.
+const protegida = await prisma.cliente.create({ data: { nombre: 'genaromarenco110@gmail.com', email: 'genaromarenco110@gmail.com', password: 'x', negocioId: pep.id, puntos: 50 } })
+// Nombre de una sola palabra: tiene nombre propio, no se puede borrar.
+const unaPalabra = await prisma.cliente.create({ data: { nombre: 'Agustina', email: 'una.palabra@prueba.test', password: 'x', negocioId: pep.id } })
+// Canjes con cupones de Tiendanube en cada estado posible.
+const premio = await prisma.premio.findFirst({ where: { negocioId: pep.id } })
+const ESTADOS = { 'CUP-DISP': 'disponible', 'CUP-SINVER': null, 'CUP-USADO': 'utilizado', 'CUP-VENC': 'vencido', 'CUP-ANUL': 'anulado' }
+for (const [codigo, estado] of Object.entries(ESTADOS)) {
+  await prisma.canje.create({ data: { clienteId: conActividad.id, premioId: premio.id, tiendanubeCuponCodigo: codigo, cuponEstado: estado } })
+}
 x = await api('GET', `/api/clientes?negocioId=${pep.id}&sinNombre=1&pageSize=100`)
 const lista = JSON.parse(x.texto).items
+const itemProtegida = lista.find((c) => c.id === protegida.id)
+chequear(itemProtegida?.sinNombre === true && itemProtegida.eliminable === false && lista.find((c) => c.id === vacia.id)?.eliminable === true, 'genaromarenco110@gmail.com aparece como sin nombre pero NO eliminable')
+chequear(!lista.some((c) => c.id === unaPalabra.id), 'un nombre de una sola palabra no figura como "sin nombre"')
+for (const metodo of ['GET', 'DELETE']) {
+  x = await api(metodo, `/api/clientes/${protegida.id}`)
+  chequear(x.status === 400 && /protegida/.test(err(x)) && (await cuenta('genaromarenco110@gmail.com'))?.puntos === 50, `${metodo} sobre genaromarenco110@gmail.com → 400 "protegida", la cuenta sigue igual`)
+}
+x = await api('DELETE', `/api/clientes/${unaPalabra.id}`)
+chequear(x.status === 400 && (await cuenta('una.palabra@prueba.test')), 'una cuenta con nombre de una palabra no se puede borrar')
 chequear(lista.length >= 2 && lista.every((c) => c.sinNombre) && lista.some((c) => c.id === vacia.id) && !lista.some((c) => c.id === invitada.id || c.id === enDemo.id), `el filtro "sin nombre" trae solo esas cuentas de Peperina (${lista.length})`)
 x = await api('GET', `/api/clientes/${invitada.id}`)
 chequear(x.status === 400, 'una cuenta con nombre no se puede borrar desde el panel')
@@ -182,21 +202,34 @@ chequear(x.status === 404 && (await cuenta('endemo2@prueba.test')), 'tampoco una
 chequear((await fetch(`${BASE}/api/clientes/${vacia.id}`, { method: 'DELETE' })).status === 403 && (await cuenta('sin.nombre2@prueba.test')), 'sin sesión → 403')
 x = await api('GET', `/api/clientes/${conActividad.id}`)
 const impacto = JSON.parse(x.texto)
-chequear(impacto.puntos === 200 && impacto.movimientos === 1 && impacto.invitadas === 1, 'antes de borrar muestra lo que se pierde (puntos, movimientos, invitadas)')
+chequear(impacto.puntos === 200 && impacto.movimientos === 1 && impacto.canjes === 5 && impacto.invitadas === 1, 'antes de borrar muestra lo que se pierde (puntos, movimientos, canjes, invitadas)')
+chequear(impacto.cupones.length === 5 && impacto.cupones.every((k) => ESTADOS[k.codigo] === k.estado), 'muestra todos los cupones de Tiendanube con su estado')
+chequear(JSON.stringify([...impacto.cuponesVivos].sort()) === JSON.stringify(['CUP-DISP', 'CUP-SINVER']), `cupones posiblemente activos = disponibles o sin verificar (${impacto.cuponesVivos.join(', ')}); no los utilizados, vencidos ni anulados`)
+const canjesAjenos = await prisma.canje.count({ where: { clienteId: { not: conActividad.id } } })
 const otrasAntes = JSON.stringify(await prisma.cliente.findMany({ where: { id: { notIn: [conActividad.id, invitada.id] } }, select: { id: true, puntos: true }, orderBy: { id: 'asc' } }))
 x = await api('DELETE', `/api/clientes/${conActividad.id}`)
 const invitadaDespues = await prisma.cliente.findUnique({ where: { id: invitada.id } })
-chequear(x.status === 200 && !(await cuenta('sin.nombre1@prueba.test')) && (await prisma.movimientoPuntos.count({ where: { clienteId: conActividad.id } })) === 0, 'se borra con sus movimientos')
+chequear(x.status === 200 && !(await cuenta('sin.nombre1@prueba.test')) && (await prisma.movimientoPuntos.count({ where: { clienteId: conActividad.id } })) === 0 && (await prisma.canje.count({ where: { clienteId: conActividad.id } })) === 0, 'se borra con sus movimientos y canjes')
+chequear(JSON.stringify(JSON.parse(x.texto).cuponesVivos.sort()) === JSON.stringify(['CUP-DISP', 'CUP-SINVER']), 'la respuesta del borrado recuerda los cupones a desactivar')
+chequear((await prisma.canje.count({ where: { clienteId: { not: conActividad.id } } })) === canjesAjenos, 'los canjes de otras cuentas no cambian')
 chequear(invitadaDespues.puntos === 300 && invitadaDespues.referidoPorId === null, 'la invitada conserva sus puntos; pierde "quién la invitó"')
 chequear(JSON.stringify(await prisma.cliente.findMany({ where: { id: { notIn: [conActividad.id, invitada.id] } }, select: { id: true, puntos: true }, orderBy: { id: 'asc' } })) === otrasAntes, 'ninguna otra cuenta cambió')
 await neg.page.getByPlaceholder('Ej. Lucía').fill('')
 await neg.page.getByLabel('Solo cuentas sin nombre').check()
 await neg.page.getByText('sin.nombre2@prueba.test').first().waitFor({ timeout: 15000 })
 chequear((await neg.page.getByText('Sin nombre', { exact: true }).count()) > 0, 'en la lista se ven marcadas "Sin nombre"')
+await neg.page.getByText('genaromarenco110@gmail.com').first().click()
+await neg.page.getByText('Está protegida: no se puede eliminar.').waitFor({ timeout: 15000 })
+chequear((await neg.page.getByRole('button', { name: 'Eliminar cuenta' }).count()) === 0, 'en la pantalla, la cuenta protegida no tiene botón "Eliminar cuenta"')
+// Otra cuenta sin nombre con un cupón disponible, para ver el aviso en pantalla.
+await prisma.canje.create({ data: { clienteId: vacia.id, premioId: premio.id, tiendanubeCuponCodigo: 'CUP-PANTALLA', cuponEstado: 'disponible' } })
 await neg.page.getByText('sin.nombre2@prueba.test').first().click()
+dialogos.length = 0
 await neg.page.getByRole('button', { name: 'Eliminar cuenta' }).click()
 for (let i = 0; i < 30 && (await cuenta('sin.nombre2@prueba.test')); i++) await new Promise((ok) => setTimeout(ok, 300))
 chequear(!(await cuenta('sin.nombre2@prueba.test')), 'desde la pantalla: "Eliminar cuenta" y confirmar → borrada')
+const aviso = dialogos[0] || ''
+chequear(['Puntos: 0', 'Movimientos de puntos', 'Canjes: 1', 'Cupones de Tiendanube de esos canjes: 1', 'CUP-PANTALLA: disponible', 'pueden seguir activos en la tienda (CUP-PANTALLA)', 'Referidos: invitó a 0'].every((t) => aviso.includes(t)), 'antes de confirmar, la pantalla muestra puntos, movimientos, canjes, cupones (con estado y cuáles siguen activos) y referidos')
 await neg.ctx.close()
 await b.close()
 
@@ -204,6 +237,23 @@ console.log('Script retroactivo: una carga manual no cuenta como autoregistro')
 const salida = execFileSync('node', ['scripts/bienvenida-retroactiva.mjs', `--hasta=${new Date().toISOString()}`, '--aplicar'], { env: { ...process.env, NODE_OPTIONS: '' }, encoding: 'utf8' })
 const manualDespues = await cuenta('manual@prueba.test')
 chequear(/Acreditadas:/.test(salida) && manualDespues.puntos === 0 && !manualDespues.bienvenidaOtorgada && manualDespues.bienvenidaMotivo === null, 'la cuenta cargada a mano (con fecha de nacimiento) no recibe la bienvenida retroactiva')
+
+console.log('Script de borrado en bloque: lista los cupones antes de borrar y respeta las protegidas')
+const conCupon = await prisma.cliente.create({ data: { nombre: 'script.cupon@prueba.test', email: 'script.cupon@prueba.test', password: 'x', negocioId: pep.id } })
+await prisma.canje.create({ data: { clienteId: conCupon.id, premioId: premio.id, tiendanubeCuponCodigo: 'CUP-SCRIPT', cuponEstado: null } })
+await prisma.canje.create({ data: { clienteId: conCupon.id, premioId: premio.id, tiendanubeCuponCodigo: 'CUP-SCRIPT-USADO', cuponEstado: 'utilizado' } })
+const correrScript = (...args) => execFileSync('node', ['scripts/eliminar-cuentas-sin-nombre.mjs', ...args], { env: { ...process.env, NODE_OPTIONS: '' }, encoding: 'utf8' })
+const totalAntes = await prisma.cliente.count()
+const sim = correrScript('--mostrar')
+const seBorrarian = sim.slice(sim.indexOf('Se borrarían:'), sim.indexOf('Cupones de Tiendanube'))
+chequear(/CUP-SCRIPT\s+\(estado en Retornar: sin verificar; cuenta script\.cupon@prueba\.test\)/.test(sim) && !sim.includes('CUP-SCRIPT-USADO'), 'la simulación lista los cupones posiblemente activos con su cuenta (no los utilizados)')
+chequear(!seBorrarian.includes('genaromarenco110@gmail.com') && !seBorrarian.includes('una.palabra@prueba.test') && seBorrarian.includes('script.cupon@prueba.test'), 'la simulación no incluye la cuenta protegida ni las que tienen nombre')
+chequear((await prisma.cliente.count()) === totalAntes, 'la simulación no borra nada')
+const esperadas = Number(/Sin nombre propio \(SE BORRAN\): (\d+)/.exec(sim)[1])
+correrScript('--aplicar', `--esperadas=${esperadas}`)
+chequear(!(await cuenta('script.cupon@prueba.test')) && (await cuenta('genaromarenco110@gmail.com'))?.puntos === 50 && (await cuenta('una.palabra@prueba.test')) && (await cuenta('amiga.real2@prueba.test'))?.puntos === 300, 'al aplicar: borra las sin nombre, conserva genaromarenco110@gmail.com y las que tienen nombre')
+chequear((await prisma.cliente.findMany({ where: { negocioId: pep.id }, select: { nombre: true, email: true } })).filter((c) => !c.nombre || c.nombre.includes('@')).every((c) => c.email === 'genaromarenco110@gmail.com'), 'en Peperina solo queda sin nombre la cuenta protegida')
+for (const f of (await import('node:fs')).readdirSync('.').filter((f) => f.startsWith('respaldo-cuentas-eliminadas-'))) (await import('node:fs')).unlinkSync(f)
 
 console.log('Cuentas viejas intactas')
 chequear((await prisma.cliente.findUnique({ where: { id: vieja.id } })).telefono === '2324-55-1234', 'el celular de la cuenta vieja no se modificó')

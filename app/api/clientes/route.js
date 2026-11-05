@@ -7,7 +7,7 @@ import { calcularStatsClientes, calcularNivel } from '@/lib/clienteStats'
 import { filtroEmail } from '@/lib/identidad'
 import { validarDatosCliente, dniYaRegistrado } from '@/lib/datosCliente'
 import { MENSAJE_DNI_REPETIDO, MENSAJE_EMAIL_REPETIDO } from '@/lib/dni'
-import { sinNombrePropio, FILTRO_SIN_NOMBRE } from '@/lib/eliminarCuenta'
+import { sinNombrePropio, eliminableDesdePanel, FILTRO_SIN_NOMBRE } from '@/lib/eliminarCuenta'
 import { randomBytes } from 'crypto'
 
 export async function GET(request) {
@@ -86,7 +86,7 @@ export async function GET(request) {
   ])
 
   const stats = await calcularStatsClientes(prisma, items)
-  const itemsConStats = items.map((c) => ({ ...c, sinNombre: sinNombrePropio(c), stats: stats[c.id] }))
+  const itemsConStats = items.map((c) => ({ ...c, sinNombre: sinNombrePropio(c), eliminable: eliminableDesdePanel(c), stats: stats[c.id] }))
 
   return NextResponse.json({ items: itemsConStats, page, pageSize, total, totalPages: Math.ceil(total / pageSize) || 1 })
 }

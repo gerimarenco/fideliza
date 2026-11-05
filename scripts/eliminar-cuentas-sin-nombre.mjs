@@ -21,8 +21,9 @@
 // - la cuenta;
 // - sus movimientos de puntos (compras, bonos, canjes, vencimientos);
 // - sus canjes (la base no deja borrar la cuenta sin borrarlos). Si alguno
-//   tenía un cupón de Tiendanube sin usar, el cupón SIGUE vivo en la tienda:
-//   el script lista esos códigos para desactivarlos a mano en Tiendanube;
+//   tenía un cupón de Tiendanube disponible o sin verificar, el cupón SIGUE
+//   vivo en la tienda: la simulación (paso 1) lista esos códigos, con su
+//   cuenta, para desactivarlos a mano en Tiendanube antes o después de borrar;
 // - sus pedidos de "olvidé mi contraseña".
 // A las clientas que esa cuenta invitó se les borra "quién la invitó"
 // (Cliente.referidoPorId); sus puntos y movimientos no cambian. No se toca
@@ -37,9 +38,10 @@
 import fs from 'node:fs'
 import { PrismaClient } from '@prisma/client'
 import { normalizarEmail, ocultarEmail } from '../lib/identidad.js'
-import { sinNombrePropio, eliminarCuenta } from '../lib/eliminarCuenta.js'
+import { sinNombrePropio, eliminarCuenta, CUENTAS_PROTEGIDAS, FILTRO_CUPON_POSIBLEMENTE_ACTIVO } from '../lib/eliminarCuenta.js'
 
-const CONSERVAR_SIEMPRE = ['genaromarenco110@gmail.com']
+// genaromarenco110@gmail.com (lib/eliminarCuenta.js, la misma lista que usa el panel)
+const CONSERVAR_SIEMPRE = CUENTAS_PROTEGIDAS
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => {
   const [k, ...v] = a.replace(/^--/, '').split('=')
@@ -80,8 +82,9 @@ try {
     prisma.canje.groupBy({ by: ['clienteId'], where: { clienteId: { in: ids } }, _count: true }),
     prisma.cliente.groupBy({ by: ['referidoPorId'], where: { referidoPorId: { in: ids } }, _count: true }),
     prisma.canje.findMany({
-      where: { clienteId: { in: ids }, tiendanubeCuponCodigo: { not: null }, OR: [{ cuponEstado: null }, { cuponEstado: { not: 'utilizado' } }] },
+      where: { clienteId: { in: ids }, ...FILTRO_CUPON_POSIBLEMENTE_ACTIVO },
       select: { clienteId: true, tiendanubeCuponCodigo: true, cuponEstado: true },
+      orderBy: { createdAt: 'asc' },
     }),
   ])
   const cuenta = (lista, campo) => Object.fromEntries(lista.map((x) => [x[campo], x._count]))
@@ -106,8 +109,13 @@ try {
   for (const c of borrables) console.log(fila(c))
   if (cuponesVivos.length > 0) {
     console.log('')
-    console.log('Cupones de Tiendanube de estos canjes que pueden seguir vivos en la tienda (desactivarlos a mano en Tiendanube):')
-    for (const k of cuponesVivos) console.log(`  ${k.tiendanubeCuponCodigo}  (estado en Retornar: ${k.cuponEstado || 'pendiente de verificación'})`)
+    console.log(`Cupones de Tiendanube de estos canjes que pueden seguir activos en la tienda (disponibles o sin verificar): ${cuponesVivos.length}`)
+    console.log('Borrar las cuentas NO los desactiva: desactivarlos a mano en Tiendanube.')
+    const emailDe = Object.fromEntries(borrables.map((c) => [c.id, c.email]))
+    for (const k of cuponesVivos) console.log(`  ${k.tiendanubeCuponCodigo}  (estado en Retornar: ${k.cuponEstado || 'sin verificar'}; cuenta ${email(emailDe[k.clienteId])})`)
+  } else {
+    console.log('')
+    console.log('Ningún cupón de Tiendanube de estas cuentas puede seguir activo en la tienda.')
   }
   if (unaPalabra.length > 0) {
     console.log('')
