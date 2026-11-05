@@ -32,6 +32,7 @@ const NEGOCIO_SELECT = {
   soporteEmail: true,
   emailRemitenteNombre: true,
   emailBienvenida: true,
+  alertaCanjePremioId: true,
   soporteWhatsapp: true,
   vencimientoPuntosMeses: true,
   basesCondiciones: true,
@@ -395,6 +396,18 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'emailBienvenida tiene que ser verdadero o falso' }, { status: 400 })
     }
     data.emailBienvenida = body.emailBienvenida
+  }
+  // Alerta de canje para las empleadas: el premio que la dispara (de este
+  // negocio y activo), o vacío para desactivarla. No cambia el premio.
+  if (body.alertaCanjePremioId !== undefined) {
+    const premioId = body.alertaCanjePremioId ? String(body.alertaCanjePremioId) : null
+    if (premioId) {
+      const premio = await prisma.premio.findUnique({ where: { id: premioId }, select: { negocioId: true, activo: true } })
+      if (!premio || premio.negocioId !== body.id || !premio.activo) {
+        return NextResponse.json({ error: 'Elegí un premio activo de este negocio para la alerta.' }, { status: 400 })
+      }
+    }
+    data.alertaCanjePremioId = premioId
   }
   if (body.soporteWhatsapp !== undefined) {
     const soporteWhatsapp = String(body.soporteWhatsapp ?? '').replace(/\D/g, '')
