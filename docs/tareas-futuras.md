@@ -2039,3 +2039,19 @@ Detalle en `docs/lanzamiento/emails.md`.
   (DNS de peperina.com.ar) y revisar el plan; con autorización.
 - Revisar en un mail real ("Mostrar original" en Gmail) SPF, DKIM y DMARC; si
   falta, agregar DMARC a retornar.com.ar.
+
+## 81. Alerta de canje para las empleadas (2026-11-08)
+
+En Clientes (y en Inicio), las clientas que ya pueden canjear el premio de la
+alerta (el pañuelo en Peperina) aparecen con un "!" y "Puede canjear"; en el
+detalle, sus puntos, cuántos le faltan para el siguiente premio, WhatsApp con
+el mensaje sugerido (nunca se manda solo) y "Marcar como contactada". No se
+repite hasta el próximo canje. Configurable por negocio (Ajustes → "Alerta de
+canje"), desactivada por defecto; el umbral es el puntaje del premio elegido.
+Detalle en `docs/lanzamiento/alertas-canje.md`.
+
+**Pendiente**:
+- Confirmar con `scripts/revisar-alerta-canje.mjs` (solo lectura) que el
+  pañuelo cuesta 4.000 puntos en producción; si no, consultarlo antes de
+  cambiar nada.
+- Activar la alerta en Ajustes de Peperina después del deploy.

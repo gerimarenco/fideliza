@@ -8,6 +8,7 @@ import { descripcionNiveles, formatearMiles } from '@/lib/clienteStats';
 import { fechaCorta } from '@/lib/csv';
 import { guiaCupon } from '@/lib/guiaCupon';
 import { fechaArgentina } from '@/lib/bienvenida';
+import { mensajeAlerta } from '@/lib/alertaCanje';
 import { estadoVisible } from '@/lib/estadoCupon';
 import { calcularPuntosPorCompra } from '@/lib/puntos';
 import { estadoAgente, textoTiempo } from '@/lib/estadoAgente';
@@ -17,7 +18,7 @@ import {
   Home as HomeIcon, Store, Users, Gift, Star, RefreshCw, Plug, Settings, LogOut, Shield,
   AlertTriangle, MessageCircle, ScrollText, KeyRound, ClipboardList, Cake,
   ShoppingBag, Hourglass, Link as LinkIcon, Ticket, Info, Mail, Menu, Download,
-  ArrowRight, Check, X, Copy, ExternalLink, CircleCheck, PackageX,
+  ArrowRight, Check, X, Copy, ExternalLink, CircleCheck, PackageX, CircleAlert,
 } from 'lucide-react';
 
 // Una clave por confirmación de canje (ver confirmacionCanje).
@@ -116,6 +117,10 @@ export default function Home() {
   const [estadisticas, setEstadisticas] = useState(null);
   const [seccionActiva, setSeccionActiva] = useState('inicio');
   const [clientesPagina, setClientesPagina] = useState(1);
+  // Alerta de canje (lib/alertaCanje.js): ver solo las clientas que ya
+  // pueden canjear el premio de la alerta, y el resumen { premio, pendientes }.
+  const [clientesSoloAlerta, setClientesSoloAlerta] = useState(false);
+  const [resumenAlerta, setResumenAlerta] = useState(null);
   const [clientesData, setClientesData] = useState(null);
   const [clientesBusqueda, setClientesBusqueda] = useState('');
   const [clientesBusquedaDebounced, setClientesBusquedaDebounced] = useState('');
@@ -153,6 +158,7 @@ export default function Home() {
   const [formSoporte, setFormSoporte] = useState({ email: '', whatsapp: '' });
   // Emails a las clientas: nombre visible del remitente y mail de bienvenida.
   const [formEmails, setFormEmails] = useState({ nombreRemitente: '', bienvenida: false });
+  const [formAlertaPremio, setFormAlertaPremio] = useState('');
   const [formBasesCondiciones, setFormBasesCondiciones] = useState('');
   const [formTema, setFormTema] = useState({ ...TEMA_DEFAULT });
 
@@ -240,14 +246,23 @@ export default function Home() {
     cargarEstadisticas(negocioMostrado?.id);
   }, [negocioMostrado?.id]);
 
-  const cargarClientes = (negocioId, page = 1, busqueda = '', nivel = '') => {
+  const cargarClientes = (negocioId, page = 1, busqueda = '', nivel = '', soloAlerta = false) => {
     if (!negocioId) { setClientesData(null); return; }
     const q = busqueda.trim() ? `&q=${encodeURIComponent(busqueda.trim())}` : '';
     const n = nivel ? `&nivel=${encodeURIComponent(nivel)}` : '';
-    fetch(`/api/clientes?negocioId=${negocioId}&page=${page}&pageSize=10${q}${n}`)
+    const a = soloAlerta ? '&alerta=1' : '';
+    fetch(`/api/clientes?negocioId=${negocioId}&page=${page}&pageSize=10${q}${n}${a}`)
       .then(res => res.json())
       .then(setClientesData)
       .catch(() => {});
+  };
+
+  const cargarResumenAlerta = (negocioId) => {
+    if (!negocioId) { setResumenAlerta(null); return; }
+    fetch(`/api/clientes/alertas?negocioId=${negocioId}`, { cache: 'no-store' })
+      .then(res => (res.ok ? res.json() : null))
+      .then(setResumenAlerta)
+      .catch(() => setResumenAlerta(null));
   };
 
   const cargarCanjes = (negocioId, page = 1) => {
@@ -308,11 +323,19 @@ export default function Home() {
 
   useEffect(() => {
     setClientesPagina(1);
-  }, [clientesBusquedaDebounced, clientesNivelFiltro]);
+  }, [clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta]);
 
   useEffect(() => {
-    cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro);
-  }, [negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro]);
+    cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta);
+  }, [negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta]);
+
+  useEffect(() => {
+    if ((seccionActiva !== 'inicio' && seccionActiva !== 'clientes') || !negocioMostrado?.id) return;
+    fetch(`/api/clientes/alertas?negocioId=${negocioMostrado.id}`, { cache: 'no-store' })
+      .then(res => (res.ok ? res.json() : null))
+      .then(setResumenAlerta)
+      .catch(() => setResumenAlerta(null));
+  }, [negocioMostrado?.id, seccionActiva]);
 
   // clientesData también alimenta la vista previa de Inicio (mismo estado,
   // ver VistaClientes e Inicio más abajo) -- sin esto, una búsqueda que
@@ -381,6 +404,7 @@ export default function Home() {
     setFormSitioWeb(negocioMostrado?.sitioWeb || '');
     setFormSoporte({ email: negocioMostrado?.soporteEmail || '', whatsapp: negocioMostrado?.soporteWhatsapp || '' });
     setFormEmails({ nombreRemitente: negocioMostrado?.emailRemitenteNombre || '', bienvenida: !!negocioMostrado?.emailBienvenida });
+    setFormAlertaPremio(negocioMostrado?.alertaCanjePremioId || '');
     setFormBasesCondiciones(negocioMostrado?.basesCondiciones || '');
     setFormTema({ ...TEMA_DEFAULT, ...(negocioMostrado?.tema || {}) });
     setFormPassword({ actual: '', nueva: '', confirmar: '' });
@@ -409,6 +433,7 @@ export default function Home() {
       cargarNegocios();
       cargarEstadisticas(negocio.id);
       cargarClientes(negocio.id, clientesPagina);
+      cargarResumenAlerta(negocio.id);
     } catch (err) {
       mostrarToast('error', 'Ocurrió un error al sumar los puntos. Probá de nuevo.');
     }
@@ -439,6 +464,7 @@ export default function Home() {
       cargarNegocios();
       cargarEstadisticas(negocio.id);
       cargarClientes(negocio.id, 1);
+      cargarResumenAlerta(negocio.id);
       setClientesPagina(1);
     } catch (err) {
       mostrarToast('error', 'Ocurrió un error al crear el cliente. Probá de nuevo.');
@@ -1053,7 +1079,8 @@ export default function Home() {
         alert(`✅ Canjeaste "${premio?.nombre}" para ${nombreCliente}.`);
       }
       setPremioParaCanjear('');
-      cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro);
+      cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta);
+      cargarResumenAlerta(negocioMostrado?.id);
     } catch (err) {
       mostrarToast('error', 'Ocurrió un error al canjear el premio.');
     } finally {
@@ -1312,6 +1339,43 @@ export default function Home() {
   // está cargado (solo se le sacan los caracteres que no son dígitos): si
   // no abre el chat esperado, hay que revisar cómo lo cargó esa clienta en
   // particular al registrarse.
+  // Alerta de canje: WhatsApp con el mensaje sugerido (la empleada lo revisa
+  // y lo manda ella; nada sale solo) y marcar el contacto.
+  const armarLinkWhatsappAlerta = (c) => {
+    if (!c.telefono || !c.alerta) return null;
+    const numero = c.telefono.replace(/\D/g, '');
+    const mensaje = mensajeAlerta({ premioNombre: c.alerta.premio.nombre, club: nombreClub(negocioMostrado?.nombre || ''), haySiguiente: !!c.alerta.siguiente });
+    return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+  };
+  const marcarContactoAlerta = async (c, contactada) => {
+    try {
+      const res = await fetch(`/api/clientes/${c.id}/alerta`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contactada }) });
+      const data = await res.json();
+      if (!res.ok) { mostrarToast('error', data.error || 'No se pudo guardar.'); return; }
+      mostrarToast('exito', contactada ? 'Marcada como contactada.' : 'Se volvió a marcar para contactar.');
+      cargarClientes(negocioMostrado?.id, clientesPagina, clientesBusquedaDebounced, clientesNivelFiltro, clientesSoloAlerta);
+      cargarResumenAlerta(negocioMostrado?.id);
+    } catch {
+      mostrarToast('error', 'No se pudo guardar. Probá de nuevo.');
+    }
+  };
+  const guardarAlertaPremio = async () => {
+    try {
+      const res = await fetch('/api/negocios', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: negocioMostrado.id, alertaCanjePremioId: formAlertaPremio || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) { mostrarToast('error', data.error || 'No se pudo guardar'); return; }
+      mostrarToast('exito', 'Guardado');
+      cargarNegocios();
+      cargarResumenAlerta(negocioMostrado.id);
+    } catch {
+      mostrarToast('error', 'Ocurrió un error al guardar. Probá de nuevo.');
+    }
+  };
+
   const armarLinkWhatsapp = (c) => {
     if (!c.telefono) return null;
     const numero = c.telefono.replace(/\D/g, '');
@@ -1377,10 +1441,22 @@ export default function Home() {
         </div>
       </div>
 
+      {resumenAlerta?.premio && (resumenAlerta.pendientes > 0 || clientesSoloAlerta) && (
+        <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 18px', padding: '12px 14px', background: tema.superficie, border: `1px solid ${tema.borde}`, borderLeft: '3px solid #b45309' }}>
+          <CircleAlert size={18} aria-hidden="true" style={{ color: '#b45309', flexShrink: 0 }} />
+          <span style={{ flex: 1, minWidth: 0, fontSize: 14 }}>
+            {resumenAlerta.pendientes === 1 ? '1 clienta ya puede canjear' : `${formatearMiles(resumenAlerta.pendientes)} clientas ya pueden canjear`} <strong>{resumenAlerta.premio.nombre}</strong> ({formatearMiles(resumenAlerta.premio.puntos)} puntos) y todavía no fueron contactadas.
+          </span>
+          <button type="button" className="fid-btn-secondary" onClick={() => setClientesSoloAlerta(v => !v)} aria-pressed={clientesSoloAlerta} style={{ ...ui.botonSecundario, flexShrink: 0 }}>
+            {clientesSoloAlerta ? 'Ver todas las clientas' : 'Ver solo esas'}
+          </button>
+        </div>
+      )}
+
       {!clientesData && <Cargando />}
       {clientesData && clientesData.items.length === 0 && (
         <Vacio>
-          {clientesBusqueda.trim() || clientesNivelFiltro ? 'No encontramos clientes que coincidan con ese filtro.' : 'Todavía no hay clientes. Se suman cuando se registran desde el link o el QR del club.'}
+          {clientesSoloAlerta ? 'No hay clientas para contactar por ahora.' : clientesBusqueda.trim() || clientesNivelFiltro ? 'No encontramos clientes que coincidan con ese filtro.' : 'Todavía no hay clientes. Se suman cuando se registran desde el link o el QR del club.'}
         </Vacio>
       )}
       <ul style={{ listStyle: 'none', margin: 0, padding: 0, borderTop: clientesData?.items.length ? `1px solid ${tema.texto}` : 'none' }}>
@@ -1399,7 +1475,19 @@ export default function Home() {
                 style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 4px', width: '100%', border: 'none', background: 'transparent', color: tema.texto, textAlign: 'left', cursor: 'pointer' }}
               >
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontFamily: tema.fuenteTitulo, fontSize: 19, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nombre || c.email}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <span style={{ fontFamily: tema.fuenteTitulo, fontSize: 19, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{c.nombre || c.email}</span>
+                    {c.alerta?.pendiente && (
+                      <span title={`Ya puede canjear ${c.alerta.premio.nombre}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, fontSize: 12, color: '#b45309', border: '1px solid #b45309', padding: '1px 7px', whiteSpace: 'nowrap' }}>
+                        <CircleAlert size={13} aria-hidden="true" /> Puede canjear
+                      </span>
+                    )}
+                    {c.alerta && !c.alerta.pendiente && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, fontSize: 12, color: tema.textoSecundario, whiteSpace: 'nowrap' }}>
+                        <Check size={13} aria-hidden="true" /> Contactada
+                      </span>
+                    )}
+                  </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: tema.textoSecundario, minWidth: 0 }}>
                     {s.nivel && (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0, whiteSpace: 'nowrap' }}>
@@ -1437,6 +1525,41 @@ export default function Home() {
                   {dias != null && dias >= 30 && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: '#9a3412', borderLeft: '2px solid #c2410c', paddingLeft: 10 }}>
                       <AlertTriangle size={15} aria-hidden="true" /> {s.frecuenciaPromedioDias ? `Solía comprar cada ${s.frecuenciaPromedioDias} días. ` : ''}Hace {dias} días que no vuelve.
+                    </div>
+                  )}
+
+                  {c.alerta && (
+                    <div role="group" aria-label="Alerta de canje" style={{ padding: '14px 16px', background: tema.superficie, border: `1px solid ${tema.borde}`, borderLeft: `3px solid ${c.alerta.pendiente ? '#b45309' : tema.borde}`, display: 'grid', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 15 }}>
+                        <CircleAlert size={16} aria-hidden="true" style={{ color: c.alerta.pendiente ? '#b45309' : tema.textoSecundario }} />
+                        <span>Ya puede canjear <strong>{c.alerta.premio.nombre}</strong>.</span>
+                      </div>
+                      <div style={{ fontSize: 14, color: tema.textoSecundario, lineHeight: 1.5 }}>
+                        Tiene <strong style={{ color: tema.texto }}>{formatearMiles(c.alerta.puntos)} puntos</strong>.{' '}
+                        {c.alerta.siguiente
+                          ? <>Le faltan {formatearMiles(c.alerta.siguiente.faltan)} para el siguiente premio, {c.alerta.siguiente.nombre} ({formatearMiles(c.alerta.siguiente.puntos)}).</>
+                          : 'Ya le alcanza para todos los premios.'}
+                      </div>
+                      {c.alerta.pendiente ? (
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                          {armarLinkWhatsappAlerta(c) ? (
+                            <a href={armarLinkWhatsappAlerta(c)} target="_blank" rel="noopener noreferrer" className="fid-btn-primary" style={{ ...ui.botonPrimario, display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+                              <MessageCircle size={15} aria-hidden="true" /> Avisarle por WhatsApp
+                            </a>
+                          ) : (
+                            <span style={{ fontSize: 13, color: tema.textoSecundario, alignSelf: 'center' }}>Sin celular cargado.</span>
+                          )}
+                          <button type="button" className="fid-btn-secondary" onClick={() => marcarContactoAlerta(c, true)} style={{ ...ui.botonSecundario, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                            <Check size={15} aria-hidden="true" /> Marcar como contactada
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', fontSize: 13, color: tema.textoSecundario }}>
+                          <span>Contactada el {new Date(c.alerta.contactadaEn).toLocaleDateString('es-AR')}{c.alerta.contactadaPuntos != null ? `, con ${formatearMiles(c.alerta.contactadaPuntos)} puntos` : ''}. Se vuelve a avisar después de su próximo canje.</span>
+                          <button type="button" className="fid-link" onClick={() => marcarContactoAlerta(c, false)} style={ui.botonTexto}>Deshacer</button>
+                        </div>
+                      )}
+                      {c.alerta.pendiente && <div style={{ fontSize: 12, color: tema.textoSecundario }}>El WhatsApp se abre con el mensaje sugerido: revisalo y mandalo vos. Después marcá el contacto.</div>}
                     </div>
                   )}
 
@@ -1874,6 +1997,17 @@ export default function Home() {
         </div>
       ), guardarEmails)}
 
+      {bloqueAjuste('Alerta de canje', 'Marca en Clientes a las clientas que ya pueden canjear este premio y todavía no contactaste, para escribirles por WhatsApp. Se usa el puntaje del premio (no lo cambia). Dejalo en "Sin alerta" para desactivarla.', (
+        <label htmlFor="alerta-premio"><span style={ui.label}>Avisar cuando una clienta llegue a</span>
+          <select id="alerta-premio" value={formAlertaPremio} onChange={e => setFormAlertaPremio(e.target.value)} style={ui.input}>
+            <option value="">Sin alerta</option>
+            {[...(negocioMostrado?.premios || [])].sort((a, b) => a.puntos - b.puntos).map(p => (
+              <option key={p.id} value={p.id}>{p.nombre} — {formatearMiles(p.puntos)} puntos</option>
+            ))}
+          </select>
+        </label>
+      ), guardarAlertaPremio)}
+
       {bloqueAjuste('Bases y condiciones', 'El texto legal del programa de puntos que ve tu clienta en "Bases y condiciones" (menú de su panel). Dejalo vacío si todavía no lo tenés — se le va a avisar que falta cargarlo.', (
         <textarea rows={10} aria-label="Bases y condiciones" value={formBasesCondiciones} onChange={e => setFormBasesCondiciones(e.target.value)} placeholder={'Ej: 1. ¿Qué es el Club?\n\nEs nuestro programa de beneficios...'} style={{ ...ui.input, resize: 'vertical' }} />
       ), guardarBasesCondiciones)}
@@ -1964,6 +2098,15 @@ export default function Home() {
 
         {seccionActiva === 'inicio' && (
           <div>
+            {resumenAlerta?.premio && resumenAlerta.pendientes > 0 && (
+              <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 24px', padding: '12px 14px', background: tema.superficie, border: `1px solid ${tema.borde}`, borderLeft: '3px solid #b45309' }}>
+                <CircleAlert size={18} aria-hidden="true" style={{ color: '#b45309', flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0, fontSize: 14 }}>
+                  {resumenAlerta.pendientes === 1 ? '1 clienta ya puede canjear' : `${formatearMiles(resumenAlerta.pendientes)} clientas ya pueden canjear`} <strong>{resumenAlerta.premio.nombre}</strong>. Avisales por WhatsApp.
+                </span>
+                <button type="button" className="fid-btn-secondary" onClick={() => { setClientesSoloAlerta(true); setSeccionActiva('clientes'); }} style={{ ...ui.botonSecundario, flexShrink: 0 }}>Ver clientas</button>
+              </div>
+            )}
             <div className="fid-kpis" style={{ borderTop: `1px solid ${tema.texto}`, borderBottom: `1px solid ${tema.borde}`, marginBottom: 40 }}>
               {[
                 ['Clientes', formatearMiles(negocio.clientes?.length || 0), estadisticas?.clientesConCompraEsteMes != null ? `${formatearMiles(estadisticas.clientesConCompraEsteMes)} compraron este mes` : null],
@@ -1987,7 +2130,10 @@ export default function Home() {
                 <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {clientesData?.items.map(c => (
                     <li key={c.id} style={{ display: 'flex', alignItems: 'baseline', gap: 12, padding: '12px 0', borderBottom: `1px solid ${tema.borde}` }}>
-                      <span style={{ flex: 1, minWidth: 0, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nombre || c.email}</span>
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {c.nombre || c.email}
+                        {c.alerta?.pendiente && <CircleAlert size={14} role="img" aria-label={`Ya puede canjear ${c.alerta.premio.nombre}`} style={{ display: 'inline-block', color: '#b45309', marginLeft: 6, verticalAlign: '-2px' }} />}
+                      </span>
                       <span style={{ fontFamily: tema.fuenteTitulo, fontSize: 18, ...ui.numero }}>{formatearMiles(c.puntos)}</span>
                     </li>
                   ))}

@@ -207,7 +207,9 @@ export async function POST(request) {
     const canje = await prisma.$transaction(async (tx) => {
       const { count } = await tx.cliente.updateMany({
         where: { id: clienteId, puntos: { gte: premio.puntos } },
-        data: { puntos: { decrement: premio.puntos } }
+        // El canje reinicia la alerta de canje de las empleadas (ver
+        // lib/alertaCanje.js): si vuelve a llegar al premio, se avisa de nuevo.
+        data: { puntos: { decrement: premio.puntos }, alertaContactadaEn: null, alertaContactadaPuntos: null }
       })
 
       if (count === 0) {
