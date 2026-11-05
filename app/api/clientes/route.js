@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { calcularStatsClientes, calcularNivel } from '@/lib/clienteStats'
 import { filtroEmail } from '@/lib/identidad'
+import { premioDeAlerta, estadoAlerta, filtroAlertaPendiente } from '@/lib/alertaCanje'
 import { validarDatosCliente, dniYaRegistrado } from '@/lib/datosCliente'
 import { MENSAJE_DNI_REPETIDO, MENSAJE_EMAIL_REPETIDO } from '@/lib/dni'
 import { sinNombrePropio, eliminableDesdePanel, FILTRO_SIN_NOMBRE } from '@/lib/eliminarCuenta'
@@ -30,6 +31,22 @@ export async function GET(request) {
   const soloSinNombre = searchParams.get('sinNombre') === '1'
 
   const where = negocioId ? { negocioId } : {}
+
+  // Alerta de canje (lib/alertaCanje.js): el premio que eligió el negocio y
+  // sus premios activos, para marcar a las clientas que ya pueden canjearlo.
+  // ?alerta=1 lista solo las que tienen la alerta pendiente.
+  let premioAlerta = null
+  let premiosActivos = []
+  if (negocioId) {
+    const negocio = await prisma.negocio.findUnique({ where: { id: negocioId }, select: { id: true, alertaCanjePremioId: true } })
+    premiosActivos = await prisma.premio.findMany({ where: { negocioId, activo: true }, select: { id: true, nombre: true, puntos: true, activo: true, negocioId: true } })
+    premioAlerta = premioDeAlerta(negocio, premiosActivos)
+  }
+  if (searchParams.get('alerta') === '1') {
+    if (!premioAlerta) return NextResponse.json({ items: [], page: 1, pageSize, total: 0, totalPages: 1 })
+    Object.assign(where, filtroAlertaPendiente(premioAlerta))
+  }
+
   // Buscador de la lista de Clientes (nombre, email o teléfono) -- un
   // negocio con muchos clientes ya no puede confiar solo en el paginado
   // para encontrar a alguien puntual.
@@ -80,13 +97,13 @@ export async function GET(request) {
       take: pageSize,
       select: {
         id: true, nombre: true, telefono: true, email: true, puntos: true,
-        negocioId: true, createdAt: true,
+        negocioId: true, createdAt: true, alertaContactadaEn: true, alertaContactadaPuntos: true,
       }
     })
   ])
 
   const stats = await calcularStatsClientes(prisma, items)
-  const itemsConStats = items.map((c) => ({ ...c, sinNombre: sinNombrePropio(c), eliminable: eliminableDesdePanel(c), stats: stats[c.id] }))
+  const itemsConStats = items.map((c) => ({ ...c, sinNombre: sinNombrePropio(c), eliminable: eliminableDesdePanel(c), stats: stats[c.id], alerta: estadoAlerta(c, premioAlerta, premiosActivos) }))
 
   return NextResponse.json({ items: itemsConStats, page, pageSize, total, totalPages: Math.ceil(total / pageSize) || 1 })
 }

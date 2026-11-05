@@ -101,10 +101,12 @@ importar el `"type"` del `package.json`.
 | `ADMIN_PASSWORD_HASH` | Para el login de admin | Hash bcrypt de la password del admin. Se genera con `bcryptjs` (`bcrypt.hash('tu-password', 10)`), nunca la password en texto plano. |
 | `GOOGLE_CLIENT_ID` | Para "Iniciar sesión con Google" | Client ID de OAuth de Google Cloud Console. Si falta (junto con `GOOGLE_CLIENT_SECRET`), el botón de Google simplemente no aparece como provider habilitado. |
 | `GOOGLE_CLIENT_SECRET` | Para "Iniciar sesión con Google" | Client secret de la misma credencial OAuth. Callback URL a autorizar en Google: `<NEXTAUTH_URL>/api/auth/callback/google`. |
+| `GOOGLE_SHEETS_CLIENT_ID` / `GOOGLE_SHEETS_CLIENT_SECRET` | Para "Exportar clientes" a Google Sheets | Cliente OAuth de Google Cloud para que cada negocio conecte su cuenta (permiso `drive.file`). Si faltan, usa `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`; sin ninguno, la sección muestra que la conexión no está habilitada y queda la descarga para Excel. URI de redireccionamiento: `<NEXT_PUBLIC_BASE_URL>/api/google-sheets/callback`. Ver `docs/lanzamiento/google-sheets.md`. |
+| `GOOGLE_PICKER_API_KEY` / `GOOGLE_CLOUD_PROJECT_NUMBER` | Para elegir una hoja existente | Clave de API (restringida a Google Picker API y al dominio) y número del proyecto de Google Cloud. Sin ellas se puede crear una hoja nueva pero no elegir una existente. |
 | `MERCADOPAGO_ACCESS_TOKEN` | Para cobrar con Mercado Pago | Access token de la cuenta de Mercado Pago del negocio/plataforma. |
 | `NEXT_PUBLIC_BASE_URL` | Para Mercado Pago y los mails de puntos | URL pública del sitio, usada para armar las `back_urls`/`notification_url` de Mercado Pago y el link de login de los mails. |
 | `RESEND_API_KEY` | Para los mails de puntos acreditados/canje/vencimiento | API key de [Resend](https://resend.com). Si falta, el mail simplemente no se manda (no rompe la acreditación de puntos). |
-| `RESEND_FROM_EMAIL` | No (default: `Retornar <onboarding@resend.dev>`) | Remitente de los mails. `retornar.com.ar` ya está verificado como dominio propio en Resend, cargado acá como `Retornar <club@retornar.com.ar>` — así llegan a clientas reales, no solo a la casilla de prueba. |
+| `RESEND_FROM_EMAIL` | No (default: `Retornar <onboarding@resend.dev>`) | Remitente de los mails (la dirección; el nombre visible lo puede cambiar cada negocio en Ajustes → "Emails a tus clientas", ver `docs/lanzamiento/emails.md`). `retornar.com.ar` ya está verificado como dominio propio en Resend, cargado acá como `Retornar <club@retornar.com.ar>` — así llegan a clientas reales, no solo a la casilla de prueba. |
 | `TIENDANUBE_APP_ID` | Para conectar Tiendanube por OAuth2 (botón "Conectar con Tiendanube") | Client ID de la app registrada en el [Partner Portal de Tiendanube](https://partners.tiendanube.com). Ver "Conectar Tiendanube por OAuth2" abajo. Sin esto, el botón no aparece y sigue funcionando la carga manual de `tiendanubeStoreId`/`tiendanubeAccessToken` de siempre. |
 | `TIENDANUBE_CLIENT_SECRET` | Junto con `TIENDANUBE_APP_ID` | Client secret de la misma app. También se reutiliza para verificar la firma del webhook de pedidos pagados, ver "Verificación de firma de webhooks" abajo. |
 | `MERCADOPAGO_WEBHOOK_SECRET` | Recomendada (ver "Verificación de firma de webhooks") | Clave secreta que Mercado Pago genera en *Tus integraciones → Webhooks → Configurar notificación*. Si falta, el webhook de Mercado Pago sigue funcionando igual que hasta ahora, solo que sin verificar la firma. |
@@ -315,15 +317,32 @@ puntos ya se descontaron: el error queda anotado en
 `Canje.tiendanubeCuponError` (visible en el historial de canjes del negocio)
 para que se resuelva el descuento a mano en vez de perder el canje.
 
-**Limitación conocida**: la API de cupones de Tiendanube no permite atarlos
-a un producto específico (eso existe para "Descuentos" vía un partner app
-con webhook de checkout — una integración mucho más pesada, pensada para
-apps públicas de terceros, que no corresponde para el uso interno de un solo
-negocio). Por eso el cupón de "producto puntual" en realidad es un cupón por
-el valor de ese producto con un piso de compra (`min_price`) igual a ese
-valor — cubre el precio del producto si es lo único que hay en el carrito,
-pero Tiendanube no impide técnicamente usarlo con otra combinación de
-productos que sume ese piso. "No acumulable" tampoco es un campo de la API:
+**Exportar clientes a Google Sheets** (desde 2026-11-09, ver
+`docs/lanzamiento/google-sheets.md`): cada negocio conecta su propia cuenta de
+Google (solo el permiso `drive.file`: Retornar ve únicamente las hojas que
+crea o que el negocio elige), crea o elige una hoja y exporta sus clientas;
+al volver a exportar se actualizan por ID sin duplicar ni tocar columnas o
+filas propias. Sin DNI. Apagado hasta configurar las credenciales de Google;
+la descarga para Excel se mantiene.
+
+**Enlace con stock** (desde 2026-11-06, ver
+`docs/lanzamiento/enlaces-con-stock.md`): el enlace de un premio de producto
+lleva a una página de Retornar (`/club/<negocio>/producto/<premio>`) que
+consulta el stock en Tiendanube y, si está agotado, ofrece otros colores del
+mismo producto y hasta 3 alternativas con stock elegidas en Premios →
+"Enlace y alternativas". Si Tiendanube no responde, dice que no se pudo
+confirmar (nunca "disponible").
+
+**Cupón atado al producto** (desde 2026-11-05, ver
+`docs/lanzamiento/cupones-por-producto.md`): el cupón de "producto puntual"
+se crea con `products: [id]`, así que según las reglas documentadas de
+Tiendanube solo se acepta si el carrito tiene únicamente ese producto (en
+cualquiera de sus variantes). Vale una unidad de la variante más barata con
+stock, se comprueba que Tiendanube lo haya guardado atado al producto (si
+no, se retira y no se entrega) y no se canjea un producto sin stock. El
+código es `RETORNAR-<PREMIO>-<8 caracteres>`. Los cupones emitidos antes
+siguen sin restricción (`scripts/cupones-producto-sin-restriccion.mjs`, solo
+lectura). "No acumulable" tampoco es un campo de la API:
 Tiendanube ya limita a un cupón por pedido en el checkout, así que un cupón
 de un solo uso (`max_uses: 1`) no se puede combinar con *otro* cupón, pero
 si el negocio tiene una promoción automática configurada aparte en su panel

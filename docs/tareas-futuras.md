@@ -172,12 +172,9 @@ negocio lo pueda consultar después en el historial de canjes.
   lectura de productos y escritura de cupones/descuentos — se generó en su
   momento solo pensando en leer órdenes para acreditar puntos, puede que
   haga falta regenerarlo con más permisos desde el panel de Tiendanube.
-- Limitación de la API de Tiendanube (no de este código): un cupón no se
-  puede atar técnicamente a un producto específico, así que el de
-  "producto puntual" es, en rigor, un cupón por ese valor con un piso de
-  compra igual al precio del producto — ver el detalle completo en el
-  README antes de prometerle a una clienta que el cupón "solo sirve para
-  ese producto".
+- ~~Limitación de la API de Tiendanube (no de este código): un cupón no se
+  puede atar técnicamente a un producto específico~~ — corregido el
+  2026-11-05: la API sí tiene `products`; ver ítem 78.
 
 ## 10. Vencimiento de puntos a los 6 meses — código hecho, falta activarlo (2026-09-07)
 
@@ -1981,3 +1978,117 @@ Decisión de Genaro: el registro público vuelve a pedir DNI, para que una misma
   confirmó que no le hace falta por ahora (su contraseña sigue saliendo
   de `ADMIN_PASSWORD_HASH`). En cambio sí se resolvió la recuperación de
   contraseña de clientes y negocios, ver ítem 60.
+
+## 78. Cupones de premios atados al producto (2026-11-05)
+
+El cupón del pañuelo ($29.000) servía para cualquier producto (con un
+aromatizante de $32.000 se pagaban $3.000). Ahora se crea en Tiendanube con
+`products: [id]`: según la documentación de Tiendanube solo se acepta si el
+carrito tiene únicamente ese producto, en cualquier color o variante. Detalle,
+límites y prueba real en `docs/lanzamiento/cupones-por-producto.md`.
+
+- Código `RETORNAR-<PREMIO>-<8 caracteres>` (ej. `RETORNAR-PANUELO-AB12CD34`),
+  guardado en `Canje.cuponCodigoPrevisto` antes de pedirlo (migración
+  `20261105120000_canje_codigo_previsto`, solo agrega la columna).
+- Vale una unidad de la variante más barata con stock (decisión de Genaro).
+- Si Tiendanube no lo guarda atado al producto, se retira y no se entrega.
+- Sin stock, sin publicar o borrado en la tienda: el canje se rechaza sin
+  descontar puntos.
+- Puntos, valor de los premios, premios de % y de monto fijo, y negocios sin
+  Tiendanube: sin cambios.
+
+**Pendiente**:
+- Prueba real en la tienda (R1–R7 del documento), con autorización.
+- ~~Decidir qué hacer con los cupones de producto ya emitidos sin
+  restricción~~ — decisión de Genaro (2026-11-05): se dejan como están, sin
+  desactivar ni reemplazar ninguno, por ahora.
+- Stock en los canjes presenciales (a revisar más adelante): hoy el canje de
+  un premio-producto, también el que hace el negocio en el local, se rechaza
+  si la tienda online no tiene stock. Hay que distinguir el stock de la
+  tienda online del stock físico del negocio.
+
+## 79. Enlaces de premios con stock real y alternativas (2026-11-06)
+
+Los enlaces de los premios con producto (panel de la clienta, cartel del
+cupón, mail de canje) pasan por una página intermedia de Retornar
+(`/club/<negocio>/producto/<premio>`) que consulta el stock en Tiendanube:
+disponible, sin stock (con los otros colores del mismo producto, primero los
+del mismo precio, y hasta 3 alternativas elegidas por el negocio, solo las
+que tienen stock) o "no pudimos confirmar" (nunca "disponible"). En el panel
+de la clienta, etiquetas de stock y el canje deshabilitado si no hay stock en
+ninguna variante. En Premios → "Enlace y alternativas" el negocio busca el
+producto en la tienda, elige el color y las alternativas. Solo lectura de
+Tiendanube. Detalle en `docs/lanzamiento/enlaces-con-stock.md`.
+
+Migración `20261106120000_premio_alternativas`: agrega `Premio.tiendanubeVarianteId`
+(vacía) y la tabla `PremioAlternativa`; no toca filas existentes.
+
+**Pendiente**:
+- Correr `scripts/diagnostico-productos-tiendanube.mjs` (solo lectura) contra
+  la tienda real para ver si hay varias ubicaciones de stock (local y online)
+  y decidir cuál cuenta para la tienda online.
+- Probar en la tienda real que `?variant=<id>` abre el color y que el
+  buscador encuentra los productos.
+- Cargar el enlace y 2 o 3 alternativas de cada premio de producto.
+
+## 80. Emails a las clientas: remitente del club, bienvenida, vencimiento y diseño (2026-11-07)
+
+Detalle en `docs/lanzamiento/emails.md`.
+
+- **Remitente**: nombre visible por negocio (Ajustes → "Emails a tus
+  clientas", ej. "Club Peperina"), misma dirección verificada; "responder a"
+  el email de soporte. Vacío = como antes ("Retornar").
+- **Bienvenida**: mail nuevo al registrarse, activable por negocio
+  (desactivado por defecto).
+- **Vencimiento**: el aviso (30 días antes, por lote) ahora detalla las
+  fechas, los premios que alcanza y cuánto comprar para los demás.
+- **Canje**: asunto y texto de confirmación, no promocionales.
+- **Todos**: plantilla nueva con los colores del negocio y versión de texto.
+- Migración `20261107120000_emails_negocio`: dos columnas nuevas en Negocio
+  (nombre vacío, bienvenida desactivada); no cambia el comportamiento de
+  ningún negocio hasta que se configure.
+
+**Pendiente**:
+- En Ajustes de Peperina: cargar "Club Peperina" como remitente y activar la
+  bienvenida (después del deploy).
+- Dirección `club@peperina.com.ar`: requiere verificar el dominio en Resend
+  (DNS de peperina.com.ar) y revisar el plan; con autorización.
+- Revisar en un mail real ("Mostrar original" en Gmail) SPF, DKIM y DMARC; si
+  falta, agregar DMARC a retornar.com.ar.
+
+## 81. Alerta de canje para las empleadas (2026-11-08)
+
+En Clientes (y en Inicio), las clientas que ya pueden canjear el premio de la
+alerta (el pañuelo en Peperina) aparecen con un "!" y "Puede canjear"; en el
+detalle, sus puntos, cuántos le faltan para el siguiente premio, WhatsApp con
+el mensaje sugerido (nunca se manda solo) y "Marcar como contactada". No se
+repite hasta el próximo canje. Configurable por negocio (Ajustes → "Alerta de
+canje"), desactivada por defecto; el umbral es el puntaje del premio elegido.
+Detalle en `docs/lanzamiento/alertas-canje.md`.
+
+**Pendiente**:
+- Confirmar con `scripts/revisar-alerta-canje.mjs` (solo lectura) que el
+  pañuelo cuesta 4.000 puntos en producción; si no, consultarlo antes de
+  cambiar nada.
+- Activar la alerta en Ajustes de Peperina después del deploy.
+
+## 82. Exportar clientes a Google Sheets (2026-11-09)
+
+Sección nueva "Exportar clientes" en el panel del negocio: conectar la cuenta
+de Google del negocio (OAuth, solo `drive.file`), crear una hoja o elegir una
+existente con el selector de Google y exportar las clientas. Al volver a
+exportar actualiza por ID interno, agrega las nuevas al final y no toca
+columnas, filas, pestañas ni formatos propios. Sin DNI ni datos sensibles.
+Token cifrado; una conexión por negocio. La descarga para Excel se mantiene en
+la misma sección. Migración `20261109120000_conexion_google` (tabla nueva).
+Detalle en `docs/lanzamiento/google-sheets.md`.
+
+**Pendiente** (con autorización):
+- Google Cloud: habilitar Sheets API y Picker API, cliente OAuth con la URI
+  `https://retornar.com.ar/api/google-sheets/callback`, permiso `drive.file` en
+  la pantalla de consentimiento (publicada "En producción"), clave de API
+  restringida.
+- Netlify: `GOOGLE_SHEETS_CLIENT_ID`, `GOOGLE_SHEETS_CLIENT_SECRET`,
+  `GOOGLE_PICKER_API_KEY`, `GOOGLE_CLOUD_PROJECT_NUMBER`.
+- Probar con una cuenta de Google de prueba (no la de Peperina) antes de
+  usarla con la cuenta real.

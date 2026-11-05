@@ -9,7 +9,7 @@ globalThis.fetch = async (url, opciones) => {
   if (u && u.startsWith('https://api.resend.com/')) {
     const cuerpo = JSON.parse(opciones.body)
     const lista = fs.existsSync(ARCHIVO) ? JSON.parse(fs.readFileSync(ARCHIVO, 'utf8')) : []
-    lista.push({ to: cuerpo.to, subject: cuerpo.subject, html: cuerpo.html })
+    lista.push({ from: cuerpo.from, reply_to: cuerpo.reply_to, to: cuerpo.to, subject: cuerpo.subject, html: cuerpo.html, text: cuerpo.text })
     fs.writeFileSync(ARCHIVO, JSON.stringify(lista))
     return new Response(JSON.stringify({ id: 'mail-' + lista.length }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }

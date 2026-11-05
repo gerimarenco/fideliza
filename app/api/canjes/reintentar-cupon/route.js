@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { premioGeneraCupon, generarCuponDeCanje } from '@/lib/cuponCanje'
+import { premioGeneraCupon, generarCuponDeCanje, codigoDeCanje } from '@/lib/cuponCanje'
 
 // Reintenta el cupón de Tiendanube de un canje cuyo cupón falló al canjear
 // (Tiendanube caído, token sin permisos, etc.). Los puntos ya se habían
@@ -33,10 +33,13 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Este premio no genera cupón de Tiendanube' }, { status: 400 })
   }
 
-  const { cuponCodigo, cuponError } = await generarCuponDeCanje(canje.premio, canje.id)
+  const { cuponCodigo, cuponError } = await generarCuponDeCanje(canje.premio, canje)
   await prisma.canje.update({
     where: { id: canje.id },
-    data: { tiendanubeCuponCodigo: cuponCodigo ?? null, tiendanubeCuponError: cuponError ?? null },
+    // Un canje anterior a los códigos con etiqueta queda marcado con el
+    // código (viejo) que se pidió ahora: así se sabe que su cupón ya se
+    // creó atado al producto (ver scripts/cupones-producto-sin-restriccion.mjs).
+    data: { tiendanubeCuponCodigo: cuponCodigo ?? null, tiendanubeCuponError: cuponError ?? null, cuponCodigoPrevisto: codigoDeCanje(canje) },
   })
 
   if (cuponError) {

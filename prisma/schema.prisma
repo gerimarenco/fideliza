@@ -49,6 +49,20 @@ model Negocio {
   // que además hubiera sido la misma para cualquier negocio). Cada negocio
   // carga el suyo; si no carga ninguno, la opción no aparece.
   soporteEmail          String?
+  // Nombre visible del remitente de los mails a las clientas (ej. "Club
+  // Peperina"). La dirección sigue siendo la de RESEND_FROM_EMAIL (dominio
+  // verificado en Resend); null = el remitente de siempre ("Retornar").
+  emailRemitenteNombre String?
+  // Mandar un mail de bienvenida a cada clienta que se registra (Ajustes).
+  emailBienvenida      Boolean @default(false)
+  // Alerta para las empleadas (Clientes): el premio a partir del cual una
+  // clienta aparece marcada para escribirle por WhatsApp (ej. el pañuelo, el
+  // primer premio). El umbral es el puntaje de ESE premio, así la alerta
+  // nunca contradice lo que cuesta. null = sin alerta. No es una relación de
+  // la base a propósito: se valida al guardar (premio activo del negocio).
+  alertaCanjePremioId  String?
+  // Exportar clientes a Google Sheets (una conexión por negocio).
+  conexionGoogle       ConexionGoogle?
   // Solo dígitos, con código de país y área (ej. 5492324123456) para wa.me.
   soporteWhatsapp       String?
   // Meses sin usar un lote de puntos para que venza (ver
@@ -124,6 +138,12 @@ model Cliente {
   origen             String?
 
   @@index([negocioId])
+  // Alerta de canje (ver Negocio.alertaCanjePremioId): cuándo una empleada
+  // marcó que ya la contactó, y con cuántos puntos estaba. Mientras esté
+  // marcada, la alerta no se repite; un canje la vuelve a null (si después
+  // vuelve a llegar al premio, aparece otra vez).
+  alertaContactadaEn     DateTime?
+  alertaContactadaPuntos Int?
 }
 
 model Premio {
@@ -142,6 +162,14 @@ model Premio {
   // carga el negocio a mano (copiada de su propia tienda), no se arma sola.
   tiendanubeProductoId  String?
   tiendanubeProductoUrl String?
+  // Variante del producto a la que apunta el enlace (ej. el pañuelo color
+  // visón). null = el producto en cualquier variante. Solo cambia qué se
+  // muestra en la página intermedia del premio (lib/disponibilidad.js): el
+  // cupón sigue valiendo para cualquier variante del producto.
+  tiendanubeVarianteId  String?
+  // Enlaces de auxilio: hasta 3 productos alternativos que se muestran si el
+  // producto del premio se queda sin stock (solo los que tienen stock).
+  alternativas          PremioAlternativa[]
   // Alternativa a lo de arriba: el premio da un % de descuento en toda la
   // tienda en vez de un producto puntual (ej. "10% descuento" → 10). Un
   // premio no debería tener las dos cosas cargadas a la vez, pero no hace
@@ -161,6 +189,25 @@ model Premio {
   @@index([negocioId])
 }
 
+// Producto alternativo de un premio ("enlace de auxilio"), elegido por el
+// negocio en Premios → Enlace y alternativas. Se muestra en la página
+// intermedia del premio solo si el producto del premio está sin stock y la
+// alternativa tiene stock confirmado en Tiendanube. Nombre y link se leen de
+// Tiendanube en el momento; `nombre` es solo lo que se vio al elegirla, para
+// el panel cuando la tienda no responde.
+model PremioAlternativa {
+  id                   String   @id @default(cuid())
+  premioId             String
+  premio               Premio   @relation(fields: [premioId], references: [id], onDelete: Cascade)
+  orden                Int
+  tiendanubeProductoId String
+  tiendanubeVarianteId String?
+  nombre               String?
+  createdAt            DateTime @default(now())
+
+  @@index([premioId])
+}
+
 model Canje {
   id        String   @id @default(cuid())
   clienteId String
@@ -177,6 +224,11 @@ model Canje {
   // negocio tiene que entregar el descuento a mano.
   tiendanubeCuponCodigo String?
   tiendanubeCuponError  String?
+  // Código que se le pide a Tiendanube para este canje
+  // (RETORNAR-<PREMIO>-<8 caracteres>), guardado al crear el canje, antes de
+  // llamar a Tiendanube: el reintento usa siempre el mismo. null en los
+  // canjes anteriores (usan el formato viejo RETORNAR-<8 caracteres>).
+  cuponCodigoPrevisto   String?
   // Estado del cupón según Tiendanube (ver lib/estadoCupon.js): "disponible",
   // "utilizado", "vencido" o "anulado". null = todavía no se pudo verificar.
   // cuponVerificadoEn: última vez que se consultó a Tiendanube. Un cupón
@@ -320,4 +372,26 @@ model IntentoLogin {
   @@index([emailHash, ipHash, createdAt])
   @@index([ipHash, createdAt])
   @@index([createdAt])
+}
+
+// Conexión de un negocio con su cuenta de Google para exportar sus clientes a
+// Google Sheets (Exportar clientes, ver lib/googleSheets.js). Una por
+// negocio. El token de actualización se guarda CIFRADO (lib/cifrado.js) y
+// nunca sale del servidor. El permiso pedido es solo drive.file: Retornar
+// ve únicamente las hojas que crea o que el negocio elige, nada más del Drive.
+model ConexionGoogle {
+  id                    String    @id @default(cuid())
+  negocioId             String    @unique
+  negocio               Negocio   @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  // Cuenta de Google conectada (para mostrarla en el panel).
+  email                 String?
+  refreshTokenCifrado   String
+  conectadaEn           DateTime  @default(now())
+  // Hoja elegida o creada para exportar.
+  hojaId                String?
+  hojaNombre            String?
+  // Última exportación (para mostrarla y evitar dos a la vez).
+  exportandoDesde       DateTime?
+  ultimaExportacionEn   DateTime?
+  ultimaExportacionInfo String?
 }
