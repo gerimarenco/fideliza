@@ -114,6 +114,11 @@ export default function Login() {
             Registrate
           </Link>
         </div>
+        <div style={{ textAlign: 'center', marginTop: 16, fontSize: 12 }}>
+          <Link href="/privacidad" style={{ color: '#55595e', textDecoration: 'underline', textUnderlineOffset: 3 }}>
+            Política de privacidad
+          </Link>
+        </div>
       </div>
     </div>
   );
