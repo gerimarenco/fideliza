@@ -16,6 +16,7 @@ navegador); el CI corre `npm test` (las pruebas de `lib/`).
 
 | Archivo | Qué prueba | Origen |
 |---|---|---|
+| `acreditacion-tiendanube.mjs` | Compras de Tiendanube: webhook firmado (firma inválida o ausente rechazada), clienta con cuenta (email con mayúsculas/espacios, email de la cuenta de la tienda, celular en otro formato, celular compartido), sin cuenta, cuenta creada después, pendiente → pagada, cancelada y reembolsada, reenvíos y avisos simultáneos sin duplicar, error temporal y reintento, multiempresa, conciliación programada (sin acreditar compras anteriores) y el script de revisión (simulación sin cambios, `--aplicar` idempotente, `--reparar-webhook`). El servidor y la suite necesitan `TIENDANUBE_CLIENT_SECRET=secreto-tn-prueba` | Nueva (2026-11-10) |
 | `google-sheets.mjs` | Exportar clientes a Google Sheets: permisos, OAuth (solo `drive.file`, state firmado + cookie, vueltas falsas o de otro negocio, cuenta sin el permiso), token cifrado y nunca devuelto, crear y elegir hoja (regla de `drive.file`), exportar sin DNI y como valor (`RAW`), volver a exportar con la hoja reordenada, columnas y filas propias, dos exportaciones a la vez, multiempresa, pantalla, desconectar y acceso revocado. Google simulado (`simulaciones/google.mjs`). El servidor necesita credenciales de Google **de prueba** (ver abajo) | Nueva (2026-11-09) |
 | `alertas-canje.mjs` | Alerta de canje para las empleadas: script de revisión (solo lectura), configuración por negocio y validaciones, qué muestra (puntos, siguiente premio), filtro y resumen, multiempresa y permisos, marcar/deshacer contacto sin repetir, el canje la reinicia, mensaje exacto de WhatsApp, pantallas de Inicio, Clientes y Ajustes | Nueva (2026-11-08) |
 | `emails.mjs` | Emails a las clientas: ajustes de remitente y bienvenida, mail de bienvenida, remitente del club y "responder a", versión de texto, compra, canje con asunto neutro, aviso de vencimiento por lote (detalle por fecha, premios, cuánto comprar, sin repetir), contraseña y otro negocio sin cambios. Resend simulado; guarda capturas de cada mail | Nueva (2026-11-07) |
@@ -41,6 +42,9 @@ export RETORNAR_E2E_DIR=/tmp/retornar-e2e
 RESEND_API_KEY=re_prueba_local NODE_OPTIONS="--import ./pruebas/e2e/simulaciones/todas.mjs" \
   npx next dev -p 3000 > $RETORNAR_E2E_DIR/servidor.log 2>&1
 
+#    Para acreditacion-tiendanube.mjs (y bienvenida-cupones, que firma si la
+#    encuentra), TIENDANUBE_CLIENT_SECRET=secreto-tn-prueba en el servidor y
+#    en la suite.
 #    Para google-sheets.mjs, además, credenciales de Google ficticias (la
 #    simulación responde por Google; no se usa ninguna cuenta real):
 #    GOOGLE_SHEETS_CLIENT_ID=cliente-prueba.apps.googleusercontent.com

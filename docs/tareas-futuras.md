@@ -2092,3 +2092,25 @@ Detalle en `docs/lanzamiento/google-sheets.md`.
   `GOOGLE_PICKER_API_KEY`, `GOOGLE_CLOUD_PROJECT_NUMBER`.
 - Probar con una cuenta de Google de prueba (no la de Peperina) antes de
   usarla con la cuenta real.
+
+## 83. Compras de Tiendanube que no sumaron puntos (2026-11-10)
+
+Una clienta con cuenta compró online y no sumó. Auditoría del recorrido
+completo y cambios en `docs/lanzamiento/acreditacion-tiendanube.md`. Causa del
+caso puntual sin confirmar (sin acceso a producción); la más probable por el
+código: la suscripción `order/paid` se creó el 2026-09-09 con la dirección del
+navegador al conectar (posiblemente la de Netlify, que hoy redirige).
+
+Hecho: lógica única de acreditación, identificación por email del checkout o
+de la cuenta de la tienda y por celular, registro de cada orden
+(`OrdenTiendanube`), conciliación cada 20 minutos sin acreditar compras
+anteriores, dirección canónica y reparable del webhook, script de
+diagnóstico/recuperación (simulación por defecto, idempotente). Migración
+`20261110120000_ordenes_tiendanube` (tabla nueva + columna vacía).
+
+**Pendiente** (con autorización):
+- Deploy; correr el script en simulación con la base de producción y revisar.
+- Si corresponde: `--reparar-webhook` y `--aplicar`.
+- Si Netlify muestra "firma HMAC inválida": revisar que `TIENDANUBE_CLIENT_SECRET`
+  sea el de la app de Tiendanube.
+- Una compra real de prueba después del deploy.

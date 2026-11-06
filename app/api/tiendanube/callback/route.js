@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { leerCookieEstado } from '@/lib/tiendanubeOAuthState'
-import { intercambiarCodigoPorToken, asegurarWebhookOrderPaid } from '@/lib/tiendanube'
+import { intercambiarCodigoPorToken, asegurarWebhookOrderPaid, urlWebhookTiendanube } from '@/lib/tiendanube'
 
 // Segundo paso del OAuth2: esta es la URL fija que hay que registrar como
 // "Redirect URL" en el Partner Portal de Tiendanube (ver docs/ para el
@@ -77,8 +77,7 @@ export async function GET(request) {
     // que las compras todavía no van a sumar puntos.
     try {
       const negocioTemporal = { tiendanubeStoreId: String(user_id), tiendanubeAccessToken: access_token }
-      const urlWebhook = new URL('/api/webhooks/tiendanube', request.url).toString()
-      await asegurarWebhookOrderPaid(negocioTemporal, urlWebhook)
+      await asegurarWebhookOrderPaid(negocioTemporal, urlWebhookTiendanube())
     } catch (error) {
       console.error('No se pudo registrar el webhook order/paid para el negocio', negocioId, error)
       return paginaResultado(request, 'conectado-sin-webhook')

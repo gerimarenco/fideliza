@@ -317,6 +317,15 @@ puntos ya se descontaron: el error queda anotado en
 `Canje.tiendanubeCuponError` (visible en el historial de canjes del negocio)
 para que se resuelva el descuento a mano en vez de perder el canje.
 
+**Acreditación de compras de Tiendanube** (2026-11-10, ver
+`docs/lanzamiento/acreditacion-tiendanube.md`): el webhook, una conciliación
+cada 20 minutos (`netlify/functions/conciliar-tiendanube.mjs`, red de
+seguridad si un aviso no llega) y `scripts/revisar-compras-tiendanube.mjs`
+(diagnóstico y recuperación, simulación por defecto) usan la misma lógica
+(`lib/acreditacionTiendanube.js`): busca a la clienta por el email del
+checkout o de su cuenta de la tienda (sin mayúsculas ni espacios) o por
+celular, registra cada orden en `OrdenTiendanube` y nunca acredita dos veces.
+
 **Exportar clientes a Google Sheets** (desde 2026-11-09, ver
 `docs/lanzamiento/google-sheets.md`): cada negocio conecta su propia cuenta de
 Google (solo el permiso `drive.file`: Retornar ve únicamente las hojas que

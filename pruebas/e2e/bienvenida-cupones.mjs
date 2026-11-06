@@ -4,6 +4,7 @@
 //
 // Correr con: node --import ./pruebas/e2e/simulaciones/todas.mjs pruebas/e2e/bienvenida-cupones.mjs
 // (ver pruebas/e2e/README.md).
+import { createHmac } from 'node:crypto'
 import fs from 'node:fs'
 import { BASE, DIR, chromiumDePlaywright } from './entorno.mjs'
 import { PrismaClient } from '@prisma/client'
@@ -167,7 +168,12 @@ fs.rmSync(CONTROL, { force: true })
 fs.writeFileSync(ESTADOS, '{}')
 
 console.log('Uso detectado por una orden pagada (webhook)')
-const webhook = (id) => fetch(`${BASE}/api/webhooks/tiendanube`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ store_id: 1, event: 'order/paid', id }) })
+// Firmado como Tiendanube si el servidor corre con TIENDANUBE_CLIENT_SECRET de prueba.
+const webhook = (id) => {
+  const cuerpo = JSON.stringify({ store_id: 1, event: 'order/paid', id })
+  const firma = process.env.TIENDANUBE_CLIENT_SECRET ? { 'x-linkedstore-hmac-sha256': createHmac('sha256', process.env.TIENDANUBE_CLIENT_SECRET).update(cuerpo).digest('hex') } : {}
+  return fetch(`${BASE}/api/webhooks/tiendanube`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...firma }, body: cuerpo })
+}
 fs.writeFileSync(ORDENES, JSON.stringify({
   7001: { id: 7001, payment_status: 'paid', status: 'open', contact_email: 'alguien-sin-cuenta@prueba.test', total: '20000', coupon: [{ code: codigos[4] }] },
   7002: { id: 7002, payment_status: 'paid', status: 'cancelled', contact_email: 'lucia@prueba.test', total: '20000', coupon: [codigos[0]] },
