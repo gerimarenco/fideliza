@@ -20,6 +20,11 @@ model Negocio {
   slug                  String?   @unique
   tiendanubeStoreId     String?   @unique
   tiendanubeAccessToken String?
+  // Conciliación de compras de Tiendanube (lib/conciliarTiendanube.js): la
+  // tarea programada revisa solo órdenes creadas desde esta fecha. Se
+  // inicializa sola en la primera corrida (nunca acredita compras de antes:
+  // esas se revisan con scripts/revisar-compras-tiendanube.mjs).
+  tiendanubeConciliarDesde DateTime?
   dragonfishBaseDeDatos String?   @unique
   dragonfishAgentToken  String?   @unique
   // Última vez que el agente local de Dragon Fish consultó pendientes (lo
@@ -63,6 +68,7 @@ model Negocio {
   alertaCanjePremioId  String?
   // Exportar clientes a Google Sheets (una conexión por negocio).
   conexionGoogle       ConexionGoogle?
+  ordenesTiendanube    OrdenTiendanube[]
   // Solo dígitos, con código de país y área (ej. 5492324123456) para wa.me.
   soporteWhatsapp       String?
   // Meses sin usar un lote de puntos para que venza (ver
@@ -394,4 +400,35 @@ model ConexionGoogle {
   exportandoDesde       DateTime?
   ultimaExportacionEn   DateTime?
   ultimaExportacionInfo String?
+}
+
+// Cada orden de Tiendanube que llegó a Retornar (por el webhook, la
+// conciliación programada o el script de recuperación) y qué pasó con ella:
+// así ninguna compra queda sin rastro y se puede diagnosticar y recuperar.
+// La protección contra acreditar dos veces sigue siendo WebhookEvento
+// ("tiendanube", "<storeId>:<orderId>"), la misma clave de siempre: las
+// compras acreditadas antes de esta tabla se siguen reconociendo.
+// estado: acreditada | sin_cliente | cuenta_posterior | pendiente_pago |
+//   cancelada | reembolsada | sin_puntos | incompleta | error
+model OrdenTiendanube {
+  id          String    @id @default(cuid())
+  negocioId   String
+  negocio     Negocio   @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  orderId     String
+  numero      String?
+  estado      String
+  motivo      String?
+  emailOculto String?   // "lu***@gmail.com": para diagnosticar sin guardar el email completo
+  total       Float?
+  pagadaEn    DateTime?
+  clienteId   String?
+  puntos      Int?
+  intentos    Int       @default(0)
+  ultimoError String?
+  via         String    // webhook | conciliacion | recuperacion
+  recibidaEn  DateTime  @default(now())
+  procesadaEn DateTime?
+
+  @@unique([negocioId, orderId])
+  @@index([negocioId, estado])
 }
