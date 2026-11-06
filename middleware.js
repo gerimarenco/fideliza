@@ -16,7 +16,9 @@ export function middleware(request) {
   // todavía -- sin esto, el middleware las mandaría derecho a /login antes
   // de que lleguen a verlas.
   const isPasswordResetPage = request.nextUrl.pathname.startsWith('/olvide-password') || request.nextUrl.pathname.startsWith('/restablecer-contrasena')
-  const isPublicPage = isLoginPage || isRegistroPage || isClubPage || isPasswordResetPage
+  // Política de privacidad: pública (la piden Google y las clientas antes de registrarse).
+  const isPrivacidadPage = request.nextUrl.pathname === '/privacidad'
+  const isPublicPage = isLoginPage || isRegistroPage || isClubPage || isPasswordResetPage || isPrivacidadPage
   
   if (!token && !isPublicPage) {
     return NextResponse.redirect(new URL('/login', request.url))
