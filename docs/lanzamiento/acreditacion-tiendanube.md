@@ -5,9 +5,21 @@ online y no recibió los puntos. Este documento recorre el proceso completo,
 las causas posibles, qué se cambió y cómo revisar y recuperar compras en
 producción sin duplicar puntos.
 
-**Sin acceso a producción** (base, logs de Netlify ni API de Tiendanube) desde
-el entorno de trabajo: la causa del caso puntual **no está confirmada**. Abajo
-están las hipótesis ordenadas y la evidencia exacta que las confirma o
+> **Estado del incidente: abierto.** La causa **no está confirmada**: no hubo
+> acceso a producción (base, logs de Netlify ni API de Tiendanube) desde el
+> entorno de trabajo. Lo del webhook (sección 4, hipótesis 1) es una
+> **hipótesis** deducida del código, no un hecho comprobado: sigue así hasta
+> verificar la configuración real de Tiendanube (a qué dirección está
+> suscripto `order/paid` en la tienda de Peperina y si la clave
+> `TIENDANUBE_CLIENT_SECRET` de Netlify es la de la app). No se recuperaron
+> puntos ni se cambió nada en producción: el próximo paso es el diagnóstico
+> controlado (sección 5, paso 1, solo lectura).
+>
+> **Ninguna orden mencionada en este documento ni en las pruebas es real.**
+> Las órdenes #1003, #1017 y el resto de los números que aparecen en las
+> pruebas son datos ficticios de la simulación (ver sección 6).
+
+Abajo están las hipótesis ordenadas y la evidencia exacta que las confirma o
 descarta (sección 4).
 
 ## 1. Recorrido de una compra (antes de este cambio)
@@ -88,8 +100,10 @@ Todas se revisan con el script en modo simulación (sección 5), que no
 cambia nada:
 
 1. **El aviso no llega (dirección vieja o suscripción ausente)** — la más
-   probable por el código: la suscripción se creó con la dirección del
-   navegador. *Evidencia*: la sección 1 del script marca ✗ si la dirección no
+   probable por el código, pero **sin verificar**: la suscripción se creó con
+   la dirección del navegador, y no se sabe cuál era ni si sigue existiendo.
+   Se confirma o descarta solo mirando la configuración real de la tienda.
+   *Evidencia*: la sección 1 del script marca ✗ si la dirección no
    es `https://retornar.com.ar/api/webhooks/tiendanube`, y muestra la última
    compra online acreditada y cuántas por mes (si no hay ninguna desde
    mediados de septiembre, ninguna compra online sumó desde entonces).
@@ -143,6 +157,14 @@ DATABASE_URL=<producción> node scripts/revisar-compras-tiendanube.mjs --negocio
   posterior, multiempresa, conciliación y script.
 - `lib/acreditacionTiendanube.test.js`: clasificación de órdenes, emails y
   celulares de la orden, reparación del webhook, paginación de órdenes.
+- **Orden #1003 (y #1017): casos de prueba, no compras reales.** Son órdenes
+  inventadas por la suite e2e (el número sale del id simulado menos 8000), con
+  una clienta ficticia (`ana.compra@prueba.test`) en una base local de prueba,
+  y la "API de Tiendanube" es la simulación de `pruebas/e2e/simulaciones/`.
+  La #1003 es el caso "aviso rechazado por firma inválida": la prueba
+  comprueba que el script la detecta y la recupera una sola vez. **No se
+  comprobó ninguna orden en producción**; si Peperina tiene órdenes reales
+  con esos números, no tienen relación con las pruebas.
 - **No probado contra Tiendanube real** (no hay acceso): que pase la
   simulación no prueba la integración. Después del deploy: una compra real de
   prueba, y ver en `OrdenTiendanube` / el script que figure "acreditada".
