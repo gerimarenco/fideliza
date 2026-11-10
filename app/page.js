@@ -129,6 +129,10 @@ export default function Home() {
   // pueden canjear el premio de la alerta, y el resumen { premio, pendientes }.
   const [clientesSoloAlerta, setClientesSoloAlerta] = useState(false);
   const [resumenAlerta, setResumenAlerta] = useState(null);
+  // Ventas del local sin identificar (Integraciones → Dragon Fish): null = sin cargar.
+  const [ventasSinIdentificar, setVentasSinIdentificar] = useState(null);
+  const [asignacionVenta, setAsignacionVenta] = useState({});
+  const [ocupadoVentas, setOcupadoVentas] = useState(null);
   const [clientesData, setClientesData] = useState(null);
   const [clientesBusqueda, setClientesBusqueda] = useState('');
   const [clientesBusquedaDebounced, setClientesBusquedaDebounced] = useState('');
@@ -2009,11 +2013,96 @@ export default function Home() {
         <p style={{ ...ui.ayuda, marginTop: 8 }}>El token se usa para configurar el agente que corre en la PC del local — se muestra una sola vez al generarlo.</p>
       </section>
 
+      {negocioMostrado?.dragonfishConectado && (
+        <section aria-labelledby="ventas-sin-identificar">
+          <TituloBloque><span id="ventas-sin-identificar">Ventas del local sin identificar</span></TituloBloque>
+          <p style={{ ...ui.ayuda, marginTop: 8 }}>Ventas de la caja que no se pudieron unir a una cuenta: la ficha de Dragon Fish no tiene email, celular ni DNI, o no coinciden con los de su cuenta en Retornar. Completá la ficha y tocá «Volver a revisar», o elegí a la clienta y sumale los puntos. Una compra de antes de que la clienta se registrara no suma.</p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '12px 0' }}>
+            <button type="button" className="fid-btn-secondary" onClick={cargarVentasSinIdentificar} disabled={!!ocupadoVentas} style={ui.botonSecundario}>{ventasSinIdentificar ? 'Actualizar lista' : 'Ver ventas sin identificar'}</button>
+            <button type="button" className="fid-btn-secondary" onClick={revisarVentasSinIdentificar} disabled={!!ocupadoVentas} style={ui.botonSecundario}>Volver a revisar (últimos 60 días)</button>
+          </div>
+          {ventasSinIdentificar && ventasSinIdentificar.length === 0 && <p style={{ fontSize: 14 }}>No hay ventas sin identificar en los últimos 90 días.</p>}
+          {ventasSinIdentificar && ventasSinIdentificar.length > 0 && (
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
+              {ventasSinIdentificar.map((v) => {
+                const clientes = negocioMostrado?.clientes || [];
+                const sugeridas = clientes.filter((c) => v.sugerencias.includes(c.id));
+                const elegida = asignacionVenta[v.codigo] || '';
+                return (
+                  <li key={v.codigo} style={{ border: `1px solid ${tema.borde}`, padding: 12, fontSize: 14, display: 'grid', gap: 8 }}>
+                    <div><strong>{fechaCorta(v.fecha)}</strong> · {v.monto != null ? `$${formatearMiles(v.monto)}${v.puntos ? ` (${formatearMiles(v.puntos)} puntos)` : ''}` : 'monto sin guardar: tocá «Volver a revisar»'} · ficha: {v.nombreFicha || 'sin nombre'}{v.motivo === 'sin_datos' ? ' · sin email, celular ni DNI' : ' · no coincide con ninguna cuenta'}</div>
+                    {v.monto != null && v.puntos > 0 && (
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <select aria-label="Clienta" value={elegida} onChange={(e) => setAsignacionVenta((a) => ({ ...a, [v.codigo]: e.target.value }))} style={{ ...ui.input, flex: '1 1 220px', width: 'auto' }}>
+                          <option value="">Elegir clienta…</option>
+                          {sugeridas.length > 0 && <optgroup label="Parecidas por nombre">{sugeridas.map((c) => <option key={c.id} value={c.id}>{c.nombre || c.email}</option>)}</optgroup>}
+                          <optgroup label="Todas">{clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre ? `${c.nombre} (${c.email})` : c.email}</option>)}</optgroup>
+                        </select>
+                        <button type="button" className="fid-btn-primary" onClick={() => asignarVenta(v)} disabled={!elegida || !!ocupadoVentas} style={{ ...ui.botonPrimario, width: 'auto' }}>Sumar puntos</button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
+
       <div><button type="button" className="fid-btn-primary" onClick={guardarIntegraciones} style={ui.botonPrimario}>Guardar integraciones</button></div>
     </div>
   );
 
   // --- Exportar clientes (Excel y Google Sheets) ---
+  // Ventas del local que el agente no pudo reconocer: volver a revisarlas o
+  // asignarlas a mano a una clienta (ver app/api/dragonfish/sin-identificar).
+  const cargarVentasSinIdentificar = () => {
+    if (!negocioMostrado?.id) return;
+    setOcupadoVentas('cargar');
+    fetch(`/api/dragonfish/sin-identificar?negocioId=${negocioMostrado.id}`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setVentasSinIdentificar(data?.ventas || []))
+      .catch(() => mostrarToast('error', 'No se pudieron cargar las ventas.'))
+      .finally(() => setOcupadoVentas(null));
+  };
+  const accionVentas = async (clave, cuerpo) => {
+    setOcupadoVentas(clave);
+    try {
+      const res = await fetch('/api/dragonfish/sin-identificar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ negocioId: negocioMostrado.id, ...cuerpo }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { mostrarToast('error', data.error || 'No se pudo completar.'); return null; }
+      return data;
+    } catch {
+      mostrarToast('error', 'No se pudo completar. Probá de nuevo.');
+      return null;
+    } finally {
+      setOcupadoVentas(null);
+    }
+  };
+  const revisarVentasSinIdentificar = async () => {
+    if (!window.confirm('Las ventas sin identificar de los últimos 60 días vuelven a la fila y el agente las revisa de nuevo con los datos actuales de las fichas. Las compras de antes de que la clienta se registrara siguen sin sumar. ¿Seguir?')) return;
+    const data = await accionVentas('revisar', { accion: 'revisar', dias: 60 });
+    if (data) {
+      mostrarToast('exito', data.enRevision ? `${data.enRevision} venta(s) vuelven a revisarse. El agente las procesa en unos minutos.` : 'No había ventas para revisar.');
+      setVentasSinIdentificar(null);
+      cargarNegocios();
+    }
+  };
+  const asignarVenta = async (venta) => {
+    const clienteId = asignacionVenta[venta.codigo];
+    const clienta = (negocioMostrado?.clientes || []).find((c) => c.id === clienteId);
+    if (!clienta) return;
+    if (!window.confirm(`¿Sumarle ${formatearMiles(venta.puntos)} puntos a ${clienta.nombre || clienta.email} por la compra de $${formatearMiles(venta.monto)}?`)) return;
+    const data = await accionVentas(`asignar-${venta.codigo}`, { accion: 'asignar', codigo: venta.codigo, clienteId });
+    if (data?.ok) {
+      mostrarToast('exito', `Listo: ${formatearMiles(data.puntos)} puntos sumados.`);
+      setVentasSinIdentificar((lista) => (lista || []).filter((v) => v.codigo !== venta.codigo));
+      cargarNegocios();
+    } else if (data) {
+      mostrarToast('error', data.resultado === 'duplicado' ? 'Esa venta ya se había acreditado.' : 'No se sumaron puntos.');
+    }
+  };
+
   const recargarEstadoGoogle = () => fetch('/api/google-sheets/estado', { cache: 'no-store' })
     .then((res) => (res.ok ? res.json() : null))
     .then(setEstadoGoogle)

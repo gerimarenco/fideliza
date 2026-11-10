@@ -2,10 +2,8 @@ import { prisma } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { autenticarAgente } from '@/lib/dragonfishAgente'
 import { enviarEmailPuntosAcreditados } from '@/lib/email'
-import { calcularPuntosPorCompra } from '@/lib/puntos'
-import { acreditarSiEsPrimeraCompraReferida } from '@/lib/referidos'
-import { normalizarEmail, filtroEmail, normalizarTelefono } from '@/lib/identidad'
-import { mismoCelular } from '@/lib/bienvenida'
+import { normalizarEmail } from '@/lib/identidad'
+import { montoDeVenta, nombreDeFicha, celularesDeVenta, dniDeVenta, buscarClientaDeVenta, cuentaPosterior, acreditarVenta } from '@/lib/dragonfishIdentificacion'
 
 // El agente local reporta acá el resultado de consultar una factura pendiente
 // contra la API REST de Dragon Fish: monto de la venta y el dato de
@@ -18,10 +16,10 @@ import { mismoCelular } from '@/lib/bienvenida'
 // con ese resultado y devolverlo. Un helper evita que una futura corrección
 // de este patrón (ej. loguear algo más) se aplique en dos lugares y se
 // olvide en el tercero.
-async function marcarFactura(facturaId, codigo, resultado) {
+async function marcarFactura(facturaId, codigo, resultado, datos = {}) {
   await prisma.facturaPendiente.update({
     where: { id: facturaId },
-    data: { procesado: true, resultado },
+    data: { procesado: true, resultado, ...datos, procesadaEn: new Date() },
   })
   return NextResponse.json({ codigo, procesado: true, resultado })
 }
@@ -41,7 +39,7 @@ export async function POST(request) {
   }
 
   const body = await request.json()
-  const { codigo, monto, email, telefono, sinDatos } = body
+  const { codigo, sinDatos } = body
 
   if (!codigo) {
     return NextResponse.json({ error: 'codigo es obligatorio' }, { status: 400 })
@@ -62,44 +60,21 @@ export async function POST(request) {
     return NextResponse.json({ codigo, procesado: true, resultado: factura.resultado })
   }
 
-  const emailNormalizado = normalizarEmail(email)
-  // Dragon Fish puede traer el celular con guiones o espacios: acá quedan
-  // solo los dígitos, para buscar a la clienta más abajo.
-  const telefonoNormalizado = normalizarTelefono(telefono)
+  // Lo que pudo sacar el agente de la factura y de la ficha del cliente
+  // (ver lib/dragonfishIdentificacion.js). El agente viejo manda solo
+  // email/telefono; el nuevo, además, telefonos (Movil y Telefono), dni,
+  // cuit y el nombre de la ficha.
+  const monto = montoDeVenta(body.monto)
+  const nombreFicha = nombreDeFicha(body.nombre)
+  const email = normalizarEmail(body.email)
+  const celulares = celularesDeVenta(body)
+  const dni = dniDeVenta(body)
+  // El monto y el nombre quedan guardados para la pantalla "Ventas del
+  // local sin identificar" (asignar a mano la que no se pudo reconocer).
+  const marcar = (resultado, extra = {}) => marcarFactura(factura.id, codigo, resultado, { monto, nombreFicha, ...extra })
 
-  // Dragon Fish (vía el agente local) puede mandar el monto como número o
-  // como string (algunos ERPs viejos serializan los decimales como texto) —
-  // hay que aceptar los dos sin caer de nuevo en el bug original de
-  // Number(null/''/false) === 0 colando como "monto válido". Por eso NO se
-  // usa Number(monto) directo: solo se coacciona si es un number real o un
-  // string no vacío, cualquier otra cosa (null, '', false, undefined) queda
-  // en NaN y cae en sin_datos. monto < 0 tampoco se procesa, por si Dragon
-  // Fish manda una nota de crédito con Total negativo, que /Facturaagrupada
-  // agrupa junto con las facturas de venta.
-  const montoNumerico = typeof monto === 'number'
-    ? monto
-    : (typeof monto === 'string' && monto.trim() !== '' ? Number(monto) : NaN)
-  if (sinDatos || !Number.isFinite(montoNumerico) || montoNumerico < 0 || (!emailNormalizado && !telefonoNormalizado)) {
-    return marcarFactura(factura.id, codigo, 'sin_datos')
-  }
-
-  // Primero por email; si no, por celular. El celular se compara con
-  // mismoCelular (lib/bienvenida.js): Dragon Fish lo puede traer como
-  // "2324-500294" y Retornar lo guarda como "+5492324500294" (o, en cuentas
-  // viejas, como se haya cargado). La base trae las candidatas por los
-  // últimos 6 dígitos (iguales en cualquier forma) y la comparación exacta se
-  // hace acá; si dos cuentas comparten el celular, se toma la más antigua.
-  let cliente = emailNormalizado
-    ? await prisma.cliente.findFirst({ where: { negocioId: negocio.id, email: filtroEmail(emailNormalizado) } })
-    : null
-  if (!cliente && telefonoNormalizado.length >= 6) {
-    const candidatas = await prisma.$queryRaw`
-      SELECT id, telefono FROM "Cliente"
-      WHERE "negocioId" = ${negocio.id}
-        AND right(regexp_replace(coalesce(telefono, ''), '[^0-9]', '', 'g'), 6) = ${telefonoNormalizado.slice(-6)}
-      ORDER BY "createdAt" ASC, id ASC`
-    const coincidencia = candidatas.find((c) => mismoCelular(c.telefono, telefonoNormalizado))
-    if (coincidencia) cliente = await prisma.cliente.findUnique({ where: { id: coincidencia.id } })
+  if (sinDatos || monto == null || (!email && !celulares.length && !dni)) {
+    return marcar('sin_datos')
   }
 
   // A propósito no se crea cuenta sola acá aunque la venta traiga email:
@@ -107,57 +82,20 @@ export async function POST(request) {
   // Retornar (y que se le está usando su mail para eso) sin haberse
   // registrado ella misma. Una venta de alguien sin cuenta todavía queda
   // sin acreditar hasta que se registre por su cuenta en /registro/[negocio]
-  // — ahí sí, sus próximas compras la van a encontrar por email/teléfono.
-  if (!cliente) {
-    return marcarFactura(factura.id, codigo, 'sin_cliente')
+  // — ahí sí, sus próximas compras la van a encontrar por email/teléfono/DNI.
+  const { cliente, por } = await buscarClientaDeVenta(prisma, negocio.id, { email, celulares, dni })
+  if (!cliente) return marcar('sin_cliente')
+  // Compra anterior al registro: no suma (aunque se procese tarde, por
+  // ejemplo si el agente estuvo apagado).
+  if (cuentaPosterior(cliente, factura)) return marcar('cuenta_posterior', { clienteId: cliente.id, identificadaPor: por })
+
+  const r = await acreditarVenta(prisma, negocio, factura, cliente, monto, { por })
+  if (r.estado !== 'acreditado') {
+    return NextResponse.json({ codigo, procesado: true, resultado: r.estado })
   }
-
-  const puntos = calcularPuntosPorCompra(montoNumerico, negocio.puntosXPeso)
-
-  // Una venta que no llega a 1 punto (ej. un cambio de prenda facturado en
-  // $0, o un monto menor a puntosXPeso) no acredita nada: sin esto se
-  // mandaba un mail de "sumaste 0 puntos" y, si era la primera compra de una
-  // clienta referida, se pagaba el bono de referidos por una venta sin valor.
-  if (puntos <= 0) {
-    return marcarFactura(factura.id, codigo, 'sin_puntos')
-  }
-
-  // Mismo patrón de idempotencia que Mercado Pago/Tiendanube: WebhookEvento +
-  // Cliente.update + MovimientoPuntos.create en una sola transacción, más el
-  // FacturaPendiente.procesado de arriba como segunda barrera si el agente
-  // reintenta muy rápido (antes de ver la respuesta anterior).
-  let clienteActualizado, referido
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.webhookEvento.create({
-        data: { proveedor: 'dragonfish', referenciaExterna: `${negocio.id}:${codigo}` },
-      })
-      clienteActualizado = await tx.cliente.update({
-        where: { id: cliente.id },
-        data: { puntos: { increment: puntos } },
-      })
-      await tx.movimientoPuntos.create({
-        data: { clienteId: cliente.id, negocioId: negocio.id, puntos, origen: 'dragonfish', saldoRestante: puntos },
-      })
-      await tx.facturaPendiente.update({
-        where: { id: factura.id },
-        data: { procesado: true, resultado: 'acreditado' },
-      })
-      referido = await acreditarSiEsPrimeraCompraReferida(tx, cliente, negocio)
-    })
-  } catch (error) {
-    if (error.code === 'P2002') {
-      return marcarFactura(factura.id, codigo, 'duplicado')
-    }
-    throw error
-  }
-
-  // Si esta fue la primera compra de una clienta referida, su saldo final
-  // quedó desactualizado -- se le pagó el bono después de leerlo, dentro
-  // de la misma transacción.
-  const puntosTotalesFinales = referido
-    ? (await prisma.cliente.findUnique({ where: { id: cliente.id }, select: { puntos: true } })).puntos
-    : clienteActualizado.puntos
+  const referido = r.referido
+  const puntos = r.puntos
+  const puntosTotalesFinales = r.puntosTotales
 
   await enviarEmailPuntosAcreditados({
     email: cliente.email,
