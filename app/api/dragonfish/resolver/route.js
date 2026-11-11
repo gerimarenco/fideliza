@@ -72,7 +72,9 @@ export async function POST(request) {
   const dni = dniDeVenta(body)
   // El monto y el nombre quedan guardados para la pantalla "Ventas del
   // local sin identificar" (asignar a mano la que no se pudo reconocer).
-  const marcar = (resultado, extra = {}) => marcarFactura(factura.id, codigo, resultado, { monto, nombreFicha, codigoFicha, ...extra })
+  // Si un reporte trae menos datos que uno anterior (por ejemplo, un agente
+  // viejo al volver a revisar), se conserva lo que ya estaba guardado.
+  const marcar = (resultado, extra = {}) => marcarFactura(factura.id, codigo, resultado, { monto: monto ?? factura.monto, nombreFicha: nombreFicha ?? factura.nombreFicha, codigoFicha: codigoFicha ?? factura.codigoFicha, candidatas: [], ...extra })
 
   if (sinDatos || monto == null || (!codigoFicha && !email && !celulares.length && !dni)) {
     return marcar('sin_datos')
@@ -84,14 +86,15 @@ export async function POST(request) {
   // registrado ella misma. Una venta de alguien sin cuenta todavía queda
   // sin acreditar hasta que se registre por su cuenta en /registro/[negocio]
   // — ahí sí, sus próximas compras la van a encontrar por email/teléfono/DNI.
-  const { cliente, por } = await buscarClientaDeVenta(prisma, negocio.id, { codigoFicha, email, celulares, dni })
+  const { cliente, por, ambigua, candidatas } = await buscarClientaDeVenta(prisma, negocio.id, { codigoFicha: codigoFicha ?? factura.codigoFicha, email, celulares, dni })
+  if (ambigua) return marcar('ambigua', { candidatas })
   // Sin email, celular ni DNI, y la ficha todavía no se vinculó: "sin datos".
   if (!cliente) return marcar(!email && !celulares.length && !dni ? 'sin_datos' : 'sin_cliente')
   // Compra anterior al registro: no suma (aunque se procese tarde, por
   // ejemplo si el agente estuvo apagado).
   if (cuentaPosterior(cliente, factura)) return marcar('cuenta_posterior', { clienteId: cliente.id, identificadaPor: por })
 
-  const r = await acreditarVenta(prisma, negocio, { ...factura, codigoFicha, nombreFicha }, cliente, monto, { por })
+  const r = await acreditarVenta(prisma, negocio, { ...factura, codigoFicha: codigoFicha ?? factura.codigoFicha, nombreFicha: nombreFicha ?? factura.nombreFicha }, cliente, monto, { por })
   if (r.estado !== 'acreditado') {
     return NextResponse.json({ codigo, procesado: true, resultado: r.estado })
   }

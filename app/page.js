@@ -2032,12 +2032,12 @@ export default function Home() {
                 const elegida = asignacionVenta[v.codigo] || '';
                 return (
                   <li key={v.codigo} style={{ border: `1px solid ${tema.borde}`, padding: 12, fontSize: 14, display: 'grid', gap: 8 }}>
-                    <div><strong>{fechaCorta(v.fecha)}</strong> · {v.monto != null ? `$${formatearMiles(v.monto)}${v.puntos ? ` (${formatearMiles(v.puntos)} puntos)` : ''}` : 'monto sin guardar: tocá «Volver a revisar»'} · ficha: {v.nombreFicha || 'sin nombre'}{v.motivo === 'sin_datos' ? ' · sin email, celular ni DNI' : ' · no coincide con ninguna cuenta'}</div>
+                    <div><strong>{fechaCorta(v.fecha)}</strong> · {v.monto != null ? `$${formatearMiles(v.monto)}${v.puntos ? ` (${formatearMiles(v.puntos)} puntos)` : ''}` : 'monto sin guardar: tocá «Volver a revisar»'} · ficha: {v.nombreFicha || 'sin nombre'}{v.motivo === 'sin_datos' ? ' · sin email, celular ni DNI' : v.motivo === 'ambigua' ? ' · sus datos coinciden con más de una cuenta: elegí cuál' : ' · no coincide con ninguna cuenta'}</div>
                     {v.monto != null && v.puntos > 0 && (
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                         <select aria-label="Clienta" value={elegida} onChange={(e) => setAsignacionVenta((a) => ({ ...a, [v.codigo]: e.target.value }))} style={{ ...ui.input, flex: '1 1 220px', width: 'auto' }}>
                           <option value="">Elegir clienta…</option>
-                          {sugeridas.length > 0 && <optgroup label="Parecidas por nombre">{sugeridas.map((c) => <option key={c.id} value={c.id}>{c.nombre || c.email}</option>)}</optgroup>}
+                          {sugeridas.length > 0 && <optgroup label={v.motivo === 'ambigua' ? 'Sugeridas (por sus datos o nombre)' : 'Parecidas por nombre'}>{sugeridas.map((c) => <option key={c.id} value={c.id}>{c.nombre || c.email}</option>)}</optgroup>}
                           <optgroup label="Todas">{clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre ? `${c.nombre} (${c.email})` : c.email}</option>)}</optgroup>
                         </select>
                         <button type="button" className="fid-btn-primary" onClick={() => asignarVenta(v)} disabled={!elegida || !!ocupadoVentas} style={{ ...ui.botonPrimario, width: 'auto' }}>Sumar puntos</button>

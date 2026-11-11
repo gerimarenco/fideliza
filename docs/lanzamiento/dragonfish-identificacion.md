@@ -23,8 +23,13 @@ fila desde agosto, y aparecieron dos problemas:
   ficha del cliente de la factura y manda email, `Movil`, `Telefono`,
   `NroDocumento`, `CUIT` y el nombre. Sigue sin escribir nada en Dragon Fish.
 - **Retornar** (`lib/dragonfishIdentificacion.js`, `app/api/dragonfish/resolver`):
-  - busca la cuenta por **email**, después por **celular** (cualquier
-    formato) y después por **DNI** (también el que va dentro del CUIT/CUIL);
+  - primero, si la ficha está **vinculada** a una cuenta, esa cuenta;
+  - si no, mira **email**, **celular** (cualquier formato) y **DNI** (también
+    el que va dentro del CUIT/CUIL). **Solo acredita sola si todos esos datos
+    señalan a una única cuenta.** Si señalan a más de una (un celular
+    compartido por dos cuentas, o el email de una y el celular de otra), la
+    venta queda **"ambigua"** y aparece en el panel con esas cuentas
+    sugeridas, para que una persona elija;
   - **una compra de antes de que existiera la cuenta no suma** (queda
     "cuenta_posterior"), aunque se procese tarde;
   - por nombre nunca acredita solo (puede haber dos personas con el mismo);
@@ -58,12 +63,13 @@ fila desde agosto, y aparecieron dos problemas:
   vinculada a otra clienta no se vuelve a vincular (hay que desvincularla
   primero), y la lista **"Fichas de Dragon Fish vinculadas"** permite
   desvincular una puesta por error (los puntos ya sumados no cambian).
-- **Reporte de solo lectura**: `scripts/revisar-dragonfish-cuenta-posterior.mjs`
-  lista las ventas ya acreditadas a cuentas creadas después de la compra
-  (fecha de venta, de registro, puntos, email oculto). No cambia nada.
-- Migración `20261111120000_dragonfish_identificacion`: cinco columnas nuevas
-  vacías en `FacturaPendiente`; no modifica datos existentes (comprobado con
-  una huella de todas las tablas).
+- Migraciones `20261111120000_dragonfish_identificacion` y
+  `20261112120000_fichas_dragonfish`: columnas nuevas vacías en
+  `FacturaPendiente` y la tabla nueva `FichaDragonfish`; no modifican datos
+  existentes (comprobado con una huella de todas las tablas).
+- Si un reporte trae menos datos que uno anterior (por ejemplo, un agente
+  viejo al "Volver a revisar"), se conservan el monto, el nombre y el código
+  de ficha ya guardados.
 
 ## Pendiente (con autorización)
 
@@ -76,13 +82,14 @@ fila desde agosto, y aparecieron dos problemas:
    existía.
 4. Las que sigan sin identificar: asignarlas a mano con "Recordar esta ficha"
    tildado (una vez por clienta; después suman solas).
-5. **Compras de octubre acreditadas a cuentas de noviembre**: correr el
-   reporte (solo lectura) y decidir si se dejan o se descuentan. No se tocó
-   ningún saldo.
+
+**Fuera de alcance**: las acreditaciones ya hechas (incluidas las compras de
+octubre acreditadas el 2026-11-10) quedan como están; no se corrigen ni se
+revierten, y no se modifica ningún saldo ni movimiento histórico.
 
 ## Pruebas
 
-- `pruebas/e2e/dragonfish-identificacion.mjs` (36 comprobaciones, con la vinculación de fichas): email con
+- `pruebas/e2e/dragonfish-identificacion.mjs` (con la vinculación de fichas y las coincidencias ambiguas): email con
   mayúsculas, `Movil` con otro formato, DNI, CUIT, agente viejo, reporte
   repetido, cuenta posterior, solo nombre, sin cuenta, multiempresa,
   permisos, asignación (otro negocio, cuenta posterior, dos veces), volver a

@@ -1,6 +1,7 @@
 -- Fichas de Dragon Fish vinculadas a cuentas de Retornar (2026-11-12). Tabla
--- nueva y una columna vacía: no modifica ninguna fila existente.
+-- nueva y columnas vacías: no modifica ninguna fila existente.
 ALTER TABLE "FacturaPendiente" ADD COLUMN "codigoFicha" TEXT;
+ALTER TABLE "FacturaPendiente" ADD COLUMN "candidatas" TEXT[] DEFAULT ARRAY[]::TEXT[];
 
 CREATE TABLE "FichaDragonfish" (
     "id" TEXT NOT NULL,

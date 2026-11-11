@@ -8,7 +8,8 @@ import { acreditarVenta, cuentaPosterior, fichaGenerica } from '@/lib/dragonfish
 
 // "Ventas del local sin identificar" (Integraciones → Dragon Fish): las
 // ventas que el agente procesó pero no pudo reconocer (sin_cliente /
-// sin_datos), para que el negocio:
+// sin_datos / ambigua: sus datos señalan a más de una cuenta), para que el
+// negocio:
 //   - las vuelva a revisar (después de completar fichas o de actualizar el
 //     agente): vuelven a la fila y el agente las procesa con las reglas
 //     actuales (una venta anterior a la cuenta sigue sin sumar);
@@ -18,7 +19,7 @@ import { acreditarVenta, cuentaPosterior, fichaGenerica } from '@/lib/dragonfish
 //     también las otras ventas sin identificar de esa ficha;
 //   - desvincule una ficha vinculada por error.
 // Solo el negocio dueño o el admin; siempre las de ese negocio.
-const RESULTADOS = ['sin_cliente', 'sin_datos']
+const RESULTADOS = ['sin_cliente', 'sin_datos', 'ambigua']
 const DIAS_LISTA = 90
 
 async function autorizar(request, negocioIdBody) {
@@ -43,20 +44,24 @@ export async function GET(request) {
     where: { negocioId: negocio.id, procesado: true, resultado: { in: RESULTADOS }, createdAt: { gte: desde } },
     orderBy: { createdAt: 'desc' },
     take: 200,
-    select: { codigo: true, fecha: true, hora: true, createdAt: true, monto: true, nombreFicha: true, codigoFicha: true, resultado: true },
+    select: { codigo: true, fecha: true, hora: true, createdAt: true, monto: true, nombreFicha: true, codigoFicha: true, resultado: true, candidatas: true },
   })
   // Sugerencias por nombre (solo para ayudar a elegir; nunca se acredita sola
   // por nombre): cuentas cuyo nombre tiene todas las palabras de la ficha y
   // que ya existían cuando se hizo la compra.
-  const clientes = facturas.some((f) => f.nombreFicha)
+  const clientes = facturas.some((f) => f.nombreFicha || f.candidatas.length)
     ? await prisma.cliente.findMany({ where: { negocioId: negocio.id }, select: { id: true, nombre: true, createdAt: true } })
     : []
   const indice = clientes.map((c) => ({ id: c.id, createdAt: c.createdAt, palabras: palabras(c.nombre) }))
   const ventas = facturas.map((f) => {
     const buscadas = palabras(f.nombreFicha)
-    const sugerencias = buscadas.length
-      ? indice.filter((c) => c.createdAt <= f.createdAt && buscadas.every((p) => c.palabras.includes(p))).slice(0, 5).map((c) => c.id)
+    // Primero las cuentas a las que señalan sus datos (venta ambigua), después
+    // las parecidas por nombre; solo cuentas que ya existían en la compra.
+    const porDatos = indice.filter((c) => f.candidatas.includes(c.id) && c.createdAt <= f.createdAt).map((c) => c.id)
+    const porNombre = buscadas.length
+      ? indice.filter((c) => c.createdAt <= f.createdAt && buscadas.every((p) => c.palabras.includes(p))).map((c) => c.id)
       : []
+    const sugerencias = [...new Set([...porDatos, ...porNombre])].slice(0, 8)
     return { codigo: f.codigo, fecha: f.createdAt, monto: f.monto, puntos: f.monto != null ? calcularPuntosPorCompra(f.monto, negocio.puntosXPeso) : null, nombreFicha: f.nombreFicha, motivo: f.resultado, sugerencias, vinculable: !fichaGenerica(f.nombreFicha, f.codigoFicha) }
   })
   const vinculadas = await prisma.fichaDragonfish.findMany({ where: { negocioId: negocio.id }, orderBy: { createdAt: 'desc' }, take: 300, select: { codigo: true, nombreFicha: true, clienteId: true, createdAt: true } })
