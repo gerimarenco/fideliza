@@ -53,6 +53,10 @@ const f05 = await venta(pf.id, '05/11/2026', '00:00:00', '2026-11-05T03:00:20Z',
 // Reloj de la PC del local adelantado: Dragon Fish dice 05/11 00:10 y el aviso
 // figura llegado el 04/11 23:58 (hora del servidor). Cuenta la de Dragon Fish.
 const fReloj = await venta(pf.id, '05/11/2026', '00:10:00', '2026-11-05T02:58:00Z', { resultado: 'sin_cliente' })
+// Sin fecha verificable: no entran en la recuperación (no se usa la llegada).
+const fSinFecha = await venta(pf.id, '', '', '2026-11-05T15:00:00Z', { resultado: 'sin_cliente' }) // sin fecha, recibida el 05/11
+const fIlegible = await venta(pf.id, '6 de noviembre', '10:00', '2026-11-06T13:00:05Z', { resultado: 'sin_cliente' }) // ilegible, recibida el 06/11
+const fPosterior = await venta(pf.id, '20/11/2026', '10:00:00', '2026-11-06T13:00:05Z', { resultado: 'sin_cliente' }) // fecha posterior al aviso
 const fOct = await venta(pf.id, '15/10/2026', '18:00:00', '2026-10-15T21:00:05Z', { resultado: 'sin_cliente' })
 const fSep = await venta(pf.id, '20/09/2026', '11:00:00', '2026-09-20T14:00:05Z')
 const fBeaAntes = await venta(pf.id, '06/11/2026', '10:00:00', '2026-11-06T13:00:04Z', { resultado: 'sin_cliente' })
@@ -65,9 +69,14 @@ const ficha = { codigoFicha: 'F-FLOR', nombreFicha: 'FICHA FLOR' }
 const flOct = await venta(pf.id, '30/10/2026', '16:00:00', '2026-10-30T19:00:02Z', { ...ficha, monto: 3000 })
 const fl04 = await venta(pf.id, '04/11/2026', '22:00:00', '2026-11-05T01:00:02Z', { ...ficha, monto: 4000 })
 const fl06 = await venta(pf.id, '06/11/2026', '11:00:00', '2026-11-06T14:00:02Z', { ...ficha, monto: 6000 })
+const flSinFecha = await venta(pf.id, '', '', '2026-11-07T14:00:02Z', { ...ficha, monto: 5000 })
 const fl09 = await venta(pf.id, '09/11/2026', '11:00:00', '2026-11-09T14:00:02Z', { ...ficha, monto: 9000 })
 // Pendiente desde antes (nunca la procesó el agente), del 03/11.
 const fPend = await venta(pf.id, '03/11/2026', '10:00:00', '2026-11-03T13:00:02Z', { procesado: false, resultado: null, monto: null })
+// Pendiente sin fecha que quedó en la fila (recibida el 06/11).
+const fPendSinFecha = await venta(pf.id, '', '', '2026-11-06T13:00:02Z', { procesado: false, resultado: null, monto: null })
+// Otro negocio, sin límite: una venta sin fecha (sigue como antes: cuenta la llegada).
+const fOtraSinFecha = await venta(pep.id, '', '', '2026-11-04T18:00:02Z', { resultado: 'sin_cliente', monto: 3000 })
 // Otro negocio, sin límite: una venta del 04/11.
 const fOtra = await venta(pep.id, '04/11/2026', '15:00:00', '2026-11-04T18:00:02Z', { resultado: 'sin_cliente', monto: 7000 })
 
@@ -94,17 +103,18 @@ const codigos = (r.cuerpo.ventas || []).map((v) => v.codigo)
 chequear(r.status === 200 && r.cuerpo.desde === '2026-11-05T03:00:00.000Z', 'informa desde cuándo suman: 05/11/2026 00:00 de Argentina')
 chequear([f05, fReloj, fBeaAntes, fBeaDespues, fAmb, fl06, fl09].every((f) => codigos.includes(f.codigo)), 'muestra las del 05/11 en adelante (también una cuyo aviso figura llegado el 04/11 por el reloj de la PC)')
 chequear(![f04, fOct, fSep, flOct, fl04, fYa].some((f) => codigos.includes(f.codigo)), 'no muestra las anteriores al 05/11 (tampoco la del 04/11 23:59:59 cuyo aviso llegó el 05/11) ni las ya acreditadas')
+chequear(![fSinFecha, fIlegible, fPosterior, flSinFecha].some((f) => codigos.includes(f.codigo)), 'no muestra las que no tienen fecha verificable (vacía, ilegible o posterior al aviso), aunque el aviso haya llegado el 05/11 o después')
 chequear(r.cuerpo.ventas.find((v) => v.codigo === f05.codigo)?.fecha === '2026-11-05T03:00:00.000Z', 'la fecha que muestra es la de la venta en Dragon Fish')
 r = await pedir(negOtro, 'GET', `${API}?negocioId=${pep.id}`)
-chequear(r.cuerpo.desde === null && r.cuerpo.ventas.some((v) => v.codigo === fOtra.codigo), 'otro negocio: sin límite, ve su venta del 04/11')
+chequear(r.cuerpo.desde === null && r.cuerpo.ventas.some((v) => v.codigo === fOtra.codigo) && r.cuerpo.ventas.some((v) => v.codigo === fOtraSinFecha.codigo), 'otro negocio: sin límite, ve su venta del 04/11 y la sin fecha (como antes)')
 
 console.log('Volver a revisar')
 r = await pedir(neg, 'POST', API, { negocioId: pf.id, accion: 'revisar', dias: 60 })
 const vuelven = [f05, fReloj, fBeaAntes, fBeaDespues, fAmb, fl06, fl09]
-const quedan = [f04, fOct, fSep, flOct, fl04]
+const quedan = [f04, fOct, fSep, flOct, fl04, fSinFecha, fIlegible, fPosterior, flSinFecha]
 chequear(r.status === 200 && r.cuerpo.enRevision === vuelven.length, `vuelven a la fila exactamente las ${vuelven.length} del 05/11 en adelante (recibido: ${r.cuerpo.enRevision})`)
 chequear((await Promise.all(vuelven.map(fila))).every((x) => x.procesado === false && x.resultado === null), 'esas quedan pendientes para el agente')
-chequear((await Promise.all(quedan.map(fila))).every((x, i) => x.procesado === true && x.resultado === quedan[i].resultado), 'las de septiembre, octubre y 1 al 4 de noviembre no se tocan')
+chequear((await Promise.all(quedan.map(fila))).every((x, i) => x.procesado === true && x.resultado === quedan[i].resultado), 'las de septiembre, octubre, 1 al 4 de noviembre y las sin fecha verificable no se tocan')
 const ya = await fila(fYa)
 chequear(ya.procesado === true && ya.resultado === 'acreditado', 'la ya acreditada no se toca')
 
@@ -119,6 +129,8 @@ r = await resolver(fAmb.codigo, { monto: 8000, telefonos: ['2324700099'] })
 chequear(r.cuerpo.resultado === 'ambigua' && await saldo(gem1) === 0 && await saldo(gem2) === 0, 'celular de dos cuentas: "ambigua", no suma a ninguna')
 r = await resolver(fPend.codigo, { monto: 20000, email: 'ana.rec@prueba.test', telefonos: [] })
 chequear(r.cuerpo.resultado === 'fuera_de_periodo' && await saldo(ana) === 100, 'una pendiente del 03/11 que el agente reporta ahora: "fuera_de_periodo", no suma')
+r = await resolver(fPendSinFecha.codigo, { monto: 20000, email: 'ana.rec@prueba.test', telefonos: [] })
+chequear(r.cuerpo.resultado === 'fuera_de_periodo' && await saldo(ana) === 100, 'una pendiente sin fecha recibida el 06/11 que el agente reporta ahora: "fuera_de_periodo", no suma')
 r = await resolver(fYa.codigo, { monto: 10000, email: 'ana.rec@prueba.test', telefonos: [] })
 chequear(r.cuerpo.resultado === 'acreditado' && await saldo(ana) === 100, 'la ya acreditada no vuelve a sumar')
 r = await resolver(f05.codigo, { monto: 10000, email: 'ana.rec@prueba.test', telefonos: [] })
@@ -130,9 +142,13 @@ for (const f of [fl06, fl09]) await resolver(f.codigo, { monto: f.monto, codigoF
 console.log('Asignar a mano y vincular la ficha')
 r = await pedir(neg, 'POST', API, { negocioId: pf.id, accion: 'asignar', codigo: f04.codigo, clienteId: ana.id })
 chequear(r.status === 409 && /suman desde el 05\/11\/2026/.test(r.cuerpo.error) && (await fila(f04)).resultado === 'sin_datos' && await saldo(ana) === 100, 'no se puede asignar a mano una venta del 04/11')
+for (const [f, texto] of [[fSinFecha, 'sin fecha, recibida el 05/11'], [fIlegible, 'con fecha ilegible, recibida el 06/11'], [fPosterior, 'con fecha posterior al aviso']]) {
+  r = await pedir(neg, 'POST', API, { negocioId: pf.id, accion: 'asignar', codigo: f.codigo, clienteId: ana.id })
+  chequear(r.status === 409 && /fecha de Dragon Fish que se pueda verificar/.test(r.cuerpo.error) && (await fila(f)).resultado === 'sin_cliente' && await saldo(ana) === 100, `no se puede asignar a mano una venta ${texto}`)
+}
 r = await pedir(neg, 'POST', API, { negocioId: pf.id, accion: 'asignar', codigo: fl09.codigo, clienteId: flor.id, vincular: true })
 chequear(r.status === 200 && r.cuerpo.vinculada === true && r.cuerpo.puntos === 90 && r.cuerpo.otras === 1 && r.cuerpo.puntosOtras === 60 && await saldo(flor) === 150, 'vincular la ficha: suma la del 09/11 (90) y la otra del 06/11 (60)')
-chequear((await fila(flOct)).resultado === 'sin_datos' && (await fila(fl04)).resultado === 'sin_datos', 'las de esa ficha del 30/10 y del 04/11 no suman')
+chequear((await fila(flOct)).resultado === 'sin_datos' && (await fila(fl04)).resultado === 'sin_datos' && (await fila(flSinFecha)).resultado === 'sin_datos', 'las de esa ficha del 30/10, del 04/11 y la sin fecha (recibida el 07/11) no suman')
 
 console.log('Compras nuevas')
 const ahora = new Date(Date.now() - 3 * 3600000) // hora de Argentina
@@ -148,11 +164,17 @@ for (const [codigo, cuerpo, quien, esperado] of [
   chequear(nueva.fecha === aviso.Fecha && r.cuerpo.resultado === 'acreditado' && await saldo(quien) === esperado, `compra de hoy (aviso real de Dragon Fish) de ${quien.nombre}: suma sola (${esperado})`)
 }
 
+// Compra del momento cuyo aviso viniera sin fecha: suma (llegó recién, no es histórica).
+const sinFechaAhora = await prisma.facturaPendiente.create({ data: { negocioId: pf.id, codigo: `AHORA-${Date.now()}`, entidad: 'FACTURA', fecha: '', hora: '' } })
+r = await resolver(sinFechaAhora.codigo, { monto: 1000, email: 'ana.rec@prueba.test', telefonos: [] })
+chequear(r.cuerpo.resultado === 'acreditado' && await saldo(ana) === 150, 'una compra de recién cuyo aviso viniera sin fecha: suma igual (10)')
+
 console.log('Otro negocio')
 r = await pedir(negOtro, 'POST', API, { negocioId: pep.id, accion: 'revisar', dias: 60 })
 chequear(r.status === 200 && r.cuerpo.enRevision >= 1 && (await fila(fOtra)).procesado === false, 'sin límite: su venta del 04/11 vuelve a revisarse')
 r = await resolver(fOtra.codigo, { monto: 7000, email: 'otra.empresa@prueba.test', telefonos: [] }, 'token-agente-prueba')
 chequear(r.cuerpo.resultado === 'acreditado' && await saldo(otraEmp) === 70, 'y se acredita normalmente (70)')
+chequear((await fila(fOtraSinFecha)).procesado === false, 'su venta sin fecha también vuelve a revisarse (sin límite, como antes)')
 
 console.log('Pantalla')
 await neg.page.goto(`${BASE}/`)

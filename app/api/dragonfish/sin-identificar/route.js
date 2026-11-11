@@ -5,7 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { enviarEmailPuntosAcreditados } from '@/lib/email'
 import { calcularPuntosPorCompra } from '@/lib/puntos'
 import { acreditarVenta, cuentaPosterior, fichaGenerica } from '@/lib/dragonfishIdentificacion'
-import { fechaDeVenta, inicioDeVentas, anteriorAlInicio } from '@/lib/dragonfishFecha'
+import { fechaDeVenta, fechaVerificada, inicioDeVentas, anteriorAlInicio } from '@/lib/dragonfishFecha'
 import { fechaCorta } from '@/lib/csv'
 
 // "Ventas del local sin identificar" (Integraciones → Dragon Fish): las
@@ -25,7 +25,8 @@ import { fechaCorta } from '@/lib/csv'
 // Fechas: se usa la de la venta en Dragon Fish (fecha/hora, ver
 // lib/dragonfishFecha.js), no cuándo llegó el aviso. Y si el negocio tiene un
 // día desde el que suman las ventas del local (Peperina: 05/11/2026), las
-// anteriores no aparecen, no vuelven a revisarse y no se pueden asignar. Como
+// anteriores, y las que no tienen una fecha de Dragon Fish verificable, no
+// aparecen, no vuelven a revisarse y no se pueden asignar. Como
 // el aviso no llega antes de la venta, `createdAt >= X - 1 día` sirve para
 // filtrar de entrada en la base sin dejar afuera ninguna venta de fecha >= X
 // (el día de margen cubre un reloj adelantado en la PC del local); el filtro
@@ -34,6 +35,11 @@ const RESULTADOS = ['sin_cliente', 'sin_datos', 'ambigua']
 const DIAS_LISTA = 90
 const DIA_MS = 86400000
 const conMargen = (fecha) => new Date(fecha.getTime() - DIA_MS)
+// El mismo criterio para la lista y "Volver a revisar": dentro de la ventana
+// (por la fecha de la venta) y, si el negocio tiene día de inicio, con fecha
+// de Dragon Fish verificable de ese día o posterior. Asignar a mano y las
+// otras ventas de una ficha vinculada usan el mismo anteriorAlInicio.
+const entraEnRecuperacion = (negocio, f, desde) => fechaDeVenta(f) >= desde && !anteriorAlInicio(negocio, f)
 
 async function autorizar(request, negocioIdBody) {
   const session = await getServerSession(authOptions)
@@ -65,7 +71,7 @@ export async function GET(request) {
     orderBy: { createdAt: 'desc' },
     take: 200,
     select: { codigo: true, fecha: true, hora: true, createdAt: true, monto: true, nombreFicha: true, codigoFicha: true, resultado: true, candidatas: true },
-  })).filter((f) => fechaDeVenta(f) >= desde && !anteriorAlInicio(negocio, f))
+  })).filter((f) => entraEnRecuperacion(negocio, f, desde))
   // Sugerencias por nombre (solo para ayudar a elegir; nunca se acredita sola
   // por nombre): cuentas cuyo nombre tiene todas las palabras de la ficha y
   // que ya existían cuando se hizo la compra.
@@ -101,7 +107,7 @@ export async function POST(request) {
     const desde = pisoDeFechas(inicioDeVentas(negocio), dias)
     const donde = { negocioId: negocio.id, procesado: true, resultado: { in: RESULTADOS } }
     const posibles = await prisma.facturaPendiente.findMany({ where: { ...donde, createdAt: { gte: conMargen(desde) } }, select: { id: true, fecha: true, hora: true, createdAt: true } })
-    const ids = posibles.filter((f) => fechaDeVenta(f) >= desde).map((f) => f.id)
+    const ids = posibles.filter((f) => entraEnRecuperacion(negocio, f, desde)).map((f) => f.id)
     const { count } = ids.length
       ? await prisma.facturaPendiente.updateMany({ where: { ...donde, id: { in: ids } }, data: { procesado: false, resultado: null, intentos: 0 } })
       : { count: 0 }
@@ -123,7 +129,9 @@ export async function POST(request) {
       : null
     if (!cliente) return NextResponse.json({ error: 'Clienta no encontrada' }, { status: 404 })
     if (anteriorAlInicio(negocio, factura)) {
-      return NextResponse.json({ error: `Esa venta es del ${fechaCorta(fechaDeVenta(factura))}: las ventas del local suman desde el ${fechaCorta(inicioDeVentas(negocio))}.` }, { status: 409 })
+      const fecha = fechaVerificada(factura)
+      const motivo = fecha ? `Esa venta es del ${fechaCorta(fecha)}` : 'Esa venta no tiene una fecha de Dragon Fish que se pueda verificar'
+      return NextResponse.json({ error: `${motivo}: las ventas del local suman desde el ${fechaCorta(inicioDeVentas(negocio))}.` }, { status: 409 })
     }
     if (cuentaPosterior(cliente, factura)) {
       return NextResponse.json({ error: 'Esa clienta se registró después de esta compra: por la regla del club, no suma.' }, { status: 409 })

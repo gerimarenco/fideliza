@@ -79,8 +79,20 @@ fila desde agosto, y aparecieron dos problemas:
   la venta. `FacturaPendiente.createdAt` es cuándo llegó el aviso a Retornar
   (segundos después de facturar). Hasta ahora todo usaba `createdAt`: la regla
   "cuenta posterior", los 60 días de "Volver a revisar" y los 90 de la lista.
-  Desde este cambio se usa la fecha de la venta (`lib/dragonfishFecha.js`,
-  `fechaDeVenta`; si Dragon Fish no mandó una fecha legible, `createdAt`).
+  Desde este cambio se usa la fecha de la venta (`lib/dragonfishFecha.js`).
+- **Fecha verificable** (`fechaVerificada`): `fecha` legible y existente,
+  `hora` vacía o legible, y no más de un día posterior a la llegada del aviso.
+  Si no, no hay fecha verificable.
+  - **En la recuperación de un negocio con día de inicio** (lista, "Volver a
+    revisar", asignar a mano, vincular ficha), una venta sin fecha verificable
+    **queda afuera**: no se usa `createdAt` para decidir si entra.
+  - **Cuando el agente reporta una venta** (`fueraDePeriodoAlProcesar`), la
+    única excepción: sin fecha verificable, cuenta solo si el aviso llegó
+    después del día de inicio y hace menos de un día (una compra del momento,
+    no histórica). Un aviso más viejo sin fecha queda `fuera_de_periodo`.
+  - **En los flujos sin límite** (regla de cuenta posterior, negocios sin día
+    de inicio) se sigue usando `createdAt` si no hay fecha verificable, como
+    antes.
 - **Club Peperina: solo desde el 05/11/2026.** `INICIO_VENTAS_LOCAL` en
   `lib/dragonfishFecha.js` fija, por el nombre de la base de Dragon Fish
   (`Negocio.dragonfishBaseDeDatos` = `PEPERINA`), el día desde el que suman las
@@ -110,20 +122,30 @@ deploy (usa solo columnas que ya existen desde 2026-08-30).
 -- 1) La base de Dragon Fish de cada negocio: tiene que figurar PEPERINA
 SELECT nombre, "dragonfishBaseDeDatos" FROM "Negocio" WHERE "dragonfishBaseDeDatos" IS NOT NULL ORDER BY nombre;
 
--- 2) Ventas de Club Peperina por período (fecha de la venta en Dragon Fish) y resultado
+-- 2) Ventas de Club Peperina por período (fecha de la venta en Dragon Fish, verificable) y resultado
 WITH v AS (
   SELECT f.resultado, f.procesado,
-         CASE WHEN f.fecha ~ '^\d{1,2}/\d{1,2}/\d{4}$' THEN to_date(f.fecha, 'DD/MM/YYYY') END AS dia_venta
+         (f."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') AS llegada,
+         btrim(f.hora) AS hora,
+         CASE WHEN btrim(f.fecha) ~ '^\d{1,2}/\d{1,2}/\d{4}$' THEN string_to_array(btrim(f.fecha), '/')::int[] END AS dma
   FROM "FacturaPendiente" f
   JOIN "Negocio" n ON n.id = f."negocioId"
   WHERE upper(btrim(n."dragonfishBaseDeDatos")) = 'PEPERINA'
+), w AS (
+  SELECT resultado, procesado, llegada,
+         CASE WHEN dma IS NULL OR dma[3] < 1 OR dma[2] NOT BETWEEN 1 AND 12 OR dma[1] < 1 THEN NULL
+              WHEN dma[1] > extract(day FROM make_date(dma[3], dma[2], 1) + interval '1 month - 1 day') THEN NULL
+              WHEN hora <> '' AND hora !~ '^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$' THEN NULL
+              ELSE make_date(dma[3], dma[2], dma[1]) + CASE WHEN hora = '' THEN time '00:00' ELSE hora::time END
+         END AS venta
+  FROM v
 )
-SELECT CASE WHEN dia_venta IS NULL THEN 'sin fecha legible'
-            WHEN dia_venta >= DATE '2026-11-05' THEN 'desde el 05/11'
-            ELSE 'antes del 05/11' END AS periodo,
+SELECT CASE WHEN venta IS NULL OR venta > llegada + interval '1 day' THEN 'sin fecha verificable (no entra)'
+            WHEN venta >= timestamp '2026-11-05 00:00:00' THEN 'desde el 05/11 (entra)'
+            ELSE 'antes del 05/11 (no entra)' END AS periodo,
        CASE WHEN NOT procesado THEN 'pendiente (sin procesar)' ELSE resultado END AS resultado,
        count(*) AS ventas
-FROM v GROUP BY 1, 2 ORDER BY 1, 2;
+FROM w GROUP BY 1, 2 ORDER BY 1, 2;
 
 -- 3) ¿La fecha de Dragon Fish coincide con el día en que llegó el aviso (hora de Argentina)?
 SELECT count(*) AS total,
@@ -137,9 +159,11 @@ JOIN "Negocio" n ON n.id = f."negocioId"
 WHERE upper(btrim(n."dragonfishBaseDeDatos")) = 'PEPERINA';
 ```
 
-Lo que "Volver a revisar" va a poner en la fila son las filas `desde el 05/11`
-con resultado `sin_cliente` o `sin_datos` (y `ambigua`, que solo existe
-después del deploy). Las `acreditado` no se tocan.
+Lo que "Volver a revisar" va a poner en la fila son las filas `desde el 05/11
+(entra)` con resultado `sin_cliente` o `sin_datos` (y `ambigua`, que solo
+existe después del deploy). Las `acreditado` no se tocan. Las `sin fecha
+verificable (no entra)` quedan afuera de la recuperación, igual que en el
+código.
 
 ## Pendiente (con autorización)
 
