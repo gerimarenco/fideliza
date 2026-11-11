@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { autenticarAgente } from '@/lib/dragonfishAgente'
 import { enviarEmailPuntosAcreditados } from '@/lib/email'
 import { normalizarEmail } from '@/lib/identidad'
-import { montoDeVenta, nombreDeFicha, celularesDeVenta, dniDeVenta, buscarClientaDeVenta, cuentaPosterior, acreditarVenta } from '@/lib/dragonfishIdentificacion'
+import { montoDeVenta, nombreDeFicha, codigoDeFicha, celularesDeVenta, dniDeVenta, buscarClientaDeVenta, cuentaPosterior, acreditarVenta } from '@/lib/dragonfishIdentificacion'
 
 // El agente local reporta acá el resultado de consultar una factura pendiente
 // contra la API REST de Dragon Fish: monto de la venta y el dato de
@@ -66,14 +66,15 @@ export async function POST(request) {
   // cuit y el nombre de la ficha.
   const monto = montoDeVenta(body.monto)
   const nombreFicha = nombreDeFicha(body.nombre)
+  const codigoFicha = codigoDeFicha(body.codigoFicha)
   const email = normalizarEmail(body.email)
   const celulares = celularesDeVenta(body)
   const dni = dniDeVenta(body)
   // El monto y el nombre quedan guardados para la pantalla "Ventas del
   // local sin identificar" (asignar a mano la que no se pudo reconocer).
-  const marcar = (resultado, extra = {}) => marcarFactura(factura.id, codigo, resultado, { monto, nombreFicha, ...extra })
+  const marcar = (resultado, extra = {}) => marcarFactura(factura.id, codigo, resultado, { monto, nombreFicha, codigoFicha, ...extra })
 
-  if (sinDatos || monto == null || (!email && !celulares.length && !dni)) {
+  if (sinDatos || monto == null || (!codigoFicha && !email && !celulares.length && !dni)) {
     return marcar('sin_datos')
   }
 
@@ -83,13 +84,14 @@ export async function POST(request) {
   // registrado ella misma. Una venta de alguien sin cuenta todavía queda
   // sin acreditar hasta que se registre por su cuenta en /registro/[negocio]
   // — ahí sí, sus próximas compras la van a encontrar por email/teléfono/DNI.
-  const { cliente, por } = await buscarClientaDeVenta(prisma, negocio.id, { email, celulares, dni })
-  if (!cliente) return marcar('sin_cliente')
+  const { cliente, por } = await buscarClientaDeVenta(prisma, negocio.id, { codigoFicha, email, celulares, dni })
+  // Sin email, celular ni DNI, y la ficha todavía no se vinculó: "sin datos".
+  if (!cliente) return marcar(!email && !celulares.length && !dni ? 'sin_datos' : 'sin_cliente')
   // Compra anterior al registro: no suma (aunque se procese tarde, por
   // ejemplo si el agente estuvo apagado).
   if (cuentaPosterior(cliente, factura)) return marcar('cuenta_posterior', { clienteId: cliente.id, identificadaPor: por })
 
-  const r = await acreditarVenta(prisma, negocio, factura, cliente, monto, { por })
+  const r = await acreditarVenta(prisma, negocio, { ...factura, codigoFicha, nombreFicha }, cliente, monto, { por })
   if (r.estado !== 'acreditado') {
     return NextResponse.json({ codigo, procesado: true, resultado: r.estado })
   }

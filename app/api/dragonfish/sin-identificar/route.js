@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { enviarEmailPuntosAcreditados } from '@/lib/email'
 import { calcularPuntosPorCompra } from '@/lib/puntos'
-import { acreditarVenta, cuentaPosterior } from '@/lib/dragonfishIdentificacion'
+import { acreditarVenta, cuentaPosterior, fichaGenerica } from '@/lib/dragonfishIdentificacion'
 
 // "Ventas del local sin identificar" (Integraciones → Dragon Fish): las
 // ventas que el agente procesó pero no pudo reconocer (sin_cliente /
@@ -13,7 +13,10 @@ import { acreditarVenta, cuentaPosterior } from '@/lib/dragonfishIdentificacion'
 //     agente): vuelven a la fila y el agente las procesa con las reglas
 //     actuales (una venta anterior a la cuenta sigue sin sumar);
 //   - asigne una a mano a una clienta, con un clic (suma una sola vez, con la
-//     misma clave que el agente).
+//     misma clave que el agente) y, si quiere, vincule esa ficha de Dragon
+//     Fish a la clienta: desde ahí todas sus compras suman solas, y se suman
+//     también las otras ventas sin identificar de esa ficha;
+//   - desvincule una ficha vinculada por error.
 // Solo el negocio dueño o el admin; siempre las de ese negocio.
 const RESULTADOS = ['sin_cliente', 'sin_datos']
 const DIAS_LISTA = 90
@@ -40,7 +43,7 @@ export async function GET(request) {
     where: { negocioId: negocio.id, procesado: true, resultado: { in: RESULTADOS }, createdAt: { gte: desde } },
     orderBy: { createdAt: 'desc' },
     take: 200,
-    select: { codigo: true, fecha: true, hora: true, createdAt: true, monto: true, nombreFicha: true, resultado: true },
+    select: { codigo: true, fecha: true, hora: true, createdAt: true, monto: true, nombreFicha: true, codigoFicha: true, resultado: true },
   })
   // Sugerencias por nombre (solo para ayudar a elegir; nunca se acredita sola
   // por nombre): cuentas cuyo nombre tiene todas las palabras de la ficha y
@@ -54,9 +57,10 @@ export async function GET(request) {
     const sugerencias = buscadas.length
       ? indice.filter((c) => c.createdAt <= f.createdAt && buscadas.every((p) => c.palabras.includes(p))).slice(0, 5).map((c) => c.id)
       : []
-    return { codigo: f.codigo, fecha: f.createdAt, monto: f.monto, puntos: f.monto != null ? calcularPuntosPorCompra(f.monto, negocio.puntosXPeso) : null, nombreFicha: f.nombreFicha, motivo: f.resultado, sugerencias }
+    return { codigo: f.codigo, fecha: f.createdAt, monto: f.monto, puntos: f.monto != null ? calcularPuntosPorCompra(f.monto, negocio.puntosXPeso) : null, nombreFicha: f.nombreFicha, motivo: f.resultado, sugerencias, vinculable: !fichaGenerica(f.nombreFicha, f.codigoFicha) }
   })
-  return NextResponse.json({ ventas, dias: DIAS_LISTA })
+  const vinculadas = await prisma.fichaDragonfish.findMany({ where: { negocioId: negocio.id }, orderBy: { createdAt: 'desc' }, take: 300, select: { codigo: true, nombreFicha: true, clienteId: true, createdAt: true } })
+  return NextResponse.json({ ventas, vinculadas, dias: DIAS_LISTA })
 }
 
 export async function POST(request) {
@@ -90,12 +94,44 @@ export async function POST(request) {
     if (cuentaPosterior(cliente, factura)) {
       return NextResponse.json({ error: 'Esa clienta se registró después de esta compra: por la regla del club, no suma.' }, { status: 409 })
     }
+    // Vincular la ficha (antes de acreditar, para rechazar sin sumar nada si
+    // ya es de otra clienta).
+    const vincular = body.vincular === true && !fichaGenerica(factura.nombreFicha, factura.codigoFicha)
+    if (vincular) {
+      const previo = await prisma.fichaDragonfish.findUnique({ where: { negocioId_codigo: { negocioId: negocio.id, codigo: factura.codigoFicha } } })
+      if (previo && previo.clienteId !== cliente.id) {
+        return NextResponse.json({ error: 'Esa ficha de Dragon Fish ya está vinculada a otra clienta. Desvinculala primero si fue un error.' }, { status: 409 })
+      }
+    }
     const r = await acreditarVenta(prisma, negocio, factura, cliente, factura.monto, { resultado: 'acreditado_manual', por: 'manual' })
+    let otras = 0
+    let puntosOtras = 0
+    if (vincular && r.estado === 'acreditado_manual') {
+      await prisma.fichaDragonfish.upsert({
+        where: { negocioId_codigo: { negocioId: negocio.id, codigo: factura.codigoFicha } },
+        create: { negocioId: negocio.id, codigo: factura.codigoFicha, clienteId: cliente.id, nombreFicha: factura.nombreFicha },
+        update: {},
+      })
+      // Las otras ventas sin identificar de esa ficha, desde que existe la cuenta.
+      const pendientes = await prisma.facturaPendiente.findMany({
+        where: { negocioId: negocio.id, codigoFicha: factura.codigoFicha, procesado: true, resultado: { in: RESULTADOS }, monto: { not: null }, createdAt: { gte: cliente.createdAt } },
+      })
+      for (const otra of pendientes) {
+        const ro = await acreditarVenta(prisma, negocio, otra, cliente, otra.monto, { resultado: 'acreditado', por: 'ficha' })
+        if (ro.estado === 'acreditado') { otras++; puntosOtras += ro.puntos }
+      }
+    }
     if (r.estado === 'acreditado_manual') {
-      await enviarEmailPuntosAcreditados({ email: r.cliente.email, puntosAcreditados: r.puntos, puntosTotales: r.puntosTotales, negocioNombre: negocio.nombre, negocioId: negocio.id }).catch(() => {})
+      const totales = otras ? (await prisma.cliente.findUnique({ where: { id: cliente.id }, select: { puntos: true } })).puntos : r.puntosTotales
+      await enviarEmailPuntosAcreditados({ email: r.cliente.email, puntosAcreditados: r.puntos + puntosOtras, puntosTotales: totales, negocioNombre: negocio.nombre, negocioId: negocio.id }).catch(() => {})
       if (r.referido) await enviarEmailPuntosAcreditados({ email: r.referido.invitadorEmail, motivo: 'referido', puntosAcreditados: r.referido.puntos, puntosTotales: r.referido.invitadorPuntosTotales, negocioNombre: negocio.nombre, negocioId: negocio.id }).catch(() => {})
     }
-    return NextResponse.json({ ok: r.estado === 'acreditado_manual', resultado: r.estado, puntos: r.puntos })
+    return NextResponse.json({ ok: r.estado === 'acreditado_manual', resultado: r.estado, puntos: r.puntos, vinculada: vincular && r.estado === 'acreditado_manual', otras, puntosOtras })
+  }
+
+  if (body.accion === 'desvincular') {
+    const { count } = await prisma.fichaDragonfish.deleteMany({ where: { negocioId: negocio.id, codigo: String(body.codigoFicha ?? '') } })
+    return count ? NextResponse.json({ ok: true }) : NextResponse.json({ error: 'Esa ficha no estaba vinculada.' }, { status: 404 })
   }
 
   return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })

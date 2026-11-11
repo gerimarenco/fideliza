@@ -63,6 +63,7 @@ model Negocio {
   alertaCanjePremioId  String?
   // Exportar clientes a Google Sheets (una conexión por negocio).
   conexionGoogle       ConexionGoogle?
+  fichasDragonfish     FichaDragonfish[]
   // Solo dígitos, con código de país y área (ej. 5492324123456) para wa.me.
   soporteWhatsapp       String?
   // Meses sin usar un lote de puntos para que venza (ver
@@ -285,6 +286,7 @@ model FacturaPendiente {
   // y por qué dato se la reconoció (email, celular, dni o manual).
   monto           Float?
   nombreFicha     String?
+  codigoFicha     String?
   clienteId       String?
   identificadaPor String?
   procesadaEn     DateTime?
@@ -403,4 +405,21 @@ model ConexionGoogle {
   exportandoDesde       DateTime?
   ultimaExportacionEn   DateTime?
   ultimaExportacionInfo String?
+}
+
+// Ficha de cliente de Dragon Fish vinculada a mano a una cuenta de Retornar
+// (desde "Ventas del local sin identificar"): para las fichas sin email,
+// celular ni DNI. Una vez vinculada, cada venta de esa ficha suma sola a esa
+// cuenta. No se escribe nada en Dragon Fish.
+model FichaDragonfish {
+  id          String   @id @default(cuid())
+  negocioId   String
+  negocio     Negocio  @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  codigo      String
+  clienteId   String
+  nombreFicha String?
+  createdAt   DateTime @default(now())
+
+  @@unique([negocioId, codigo])
+  @@index([clienteId])
 }

@@ -37,7 +37,10 @@ CUIT/CUIL), y **no** acredita una compra de antes de que la clienta se
 registrara. Por nombre nunca acredita solo: las ventas que no se reconocen
 aparecen en el panel, en **Integraciones → Ventas del local sin
 identificar**, con el monto y el nombre de la ficha, para volver a revisarlas
-o asignarlas con un clic (ver `docs/lanzamiento/dragonfish-identificacion.md`).
+o asignarlas con un clic. Al asignar una se puede **vincular la ficha** a la
+clienta: el agente manda también el código de la ficha (`Cliente` de la
+factura), y desde ahí cada compra de esa ficha suma sola aunque no tenga
+datos (ver `docs/lanzamiento/dragonfish-identificacion.md`).
 
 Las versiones anteriores del agente solo leían `EMail` y `Telefono` (el fijo):
 una ficha con el celular en `Movil` y sin email quedaba "sin datos".

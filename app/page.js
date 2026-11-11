@@ -132,6 +132,8 @@ export default function Home() {
   // Ventas del local sin identificar (Integraciones → Dragon Fish): null = sin cargar.
   const [ventasSinIdentificar, setVentasSinIdentificar] = useState(null);
   const [asignacionVenta, setAsignacionVenta] = useState({});
+  const [noVincularVenta, setNoVincularVenta] = useState({});
+  const [fichasVinculadas, setFichasVinculadas] = useState([]);
   const [ocupadoVentas, setOcupadoVentas] = useState(null);
   const [clientesData, setClientesData] = useState(null);
   const [clientesBusqueda, setClientesBusqueda] = useState('');
@@ -2041,10 +2043,32 @@ export default function Home() {
                         <button type="button" className="fid-btn-primary" onClick={() => asignarVenta(v)} disabled={!elegida || !!ocupadoVentas} style={{ ...ui.botonPrimario, width: 'auto' }}>Sumar puntos</button>
                       </div>
                     )}
+                    {v.monto != null && v.puntos > 0 && v.vinculable && (
+                      <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13, color: tema.textoSecundario }}>
+                        <input type="checkbox" checked={!noVincularVenta[v.codigo]} onChange={(e) => setNoVincularVenta((a) => ({ ...a, [v.codigo]: !e.target.checked }))} style={{ marginTop: 3 }} />
+                        <span>Recordar esta ficha de Dragon Fish para esta clienta: sus próximas compras suman solas, y también las otras ventas sin identificar de esta ficha.</span>
+                      </label>
+                    )}
                   </li>
                 );
               })}
             </ul>
+          )}
+          {ventasSinIdentificar && fichasVinculadas.length > 0 && (
+            <details style={{ marginTop: 16, fontSize: 14 }}>
+              <summary style={{ cursor: 'pointer' }}>Fichas de Dragon Fish vinculadas ({fichasVinculadas.length})</summary>
+              <ul style={{ listStyle: 'none', padding: 0, margin: '10px 0 0', display: 'grid', gap: 6 }}>
+                {fichasVinculadas.map((f) => {
+                  const c = (negocioMostrado?.clientes || []).find((x) => x.id === f.clienteId);
+                  return (
+                    <li key={f.codigo} style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span>Ficha <strong>{f.nombreFicha || f.codigo}</strong> → {c ? (c.nombre || c.email) : 'cuenta eliminada'}</span>
+                      <button type="button" className="fid-link" onClick={() => desvincularFicha(f)} disabled={!!ocupadoVentas} style={ui.botonTexto}>Desvincular</button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </details>
           )}
         </section>
       )}
@@ -2061,7 +2085,7 @@ export default function Home() {
     setOcupadoVentas('cargar');
     fetch(`/api/dragonfish/sin-identificar?negocioId=${negocioMostrado.id}`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setVentasSinIdentificar(data?.ventas || []))
+      .then((data) => { setVentasSinIdentificar(data?.ventas || []); setFichasVinculadas(data?.vinculadas || []); })
       .catch(() => mostrarToast('error', 'No se pudieron cargar las ventas.'))
       .finally(() => setOcupadoVentas(null));
   };
@@ -2093,16 +2117,27 @@ export default function Home() {
     const clienta = (negocioMostrado?.clientes || []).find((c) => c.id === clienteId);
     if (!clienta) return;
     if (!window.confirm(`¿Sumarle ${formatearMiles(venta.puntos)} puntos a ${clienta.nombre || clienta.email} por la compra de $${formatearMiles(venta.monto)}?`)) return;
-    const data = await accionVentas(`asignar-${venta.codigo}`, { accion: 'asignar', codigo: venta.codigo, clienteId });
+    const vincular = venta.vinculable && !noVincularVenta[venta.codigo];
+    const data = await accionVentas(`asignar-${venta.codigo}`, { accion: 'asignar', codigo: venta.codigo, clienteId, vincular });
     if (data?.ok) {
-      mostrarToast('exito', `Listo: ${formatearMiles(data.puntos)} puntos sumados.`);
-      setVentasSinIdentificar((lista) => (lista || []).filter((v) => v.codigo !== venta.codigo));
+      const extra = data.otras ? ` y ${formatearMiles(data.puntosOtras)} más por ${data.otras} compra(s) anterior(es) de esa ficha` : '';
+      mostrarToast('exito', `Listo: ${formatearMiles(data.puntos)} puntos sumados${extra}.${data.vinculada ? ' Desde ahora sus compras suman solas.' : ''}`);
+      if (data.vinculada || data.otras) cargarVentasSinIdentificar();
+      else setVentasSinIdentificar((lista) => (lista || []).filter((v) => v.codigo !== venta.codigo));
       cargarNegocios();
     } else if (data) {
       mostrarToast('error', data.resultado === 'duplicado' ? 'Esa venta ya se había acreditado.' : 'No se sumaron puntos.');
     }
   };
 
+  const desvincularFicha = async (ficha) => {
+    if (!window.confirm(`¿Desvincular la ficha "${ficha.nombreFicha || ficha.codigo}"? Sus próximas compras van a volver a aparecer como sin identificar. Los puntos ya sumados no cambian.`)) return;
+    const data = await accionVentas(`desvincular-${ficha.codigo}`, { accion: 'desvincular', codigoFicha: ficha.codigo });
+    if (data?.ok) {
+      mostrarToast('exito', 'Ficha desvinculada.');
+      setFichasVinculadas((lista) => lista.filter((f) => f.codigo !== ficha.codigo));
+    }
+  };
   const recargarEstadoGoogle = () => fetch('/api/google-sheets/estado', { cache: 'no-store' })
     .then((res) => (res.ok ? res.json() : null))
     .then(setEstadoGoogle)

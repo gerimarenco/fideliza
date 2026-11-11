@@ -42,6 +42,22 @@ fila desde agosto, y aparecieron dos problemas:
     nombre) y "Sumar puntos". Suma una sola vez (misma clave que el agente),
     nunca a una cuenta de otro negocio ni creada después de la compra, y le
     manda el mail de puntos.
+- **Vincular la ficha (fichas sin email, celular ni DNI)** (2026-11-12): muchas
+  fichas de Dragon Fish solo tienen nombre. Al asignar a mano una venta de esas,
+  la casilla **"Recordar esta ficha para esta clienta"** (tildada por defecto)
+  guarda el vínculo ficha de Dragon Fish → cuenta de Retornar
+  (`FichaDragonfish`). Desde ahí:
+  - **cada compra de esa ficha suma sola** (el agente manda el código de la
+    ficha, `codigoFicha`), aunque la ficha siga sin datos;
+  - se suman también **las otras ventas sin identificar de esa ficha**, desde
+    que existe la cuenta (las de antes del registro siguen sin sumar).
+
+  Así se hace **una vez por clienta**, no una vez por compra. No se escribe
+  nada en Dragon Fish. Una ficha genérica ("Consumidor final", "Mostrador",
+  sin código) nunca se vincula: solo se asigna esa venta. Una ficha ya
+  vinculada a otra clienta no se vuelve a vincular (hay que desvincularla
+  primero), y la lista **"Fichas de Dragon Fish vinculadas"** permite
+  desvincular una puesta por error (los puntos ya sumados no cambian).
 - **Reporte de solo lectura**: `scripts/revisar-dragonfish-cuenta-posterior.mjs`
   lista las ventas ya acreditadas a cuentas creadas después de la compra
   (fecha de venta, de registro, puntos, email oculto). No cambia nada.
@@ -58,14 +74,15 @@ fila desde agosto, y aparecieron dos problemas:
 3. En el panel, **"Volver a revisar"**: las ventas de noviembre que quedaron
    "sin datos" por el celular en `Movil` se acreditan solas si la cuenta ya
    existía.
-4. Las que sigan sin identificar: completar la ficha o asignarlas a mano.
+4. Las que sigan sin identificar: asignarlas a mano con "Recordar esta ficha"
+   tildado (una vez por clienta; después suman solas).
 5. **Compras de octubre acreditadas a cuentas de noviembre**: correr el
    reporte (solo lectura) y decidir si se dejan o se descuentan. No se tocó
    ningún saldo.
 
 ## Pruebas
 
-- `pruebas/e2e/dragonfish-identificacion.mjs` (24 comprobaciones): email con
+- `pruebas/e2e/dragonfish-identificacion.mjs` (36 comprobaciones, con la vinculación de fichas): email con
   mayúsculas, `Movil` con otro formato, DNI, CUIT, agente viejo, reporte
   repetido, cuenta posterior, solo nombre, sin cuenta, multiempresa,
   permisos, asignación (otro negocio, cuenta posterior, dos veces), volver a

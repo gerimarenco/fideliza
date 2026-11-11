@@ -12,6 +12,9 @@ function identificacionDeVenta(factura = {}, ficha = null) {
   const telefonos = [texto(f.Movil), texto(f.Telefono), texto(factura.Telefono)].filter(Boolean)
   const nombre = texto(f.Nombre) || [texto(f.PrimerNombre), texto(f.SegundoNombre), texto(f.Apellido)].filter(Boolean).join(' ') || texto(factura.ClienteDetalle) || texto(factura.ClienteNombre)
   return {
+    // Código interno de la ficha en Dragon Fish: si el negocio ya la vinculó
+    // a una cuenta de Retornar, alcanza con esto (aunque no tenga datos).
+    codigoFicha: texto(factura.Cliente) || undefined,
     email: email || undefined,
     // `telefono` lo sigue leyendo un Retornar anterior a este cambio.
     telefono: telefonos[0] || undefined,
@@ -22,6 +25,6 @@ function identificacionDeVenta(factura = {}, ficha = null) {
   }
 }
 
-const tieneIdentificacion = (d) => !!(d.email || d.telefonos.length || d.dni || d.cuit)
+const tieneIdentificacion = (d) => !!(d.codigoFicha || d.email || d.telefonos.length || d.dni || d.cuit)
 
 module.exports = { identificacionDeVenta, tieneIdentificacion }
