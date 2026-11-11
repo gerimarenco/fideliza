@@ -26,6 +26,25 @@ Implementado contra la documentación oficial de Zoo Logic (PDF
 de la API. Lo que falta es específico de la instalación de cada negocio,
 ver "Configuración" abajo.
 
+## Qué datos de la ficha se usan para reconocer a la clienta (2026-11-11)
+
+Por cada venta, el agente consulta la ficha del cliente de la factura
+(`GET /Cliente/{Codigo}/`) y le manda a Retornar lo que tenga cargado:
+`EMail`, `Movil` (celular), `Telefono`, `NroDocumento` (DNI), `CUIT` y el
+nombre (`Nombre` o `PrimerNombre`/`Apellido`). Retornar busca la cuenta por
+email, después por celular y después por DNI (también el que va dentro del
+CUIT/CUIL), y **no** acredita una compra de antes de que la clienta se
+registrara. Por nombre nunca acredita solo: las ventas que no se reconocen
+aparecen en el panel, en **Integraciones → Ventas del local sin
+identificar**, con el monto y el nombre de la ficha, para volver a revisarlas
+o asignarlas con un clic. Al asignar una se puede **vincular la ficha** a la
+clienta: el agente manda también el código de la ficha (`Cliente` de la
+factura), y desde ahí cada compra de esa ficha suma sola aunque no tenga
+datos (ver `docs/lanzamiento/dragonfish-identificacion.md`).
+
+Las versiones anteriores del agente solo leían `EMail` y `Telefono` (el fijo):
+una ficha con el celular en `Movil` y sin email quedaba "sin datos".
+
 ## Variables de entorno
 
 El prefijo de estas dos primeras variables sigue siendo `FIDELIZA_` (el
@@ -128,8 +147,8 @@ Dragon Fish esté abierto):
    descomprimirlo en cualquier lado.
 2. Abrir la carpeta `dragonfish-agente` del ZIP y copiar estos archivos a la
    carpeta del agente en la PC, reemplazando los que haya:
-   `index.js`, `iniciar-agente.bat`, `verificar-agente.bat`,
-   `package.json`, `package-lock.json`, `README.md`.
+   `index.js`, `identificacion.js`, `iniciar-agente.bat`,
+   `verificar-agente.bat`, `package.json`, `package-lock.json`, `README.md`.
 3. **No** copiar ni borrar `.env` (tiene los datos reales del negocio) ni
    la carpeta `node_modules`.
 4. Si el agente estaba corriendo, reiniciar la PC (o en el Programador de

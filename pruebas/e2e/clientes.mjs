@@ -156,7 +156,9 @@ res = await resolver('F-2', '5492324500294')
 chequear(res.resultado === 'acreditado', 'y también con "5492324500294"')
 const puntosVieja = (await cuenta('vieja.tel@prueba.test')).puntos
 res = await resolver('F-3', '2324551234')
-chequear(res.resultado === 'acreditado' && (await cuenta('vieja.tel@prueba.test')).puntos > puntosVieja && (await cuenta('vieja.otra@prueba.test')).puntos === 0, 'celular compartido por una cuenta vieja y una nueva: se acredita a la más antigua')
+// Desde 2026-11-12 (PR #132): si el celular lo comparten dos cuentas, no se
+// adivina: la venta queda "ambigua" para que el negocio elija en el panel.
+chequear(res.resultado === 'ambigua' && (await cuenta('vieja.tel@prueba.test')).puntos === puntosVieja && (await cuenta('vieja.otra@prueba.test')).puntos === 0, 'celular compartido por una cuenta vieja y una nueva: no se acredita sola, queda "ambigua" para elegir')
 res = await resolver('F-4', '2324999999')
 chequear(res.resultado === 'sin_cliente', 'un celular que no es de nadie → sin_cliente (no se crea ninguna cuenta)')
 await neg.page.reload()

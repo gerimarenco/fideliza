@@ -2092,3 +2092,25 @@ Detalle en `docs/lanzamiento/google-sheets.md`.
   `GOOGLE_PICKER_API_KEY`, `GOOGLE_CLOUD_PROJECT_NUMBER`.
 - Probar con una cuenta de Google de prueba (no la de Peperina) antes de
   usarla con la cuenta real.
+
+## 84. Ventas del local: reconocer por celular (Movil) y DNI; ventas sin identificar (2026-11-11)
+
+Al poner en marcha el agente de Dragon Fish (nunca había funcionado: la tarea
+arrancaba una copia vieja sin `.env`) se procesaron de golpe las ventas desde
+agosto: se acreditaron compras de octubre a cuentas de noviembre, y muchas
+clientas registradas no sumaron porque el celular está en el campo `Movil`
+de la ficha y el agente solo leía `Telefono` y `EMail`. Detalle en
+`docs/lanzamiento/dragonfish-identificacion.md`.
+
+Hecho: el agente manda email, Movil, Telefono, DNI, CUIT y nombre; Retornar
+busca por email → celular → DNI y no acredita compras anteriores a la cuenta;
+pantalla "Ventas del local sin identificar" (volver a revisar y asignar con
+un clic); si los datos señalan a más de una cuenta, la venta queda "ambigua"
+para que el negocio elija.
+Además (2026-11-12): vincular la ficha de Dragon Fish a la clienta al asignar
+una venta (una vez por clienta; después sus compras suman solas, sin escribir
+nada en Dragon Fish).
+
+**Pendiente** (con autorización): deploy; actualizar `index.js` e
+`identificacion.js` en la PC del local; "Volver a revisar" en el panel.
+Las acreditaciones ya hechas quedan como están (fuera de alcance).

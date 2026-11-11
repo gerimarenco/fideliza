@@ -63,6 +63,7 @@ model Negocio {
   alertaCanjePremioId  String?
   // Exportar clientes a Google Sheets (una conexión por negocio).
   conexionGoogle       ConexionGoogle?
+  fichasDragonfish     FichaDragonfish[]
   // Solo dígitos, con código de país y área (ej. 5492324123456) para wa.me.
   soporteWhatsapp       String?
   // Meses sin usar un lote de puntos para que venza (ver
@@ -278,7 +279,19 @@ model FacturaPendiente {
   fecha     String
   hora      String
   procesado Boolean  @default(false)
-  resultado String?  // "acreditado" | "sin_cliente" | "sin_datos" | "duplicado", null mientras está pendiente
+  resultado String?  // "acreditado" | "acreditado_manual" | "sin_cliente" | "sin_datos" | "ambigua" | "cuenta_posterior" | "sin_puntos" | "duplicado", null mientras está pendiente
+  // Lo que informó el agente al procesarla (desde 2026-11-11): el monto, el
+  // nombre de la ficha de Dragon Fish (solo para que el negocio reconozca a
+  // quién corresponde una venta sin identificar), y si se acreditó, a quién
+  // y por qué dato se la reconoció (email, celular, dni o manual).
+  monto           Float?
+  nombreFicha     String?
+  codigoFicha     String?
+  // Venta "ambigua": las cuentas a las que señalan sus datos (para elegir).
+  candidatas      String[] @default([])
+  clienteId       String?
+  identificadaPor String?
+  procesadaEn     DateTime?
   // Cuántas veces se le entregó al agente sin que la resolviera. Los
   // pendientes se reparten de menos a más intentos: una factura que el
   // agente no logra resolver (ej. Dragon Fish no la encuentra) ya no tapa a
@@ -394,4 +407,21 @@ model ConexionGoogle {
   exportandoDesde       DateTime?
   ultimaExportacionEn   DateTime?
   ultimaExportacionInfo String?
+}
+
+// Ficha de cliente de Dragon Fish vinculada a mano a una cuenta de Retornar
+// (desde "Ventas del local sin identificar"): para las fichas sin email,
+// celular ni DNI. Una vez vinculada, cada venta de esa ficha suma sola a esa
+// cuenta. No se escribe nada en Dragon Fish.
+model FichaDragonfish {
+  id          String   @id @default(cuid())
+  negocioId   String
+  negocio     Negocio  @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  codigo      String
+  clienteId   String
+  nombreFicha String?
+  createdAt   DateTime @default(now())
+
+  @@unique([negocioId, codigo])
+  @@index([clienteId])
 }

@@ -20,6 +20,7 @@
 // agente puede arrancar solo con Windows sin depender de que alguien haya
 // dejado las variables cargadas a mano en esa sesión de PowerShell/cmd.
 require('dotenv').config({ quiet: true })
+const { identificacionDeVenta, tieneIdentificacion } = require('./identificacion')
 
 const FIDELIZA_BASE_URL = process.env.FIDELIZA_BASE_URL || 'https://retornar.com.ar'
 const FIDELIZA_AGENT_TOKEN = process.env.FIDELIZA_AGENT_TOKEN
@@ -122,17 +123,11 @@ async function consultarDragonfish(codigo) {
   }
 
   const factura = await res.json()
-  const monto = factura.Total
-  let email = factura.Email?.trim()
-  let telefono
-
-  if (!email && factura.Cliente) {
-    const cliente = await consultarClienteDragonfish(factura.Cliente)
-    email = cliente?.EMail?.trim()
-    telefono = cliente?.Telefono?.trim()
-  }
-
-  return { monto, email, telefono }
+  // La ficha se consulta siempre que la factura tenga cliente: ahí están el
+  // celular (Movil), el DNI (NroDocumento) o CUIT y el nombre, que sirven
+  // para reconocerla aunque la factura traiga un email distinto o ninguno.
+  const ficha = factura.Cliente ? await consultarClienteDragonfish(factura.Cliente) : null
+  return { monto: factura.Total, ...identificacionDeVenta(factura, ficha) }
 }
 
 async function consultarClienteDragonfish(codigoCliente) {
@@ -163,7 +158,7 @@ async function reportarResultado(codigo, datos) {
 
 async function procesarPendiente(pendiente) {
   try {
-    const { monto, email, telefono, noEncontrada } = await consultarDragonfish(pendiente.codigo)
+    const { monto, noEncontrada, ...datos } = await consultarDragonfish(pendiente.codigo)
     if (noEncontrada) {
       console.warn(`Factura ${pendiente.codigo}: Dragon Fish no la encuentra, se marca sin datos`)
       await reportarResultado(pendiente.codigo, { sinDatos: true })
@@ -178,13 +173,15 @@ async function procesarPendiente(pendiente) {
     const montoNumerico = typeof monto === 'number'
       ? monto
       : (typeof monto === 'string' && monto.trim() !== '' ? Number(monto) : NaN)
-    if (!Number.isFinite(montoNumerico) || (!email && !telefono)) {
+    if (!Number.isFinite(montoNumerico) || !tieneIdentificacion(datos)) {
       console.warn(`Factura ${pendiente.codigo}: Dragon Fish no trajo monto o identificación de cliente, se marca sin datos`)
-      await reportarResultado(pendiente.codigo, { sinDatos: true })
+      // Con monto y nombre igual, para que el negocio la pueda asignar a mano
+      // desde "Ventas del local sin identificar".
+      await reportarResultado(pendiente.codigo, { sinDatos: true, monto: Number.isFinite(montoNumerico) ? montoNumerico : undefined, nombre: datos.nombre })
       procesadasDesdeUltimoLatido++
       return
     }
-    const resultado = await reportarResultado(pendiente.codigo, { monto: montoNumerico, email, telefono })
+    const resultado = await reportarResultado(pendiente.codigo, { monto: montoNumerico, ...datos })
     procesadasDesdeUltimoLatido++
     // Sin email/teléfono en el log a propósito: es un archivo que queda en
     // la PC del local, no tiene por qué guardar datos personales.
@@ -246,4 +243,6 @@ async function arrancar() {
   setInterval(latido, LATIDO_LOG_MS)
 }
 
-arrancar()
+// Solo arranca si se ejecuta directo (npm start / node index.js), no al
+// importarlo desde las pruebas.
+if (require.main === module) arrancar()
