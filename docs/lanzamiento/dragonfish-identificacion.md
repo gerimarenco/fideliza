@@ -120,14 +120,21 @@ fila desde agosto, y aparecieron dos problemas:
 
 ### Consulta de solo lectura: cuántas ventas de Peperina entran
 
-En el SQL Editor de Neon, rama `Production`. Funciona antes y después del
-deploy (usa solo columnas que ya existen desde 2026-08-30).
+En el SQL Editor de Neon, rama `Production`. Solo lectura (`SELECT`). Funciona
+antes y después del deploy: usa solo columnas que existen desde 2026-08-30.
+No devuelve datos de clientas, solo conteos. Las fechas se leen sin `to_date`
+para que una fecha imposible (31/11) cuente como "sin fecha verificable" en
+vez de cortar la consulta, con el mismo criterio que el código.
 
 ```sql
--- 1) La base de Dragon Fish de cada negocio: tiene que figurar PEPERINA
-SELECT nombre, "dragonfishBaseDeDatos" FROM "Negocio" WHERE "dragonfishBaseDeDatos" IS NOT NULL ORDER BY nombre;
+-- 1) Negocio con base de Dragon Fish PEPERINA (tiene que devolver exactamente 1 fila)
+SELECT n.nombre,
+       n."dragonfishBaseDeDatos",
+       (SELECT count(*) FROM "FacturaPendiente" f WHERE f."negocioId" = n.id) AS ventas_registradas
+FROM "Negocio" n
+WHERE upper(btrim(n."dragonfishBaseDeDatos")) = 'PEPERINA';
 
--- 2) Ventas de Club Peperina por período (fecha de la venta en Dragon Fish, verificable) y resultado
+-- 2) Ventas de Club Peperina por período (fecha real de Dragon Fish, verificable) y resultado
 WITH v AS (
   SELECT f.resultado, f.procesado,
          (f."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') AS llegada,
@@ -152,16 +159,32 @@ SELECT CASE WHEN venta IS NULL OR venta > llegada + interval '1 day' THEN 'sin f
        count(*) AS ventas
 FROM w GROUP BY 1, 2 ORDER BY 1, 2;
 
--- 3) ¿La fecha de Dragon Fish coincide con el día en que llegó el aviso (hora de Argentina)?
+-- 3) ¿La fecha real de Dragon Fish coincide con el día en que llegó el aviso (hora de Argentina)?
+WITH v AS (
+  SELECT (f."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') AS llegada,
+         btrim(f.hora) AS hora,
+         CASE WHEN btrim(f.fecha) ~ '^\d{1,2}/\d{1,2}/\d{4}$' THEN string_to_array(btrim(f.fecha), '/')::int[] END AS dma
+  FROM "FacturaPendiente" f
+  JOIN "Negocio" n ON n.id = f."negocioId"
+  WHERE upper(btrim(n."dragonfishBaseDeDatos")) = 'PEPERINA'
+), w AS (
+  SELECT llegada,
+         CASE WHEN dma IS NULL OR dma[3] < 1 OR dma[2] NOT BETWEEN 1 AND 12 OR dma[1] < 1 THEN NULL
+              WHEN dma[1] > extract(day FROM make_date(dma[3], dma[2], 1) + interval '1 month - 1 day') THEN NULL
+              WHEN hora <> '' AND hora !~ '^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$' THEN NULL
+              ELSE make_date(dma[3], dma[2], dma[1]) + CASE WHEN hora = '' THEN time '00:00' ELSE hora::time END
+         END AS venta
+  FROM v
+), x AS (
+  SELECT llegada, CASE WHEN venta <= llegada + interval '1 day' THEN venta END AS venta FROM w
+)
 SELECT count(*) AS total,
-       count(*) FILTER (WHERE NOT (f.fecha ~ '^\d{1,2}/\d{1,2}/\d{4}$')) AS sin_fecha_legible,
-       count(*) FILTER (WHERE f.fecha ~ '^\d{1,2}/\d{1,2}/\d{4}$'
-         AND to_date(f.fecha, 'DD/MM/YYYY') = (f."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) AS mismo_dia,
-       count(*) FILTER (WHERE f.fecha ~ '^\d{1,2}/\d{1,2}/\d{4}$'
-         AND to_date(f.fecha, 'DD/MM/YYYY') <> (f."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) AS distinto_dia
-FROM "FacturaPendiente" f
-JOIN "Negocio" n ON n.id = f."negocioId"
-WHERE upper(btrim(n."dragonfishBaseDeDatos")) = 'PEPERINA';
+       count(*) FILTER (WHERE venta IS NULL) AS sin_fecha_verificable,
+       count(*) FILTER (WHERE venta::date = llegada::date) AS mismo_dia,
+       count(*) FILTER (WHERE venta::date <> llegada::date) AS distinto_dia,
+       count(*) FILTER (WHERE venta > llegada) AS venta_despues_del_aviso,
+       max(llegada - venta) AS mayor_demora_del_aviso
+FROM x;
 ```
 
 Lo que "Volver a revisar" va a poner en la fila son las filas `desde el 05/11
