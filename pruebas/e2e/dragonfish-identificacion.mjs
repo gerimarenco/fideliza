@@ -25,7 +25,11 @@ const recien = await prisma.cliente.create({ data: { nombre: 'Recien Registrada'
 const deDemo = await prisma.cliente.create({ data: { nombre: 'Laura Pérez', email: 'laura.demo@prueba.test', password: 'x', negocioId: demo.id, createdAt: hace(30) } })
 
 let n = 0
-const factura = (createdAt = new Date(), negocioId = pep.id) => prisma.facturaPendiente.create({ data: { negocioId, codigo: `DF-${Date.now()}-${n++}`, entidad: 'FACTURA', fecha: '2026-11-11', hora: '12:00', createdAt } })
+// Fecha y hora de la venta como las manda Dragon Fish (hora de Argentina),
+// la misma que cuando llegó el aviso (`createdAt`).
+const dd = (x) => String(x).padStart(2, '0')
+const enArgentina = (d) => { const l = new Date(d.getTime() - 3 * 3600000); return { fecha: `${dd(l.getUTCDate())}/${dd(l.getUTCMonth() + 1)}/${l.getUTCFullYear()}`, hora: `${dd(l.getUTCHours())}:${dd(l.getUTCMinutes())}:${dd(l.getUTCSeconds())}` } }
+const factura = (createdAt = new Date(), negocioId = pep.id) => prisma.facturaPendiente.create({ data: { negocioId, codigo: `DF-${Date.now()}-${n++}`, entidad: 'FACTURA', ...enArgentina(createdAt), createdAt } })
 const resolver = async (codigo, cuerpo, token = 'token-agente-prueba') => {
   const r = await fetch(`${BASE}/api/dragonfish/resolver`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ codigo, ...cuerpo }) })
   return { status: r.status, cuerpo: await r.json().catch(() => ({})) }

@@ -5,6 +5,8 @@ import { authOptions } from '@/lib/auth'
 import { enviarEmailPuntosAcreditados } from '@/lib/email'
 import { calcularPuntosPorCompra } from '@/lib/puntos'
 import { acreditarVenta, cuentaPosterior, fichaGenerica } from '@/lib/dragonfishIdentificacion'
+import { fechaDeVenta, inicioDeVentas, anteriorAlInicio } from '@/lib/dragonfishFecha'
+import { fechaCorta } from '@/lib/csv'
 
 // "Ventas del local sin identificar" (Integraciones → Dragon Fish): las
 // ventas que el agente procesó pero no pudo reconocer (sin_cliente /
@@ -19,8 +21,19 @@ import { acreditarVenta, cuentaPosterior, fichaGenerica } from '@/lib/dragonfish
 //     también las otras ventas sin identificar de esa ficha;
 //   - desvincule una ficha vinculada por error.
 // Solo el negocio dueño o el admin; siempre las de ese negocio.
+//
+// Fechas: se usa la de la venta en Dragon Fish (fecha/hora, ver
+// lib/dragonfishFecha.js), no cuándo llegó el aviso. Y si el negocio tiene un
+// día desde el que suman las ventas del local (Peperina: 05/11/2026), las
+// anteriores no aparecen, no vuelven a revisarse y no se pueden asignar. Como
+// el aviso no llega antes de la venta, `createdAt >= X - 1 día` sirve para
+// filtrar de entrada en la base sin dejar afuera ninguna venta de fecha >= X
+// (el día de margen cubre un reloj adelantado en la PC del local); el filtro
+// fino, por la fecha de la venta, se hace después.
 const RESULTADOS = ['sin_cliente', 'sin_datos', 'ambigua']
 const DIAS_LISTA = 90
+const DIA_MS = 86400000
+const conMargen = (fecha) => new Date(fecha.getTime() - DIA_MS)
 
 async function autorizar(request, negocioIdBody) {
   const session = await getServerSession(authOptions)
@@ -34,18 +47,25 @@ async function autorizar(request, negocioIdBody) {
   return { negocio }
 }
 
+// Hace `dias` días o, si es más reciente, el día de inicio del negocio.
+function pisoDeFechas(inicio, dias) {
+  const hace = new Date(Date.now() - dias * DIA_MS)
+  return inicio && inicio > hace ? inicio : hace
+}
+
 const palabras = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-zñ]+/).filter((p) => p.length >= 3)
 
 export async function GET(request) {
   const { negocio, error } = await autorizar(request)
   if (error) return error
-  const desde = new Date(Date.now() - DIAS_LISTA * 86400000)
-  const facturas = await prisma.facturaPendiente.findMany({
-    where: { negocioId: negocio.id, procesado: true, resultado: { in: RESULTADOS }, createdAt: { gte: desde } },
+  const inicio = inicioDeVentas(negocio)
+  const desde = pisoDeFechas(inicio, DIAS_LISTA)
+  const facturas = (await prisma.facturaPendiente.findMany({
+    where: { negocioId: negocio.id, procesado: true, resultado: { in: RESULTADOS }, createdAt: { gte: conMargen(desde) } },
     orderBy: { createdAt: 'desc' },
     take: 200,
     select: { codigo: true, fecha: true, hora: true, createdAt: true, monto: true, nombreFicha: true, codigoFicha: true, resultado: true, candidatas: true },
-  })
+  })).filter((f) => fechaDeVenta(f) >= desde && !anteriorAlInicio(negocio, f))
   // Sugerencias por nombre (solo para ayudar a elegir; nunca se acredita sola
   // por nombre): cuentas cuyo nombre tiene todas las palabras de la ficha y
   // que ya existían cuando se hizo la compra.
@@ -54,18 +74,19 @@ export async function GET(request) {
     : []
   const indice = clientes.map((c) => ({ id: c.id, createdAt: c.createdAt, palabras: palabras(c.nombre) }))
   const ventas = facturas.map((f) => {
+    const fecha = fechaDeVenta(f)
     const buscadas = palabras(f.nombreFicha)
     // Primero las cuentas a las que señalan sus datos (venta ambigua), después
     // las parecidas por nombre; solo cuentas que ya existían en la compra.
-    const porDatos = indice.filter((c) => f.candidatas.includes(c.id) && c.createdAt <= f.createdAt).map((c) => c.id)
+    const porDatos = indice.filter((c) => f.candidatas.includes(c.id) && c.createdAt <= fecha).map((c) => c.id)
     const porNombre = buscadas.length
-      ? indice.filter((c) => c.createdAt <= f.createdAt && buscadas.every((p) => c.palabras.includes(p))).map((c) => c.id)
+      ? indice.filter((c) => c.createdAt <= fecha && buscadas.every((p) => c.palabras.includes(p))).map((c) => c.id)
       : []
     const sugerencias = [...new Set([...porDatos, ...porNombre])].slice(0, 8)
-    return { codigo: f.codigo, fecha: f.createdAt, monto: f.monto, puntos: f.monto != null ? calcularPuntosPorCompra(f.monto, negocio.puntosXPeso) : null, nombreFicha: f.nombreFicha, motivo: f.resultado, sugerencias, vinculable: !fichaGenerica(f.nombreFicha, f.codigoFicha) }
+    return { codigo: f.codigo, fecha, monto: f.monto, puntos: f.monto != null ? calcularPuntosPorCompra(f.monto, negocio.puntosXPeso) : null, nombreFicha: f.nombreFicha, motivo: f.resultado, sugerencias, vinculable: !fichaGenerica(f.nombreFicha, f.codigoFicha) }
   })
   const vinculadas = await prisma.fichaDragonfish.findMany({ where: { negocioId: negocio.id }, orderBy: { createdAt: 'desc' }, take: 300, select: { codigo: true, nombreFicha: true, clienteId: true, createdAt: true } })
-  return NextResponse.json({ ventas, vinculadas, dias: DIAS_LISTA })
+  return NextResponse.json({ ventas, vinculadas, dias: DIAS_LISTA, desde: inicio })
 }
 
 export async function POST(request) {
@@ -75,11 +96,16 @@ export async function POST(request) {
 
   if (body.accion === 'revisar') {
     const dias = Math.min(Math.max(parseInt(body.dias) || 60, 1), 180)
-    const { count } = await prisma.facturaPendiente.updateMany({
-      where: { negocioId: negocio.id, procesado: true, resultado: { in: RESULTADOS }, createdAt: { gte: new Date(Date.now() - dias * 86400000) } },
-      data: { procesado: false, resultado: null, intentos: 0 },
-    })
-    return NextResponse.json({ ok: true, enRevision: count })
+    // Las de los últimos `dias` días por la fecha de la venta y, si el
+    // negocio tiene un día de inicio, solo desde ese día.
+    const desde = pisoDeFechas(inicioDeVentas(negocio), dias)
+    const donde = { negocioId: negocio.id, procesado: true, resultado: { in: RESULTADOS } }
+    const posibles = await prisma.facturaPendiente.findMany({ where: { ...donde, createdAt: { gte: conMargen(desde) } }, select: { id: true, fecha: true, hora: true, createdAt: true } })
+    const ids = posibles.filter((f) => fechaDeVenta(f) >= desde).map((f) => f.id)
+    const { count } = ids.length
+      ? await prisma.facturaPendiente.updateMany({ where: { ...donde, id: { in: ids } }, data: { procesado: false, resultado: null, intentos: 0 } })
+      : { count: 0 }
+    return NextResponse.json({ ok: true, enRevision: count, desde })
   }
 
   if (body.accion === 'asignar') {
@@ -96,6 +122,9 @@ export async function POST(request) {
       ? await prisma.cliente.findFirst({ where: { id: body.clienteId, negocioId: negocio.id } })
       : null
     if (!cliente) return NextResponse.json({ error: 'Clienta no encontrada' }, { status: 404 })
+    if (anteriorAlInicio(negocio, factura)) {
+      return NextResponse.json({ error: `Esa venta es del ${fechaCorta(fechaDeVenta(factura))}: las ventas del local suman desde el ${fechaCorta(inicioDeVentas(negocio))}.` }, { status: 409 })
+    }
     if (cuentaPosterior(cliente, factura)) {
       return NextResponse.json({ error: 'Esa clienta se registró después de esta compra: por la regla del club, no suma.' }, { status: 409 })
     }
@@ -117,10 +146,11 @@ export async function POST(request) {
         create: { negocioId: negocio.id, codigo: factura.codigoFicha, clienteId: cliente.id, nombreFicha: factura.nombreFicha },
         update: {},
       })
-      // Las otras ventas sin identificar de esa ficha, desde que existe la cuenta.
-      const pendientes = await prisma.facturaPendiente.findMany({
-        where: { negocioId: negocio.id, codigoFicha: factura.codigoFicha, procesado: true, resultado: { in: RESULTADOS }, monto: { not: null }, createdAt: { gte: cliente.createdAt } },
-      })
+      // Las otras ventas sin identificar de esa ficha, desde que existe la
+      // cuenta (y desde el día de inicio del negocio, si tiene).
+      const pendientes = (await prisma.facturaPendiente.findMany({
+        where: { negocioId: negocio.id, codigoFicha: factura.codigoFicha, procesado: true, resultado: { in: RESULTADOS }, monto: { not: null }, createdAt: { gte: conMargen(cliente.createdAt) } },
+      })).filter((otra) => !cuentaPosterior(cliente, otra) && !anteriorAlInicio(negocio, otra))
       for (const otra of pendientes) {
         const ro = await acreditarVenta(prisma, negocio, otra, cliente, otra.monto, { resultado: 'acreditado', por: 'ficha' })
         if (ro.estado === 'acreditado') { otras++; puntosOtras += ro.puntos }

@@ -71,15 +71,85 @@ fila desde agosto, y aparecieron dos problemas:
   viejo al "Volver a revisar"), se conservan el monto, el nombre y el código
   de ficha ya guardados.
 
+## Fecha de la venta y recuperación de Peperina desde el 05/11/2026 (2026-11-11)
+
+- **Qué fecha es cuál.** Dragon Fish manda en el aviso (webhook) `Fecha`
+  (`DD/MM/AAAA`) y `Hora` (`HH:MM:SS`), en hora de Argentina; se guardan tal
+  cual, como texto, en `FacturaPendiente.fecha` y `.hora`. Esa es la fecha de
+  la venta. `FacturaPendiente.createdAt` es cuándo llegó el aviso a Retornar
+  (segundos después de facturar). Hasta ahora todo usaba `createdAt`: la regla
+  "cuenta posterior", los 60 días de "Volver a revisar" y los 90 de la lista.
+  Desde este cambio se usa la fecha de la venta (`lib/dragonfishFecha.js`,
+  `fechaDeVenta`; si Dragon Fish no mandó una fecha legible, `createdAt`).
+- **Club Peperina: solo desde el 05/11/2026.** `INICIO_VENTAS_LOCAL` en
+  `lib/dragonfishFecha.js` fija, por el nombre de la base de Dragon Fish
+  (`Negocio.dragonfishBaseDeDatos` = `PEPERINA`), el día desde el que suman las
+  ventas del local: 05/11/2026 00:00 de Argentina, inclusive. Una venta
+  anterior:
+  - no aparece en "Ventas del local sin identificar" y "Volver a revisar" no
+    la vuelve a la fila (el botón dice "desde el 05/11/2026");
+  - no se puede asignar a mano (409) ni suma al vincular su ficha;
+  - si el agente la reporta (por ejemplo, una que nunca se procesó), queda
+    `fuera_de_periodo` y no suma.
+- **No afecta a nadie más.** Las compras nuevas de Peperina son siempre
+  posteriores al 05/11 y suman normalmente; un negocio que no figura en
+  `INICIO_VENTAS_LOCAL` no tiene límite (se comporta como antes, con la fecha
+  de la venta en vez de la del aviso). Las acreditaciones ya hechas (incluidas
+  las de octubre del 10/11) no se tocan.
+- Sin migración: `fuera_de_periodo` es un valor más de `resultado` (texto).
+- Pruebas: `lib/dragonfishFecha.test.js` (límites 04/11 23:59:59 / 05/11
+  00:00:00, hora de Argentina, otros negocios) y
+  `pruebas/e2e/dragonfish-recuperacion.mjs`.
+
+### Consulta de solo lectura: cuántas ventas de Peperina entran
+
+En el SQL Editor de Neon, rama `Production`. Funciona antes y después del
+deploy (usa solo columnas que ya existen desde 2026-08-30).
+
+```sql
+-- 1) La base de Dragon Fish de cada negocio: tiene que figurar PEPERINA
+SELECT nombre, "dragonfishBaseDeDatos" FROM "Negocio" WHERE "dragonfishBaseDeDatos" IS NOT NULL ORDER BY nombre;
+
+-- 2) Ventas de Club Peperina por período (fecha de la venta en Dragon Fish) y resultado
+WITH v AS (
+  SELECT f.resultado, f.procesado,
+         CASE WHEN f.fecha ~ '^\d{1,2}/\d{1,2}/\d{4}$' THEN to_date(f.fecha, 'DD/MM/YYYY') END AS dia_venta
+  FROM "FacturaPendiente" f
+  JOIN "Negocio" n ON n.id = f."negocioId"
+  WHERE upper(btrim(n."dragonfishBaseDeDatos")) = 'PEPERINA'
+)
+SELECT CASE WHEN dia_venta IS NULL THEN 'sin fecha legible'
+            WHEN dia_venta >= DATE '2026-11-05' THEN 'desde el 05/11'
+            ELSE 'antes del 05/11' END AS periodo,
+       CASE WHEN NOT procesado THEN 'pendiente (sin procesar)' ELSE resultado END AS resultado,
+       count(*) AS ventas
+FROM v GROUP BY 1, 2 ORDER BY 1, 2;
+
+-- 3) ¿La fecha de Dragon Fish coincide con el día en que llegó el aviso (hora de Argentina)?
+SELECT count(*) AS total,
+       count(*) FILTER (WHERE NOT (f.fecha ~ '^\d{1,2}/\d{1,2}/\d{4}$')) AS sin_fecha_legible,
+       count(*) FILTER (WHERE f.fecha ~ '^\d{1,2}/\d{1,2}/\d{4}$'
+         AND to_date(f.fecha, 'DD/MM/YYYY') = (f."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) AS mismo_dia,
+       count(*) FILTER (WHERE f.fecha ~ '^\d{1,2}/\d{1,2}/\d{4}$'
+         AND to_date(f.fecha, 'DD/MM/YYYY') <> (f."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) AS distinto_dia
+FROM "FacturaPendiente" f
+JOIN "Negocio" n ON n.id = f."negocioId"
+WHERE upper(btrim(n."dragonfishBaseDeDatos")) = 'PEPERINA';
+```
+
+Lo que "Volver a revisar" va a poner en la fila son las filas `desde el 05/11`
+con resultado `sin_cliente` o `sin_datos` (y `ambigua`, que solo existe
+después del deploy). Las `acreditado` no se tocan.
+
 ## Pendiente (con autorización)
 
 1. Deploy (aplica la migración).
 2. **Actualizar el agente en la PC del local**: copiar `index.js` e
    `identificacion.js` nuevos a la carpeta del agente (ver
    `dragonfish-agente/README.md`, "Actualizar el agente") y reiniciarlo.
-3. En el panel, **"Volver a revisar"**: las ventas de noviembre que quedaron
-   "sin datos" por el celular en `Movil` se acreditan solas si la cuenta ya
-   existía.
+3. En el panel, **"Volver a revisar (desde el 05/11/2026)"**: las ventas del
+   05/11 en adelante que quedaron "sin datos" por el celular en `Movil` se
+   acreditan solas si la cuenta ya existía. Las anteriores al 05/11 no.
 4. Las que sigan sin identificar: asignarlas a mano con "Recordar esta ficha"
    tildado (una vez por clienta; después suman solas).
 

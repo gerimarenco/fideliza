@@ -4,6 +4,7 @@ import { autenticarAgente } from '@/lib/dragonfishAgente'
 import { enviarEmailPuntosAcreditados } from '@/lib/email'
 import { normalizarEmail } from '@/lib/identidad'
 import { montoDeVenta, nombreDeFicha, codigoDeFicha, celularesDeVenta, dniDeVenta, buscarClientaDeVenta, cuentaPosterior, acreditarVenta } from '@/lib/dragonfishIdentificacion'
+import { anteriorAlInicio } from '@/lib/dragonfishFecha'
 
 // El agente local reporta acá el resultado de consultar una factura pendiente
 // contra la API REST de Dragon Fish: monto de la venta y el dato de
@@ -75,6 +76,12 @@ export async function POST(request) {
   // Si un reporte trae menos datos que uno anterior (por ejemplo, un agente
   // viejo al volver a revisar), se conserva lo que ya estaba guardado.
   const marcar = (resultado, extra = {}) => marcarFactura(factura.id, codigo, resultado, { monto: monto ?? factura.monto, nombreFicha: nombreFicha ?? factura.nombreFicha, codigoFicha: codigoFicha ?? factura.codigoFicha, candidatas: [], ...extra })
+
+  // Venta anterior al día desde el que suman las ventas del local de este
+  // negocio (Peperina: 05/11/2026, por la fecha de la venta en Dragon Fish):
+  // no suma, ni se busca a la clienta. Las ventas nuevas siempre son
+  // posteriores, y un negocio sin ese límite no se ve afectado.
+  if (anteriorAlInicio(negocio, factura)) return marcar('fuera_de_periodo')
 
   if (sinDatos || monto == null || (!codigoFicha && !email && !celulares.length && !dni)) {
     return marcar('sin_datos')
