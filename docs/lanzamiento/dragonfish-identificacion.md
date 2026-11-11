@@ -86,10 +86,14 @@ fila desde agosto, y aparecieron dos problemas:
   - **En la recuperación de un negocio con día de inicio** (lista, "Volver a
     revisar", asignar a mano, vincular ficha), una venta sin fecha verificable
     **queda afuera**: no se usa `createdAt` para decidir si entra.
-  - **Cuando el agente reporta una venta** (`fueraDePeriodoAlProcesar`), la
-    única excepción: sin fecha verificable, cuenta solo si el aviso llegó
-    después del día de inicio y hace menos de un día (una compra del momento,
-    no histórica). Un aviso más viejo sin fecha queda `fuera_de_periodo`.
+  - **Cuando el agente reporta una venta** (`controlDeFecha`), vieja o nueva:
+    sin fecha verificable queda **`sin_fecha`**, para revisión. No suma, no
+    se busca a la clienta y no se manda mail, aunque el aviso haya llegado
+    recién: un aviso reciente no prueba que la compra lo sea (puede ser una
+    venta vieja reenviada o recibida tarde). No vuelve a la fila con "Volver a
+    revisar" ni se puede asignar a mano; el panel muestra cuántas hay ("N
+    ventas llegaron sin una fecha de Dragon Fish que se pueda verificar").
+    Con fecha anterior al día de inicio, `fuera_de_periodo`.
   - **En los flujos sin límite** (regla de cuenta posterior, negocios sin día
     de inicio) se sigue usando `createdAt` si no hay fecha verificable, como
     antes.
@@ -108,7 +112,8 @@ fila desde agosto, y aparecieron dos problemas:
   `INICIO_VENTAS_LOCAL` no tiene límite (se comporta como antes, con la fecha
   de la venta en vez de la del aviso). Las acreditaciones ya hechas (incluidas
   las de octubre del 10/11) no se tocan.
-- Sin migración: `fuera_de_periodo` es un valor más de `resultado` (texto).
+- Sin migración: `fuera_de_periodo` y `sin_fecha` son valores más de
+  `resultado` (texto).
 - Pruebas: `lib/dragonfishFecha.test.js` (límites 04/11 23:59:59 / 05/11
   00:00:00, hora de Argentina, otros negocios) y
   `pruebas/e2e/dragonfish-recuperacion.mjs`.

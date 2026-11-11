@@ -142,6 +142,7 @@ export default function Home() {
   const [asignacionVenta, setAsignacionVenta] = useState({});
   const [noVincularVenta, setNoVincularVenta] = useState({});
   const [fichasVinculadas, setFichasVinculadas] = useState([]);
+  const [ventasSinFecha, setVentasSinFecha] = useState(0);
   const [ocupadoVentas, setOcupadoVentas] = useState(null);
   const [clientesData, setClientesData] = useState(null);
   const [clientesBusqueda, setClientesBusqueda] = useState('');
@@ -2032,6 +2033,7 @@ export default function Home() {
             <button type="button" className="fid-btn-secondary" onClick={revisarVentasSinIdentificar} disabled={!!ocupadoVentas} style={ui.botonSecundario}>Volver a revisar ({periodoRevisar(negocioMostrado)})</button>
           </div>
           {inicioDeVentas(negocioMostrado) && <p style={{ ...ui.ayuda, marginTop: 0 }}>Las ventas del local suman desde el {fechaCorta(inicioDeVentas(negocioMostrado))} (fecha de la venta en Dragon Fish). Las anteriores no aparecen acá ni se pueden sumar.</p>}
+          {ventasSinIdentificar && ventasSinFecha > 0 && <p role="status" style={{ fontSize: 14 }}>{ventasSinFecha === 1 ? '1 venta llegó' : `${ventasSinFecha} ventas llegaron`} sin una fecha de Dragon Fish que se pueda verificar: no suman puntos ni se pueden asignar. Avisanos para revisarlas.</p>}
           {ventasSinIdentificar && ventasSinIdentificar.length === 0 && <p style={{ fontSize: 14 }}>No hay ventas sin identificar en los últimos 90 días.</p>}
           {ventasSinIdentificar && ventasSinIdentificar.length > 0 && (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
@@ -2094,7 +2096,7 @@ export default function Home() {
     setOcupadoVentas('cargar');
     fetch(`/api/dragonfish/sin-identificar?negocioId=${negocioMostrado.id}`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { setVentasSinIdentificar(data?.ventas || []); setFichasVinculadas(data?.vinculadas || []); })
+      .then((data) => { setVentasSinIdentificar(data?.ventas || []); setFichasVinculadas(data?.vinculadas || []); setVentasSinFecha(data?.sinFecha || 0); })
       .catch(() => mostrarToast('error', 'No se pudieron cargar las ventas.'))
       .finally(() => setOcupadoVentas(null));
   };

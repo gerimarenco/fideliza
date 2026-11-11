@@ -4,7 +4,7 @@ import { autenticarAgente } from '@/lib/dragonfishAgente'
 import { enviarEmailPuntosAcreditados } from '@/lib/email'
 import { normalizarEmail } from '@/lib/identidad'
 import { montoDeVenta, nombreDeFicha, codigoDeFicha, celularesDeVenta, dniDeVenta, buscarClientaDeVenta, cuentaPosterior, acreditarVenta } from '@/lib/dragonfishIdentificacion'
-import { fueraDePeriodoAlProcesar } from '@/lib/dragonfishFecha'
+import { controlDeFecha } from '@/lib/dragonfishFecha'
 
 // El agente local reporta acá el resultado de consultar una factura pendiente
 // contra la API REST de Dragon Fish: monto de la venta y el dato de
@@ -77,12 +77,13 @@ export async function POST(request) {
   // viejo al volver a revisar), se conserva lo que ya estaba guardado.
   const marcar = (resultado, extra = {}) => marcarFactura(factura.id, codigo, resultado, { monto: monto ?? factura.monto, nombreFicha: nombreFicha ?? factura.nombreFicha, codigoFicha: codigoFicha ?? factura.codigoFicha, candidatas: [], ...extra })
 
-  // Venta anterior al día desde el que suman las ventas del local de este
-  // negocio (Peperina: 05/11/2026, por la fecha de la venta en Dragon Fish),
-  // o sin fecha verificable y que no es del momento: no suma, ni se busca a la
-  // clienta. Las ventas nuevas siempre son posteriores, y un negocio sin ese
-  // límite no se ve afectado (ver lib/dragonfishFecha.js).
-  if (fueraDePeriodoAlProcesar(negocio, factura)) return marcar('fuera_de_periodo')
+  // Negocio con día desde el que suman las ventas del local (Peperina:
+  // 05/11/2026): una venta sin fecha de Dragon Fish verificable queda
+  // "sin_fecha" para revisión, y una anterior a ese día "fuera_de_periodo".
+  // En los dos casos no suma, no se busca a la clienta y no se manda mail.
+  // Un negocio sin ese límite no se ve afectado (ver lib/dragonfishFecha.js).
+  const fueraDeControl = controlDeFecha(negocio, factura)
+  if (fueraDeControl) return marcar(fueraDeControl)
 
   if (sinDatos || monto == null || (!codigoFicha && !email && !celulares.length && !dni)) {
     return marcar('sin_datos')

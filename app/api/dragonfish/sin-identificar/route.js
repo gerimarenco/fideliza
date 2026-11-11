@@ -91,8 +91,14 @@ export async function GET(request) {
     const sugerencias = [...new Set([...porDatos, ...porNombre])].slice(0, 8)
     return { codigo: f.codigo, fecha, monto: f.monto, puntos: f.monto != null ? calcularPuntosPorCompra(f.monto, negocio.puntosXPeso) : null, nombreFicha: f.nombreFicha, motivo: f.resultado, sugerencias, vinculable: !fichaGenerica(f.nombreFicha, f.codigoFicha) }
   })
+  // Ventas que el agente dejó "sin_fecha" (sin fecha de Dragon Fish
+  // verificable, solo en un negocio con día de inicio): no suman ni se pueden
+  // asignar; se informa cuántas hay para revisarlas.
+  const sinFecha = inicio
+    ? await prisma.facturaPendiente.count({ where: { negocioId: negocio.id, procesado: true, resultado: 'sin_fecha', createdAt: { gte: conMargen(new Date(Date.now() - DIAS_LISTA * DIA_MS)) } } })
+    : 0
   const vinculadas = await prisma.fichaDragonfish.findMany({ where: { negocioId: negocio.id }, orderBy: { createdAt: 'desc' }, take: 300, select: { codigo: true, nombreFicha: true, clienteId: true, createdAt: true } })
-  return NextResponse.json({ ventas, vinculadas, dias: DIAS_LISTA, desde: inicio })
+  return NextResponse.json({ ventas, vinculadas, dias: DIAS_LISTA, desde: inicio, sinFecha })
 }
 
 export async function POST(request) {

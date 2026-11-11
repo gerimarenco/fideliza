@@ -10,7 +10,8 @@
 // negocio sin límite.
 // Correr con: node --import ./pruebas/e2e/simulaciones/todas.mjs pruebas/e2e/dragonfish-recuperacion.mjs
 // (antes del 04/01/2027: "Volver a revisar" mira los últimos 60 días).
-import { BASE, chromiumDePlaywright } from './entorno.mjs'
+import { BASE, DIR, chromiumDePlaywright } from './entorno.mjs'
+import fs from 'node:fs'
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
@@ -41,6 +42,9 @@ const venta = (negocioId, fecha, hora, llegada, extra = {}) => prisma.facturaPen
   procesado: true, resultado: 'sin_datos', monto: 10000, ...extra,
 } })
 const fila = (f) => prisma.facturaPendiente.findUnique({ where: { id: f.id } })
+// Mails simulados (Resend): van a un archivo, nunca a una casilla real.
+const MAILS = `${DIR}/mails-enviados.json`
+const mailsA = (email) => (fs.existsSync(MAILS) ? JSON.parse(fs.readFileSync(MAILS, 'utf8')) : []).filter((m) => JSON.stringify(m.to).includes(email)).length
 const saldo = async (c) => (await prisma.cliente.findUnique({ where: { id: c.id } })).puntos
 const resolver = async (codigo, cuerpo, token = 'token-agente-peperina') => {
   const r = await fetch(`${BASE}/api/dragonfish/resolver`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ codigo, ...cuerpo }) })
@@ -75,6 +79,10 @@ const fl09 = await venta(pf.id, '09/11/2026', '11:00:00', '2026-11-09T14:00:02Z'
 const fPend = await venta(pf.id, '03/11/2026', '10:00:00', '2026-11-03T13:00:02Z', { procesado: false, resultado: null, monto: null })
 // Pendiente sin fecha que quedó en la fila (recibida el 06/11).
 const fPendSinFecha = await venta(pf.id, '', '', '2026-11-06T13:00:02Z', { procesado: false, resultado: null, monto: null })
+// Ventas antiguas reenviadas el 05/11 (el aviso llega de nuevo, tarde): con su
+// fecha original de octubre, y sin fecha.
+const fReenviada = await venta(pf.id, '20/10/2026', '17:00:00', '2026-11-05T15:00:00Z', { procesado: false, resultado: null, monto: null })
+const fReenviadaSinFecha = await venta(pf.id, '', '', '2026-11-05T15:00:00Z', { procesado: false, resultado: null, monto: null })
 // Otro negocio, sin límite: una venta sin fecha (sigue como antes: cuenta la llegada).
 const fOtraSinFecha = await venta(pep.id, '', '', '2026-11-04T18:00:02Z', { resultado: 'sin_cliente', monto: 3000 })
 // Otro negocio, sin límite: una venta del 04/11.
@@ -129,8 +137,14 @@ r = await resolver(fAmb.codigo, { monto: 8000, telefonos: ['2324700099'] })
 chequear(r.cuerpo.resultado === 'ambigua' && await saldo(gem1) === 0 && await saldo(gem2) === 0, 'celular de dos cuentas: "ambigua", no suma a ninguna')
 r = await resolver(fPend.codigo, { monto: 20000, email: 'ana.rec@prueba.test', telefonos: [] })
 chequear(r.cuerpo.resultado === 'fuera_de_periodo' && await saldo(ana) === 100, 'una pendiente del 03/11 que el agente reporta ahora: "fuera_de_periodo", no suma')
+const mailsAna = mailsA('ana.rec@prueba.test')
 r = await resolver(fPendSinFecha.codigo, { monto: 20000, email: 'ana.rec@prueba.test', telefonos: [] })
-chequear(r.cuerpo.resultado === 'fuera_de_periodo' && await saldo(ana) === 100, 'una pendiente sin fecha recibida el 06/11 que el agente reporta ahora: "fuera_de_periodo", no suma')
+chequear(r.cuerpo.resultado === 'sin_fecha' && await saldo(ana) === 100, 'una pendiente sin fecha recibida el 06/11 que el agente reporta ahora: "sin_fecha" (para revisión), no suma')
+r = await resolver(fReenviada.codigo, { monto: 30000, email: 'ana.rec@prueba.test', telefonos: [] })
+chequear(r.cuerpo.resultado === 'fuera_de_periodo' && await saldo(ana) === 100, 'venta antigua (20/10) reenviada el 05/11: "fuera_de_periodo", no suma')
+r = await resolver(fReenviadaSinFecha.codigo, { monto: 30000, email: 'ana.rec@prueba.test', telefonos: [] })
+chequear(r.cuerpo.resultado === 'sin_fecha' && await saldo(ana) === 100, 'venta antigua reenviada el 05/11 sin fecha: "sin_fecha", no suma')
+chequear(mailsA('ana.rec@prueba.test') === mailsAna, 'ninguna de esas tres le manda mail de puntos')
 r = await resolver(fYa.codigo, { monto: 10000, email: 'ana.rec@prueba.test', telefonos: [] })
 chequear(r.cuerpo.resultado === 'acreditado' && await saldo(ana) === 100, 'la ya acreditada no vuelve a sumar')
 r = await resolver(f05.codigo, { monto: 10000, email: 'ana.rec@prueba.test', telefonos: [] })
@@ -164,10 +178,23 @@ for (const [codigo, cuerpo, quien, esperado] of [
   chequear(nueva.fecha === aviso.Fecha && r.cuerpo.resultado === 'acreditado' && await saldo(quien) === esperado, `compra de hoy (aviso real de Dragon Fish) de ${quien.nombre}: suma sola (${esperado})`)
 }
 
-// Compra del momento cuyo aviso viniera sin fecha: suma (llegó recién, no es histórica).
-const sinFechaAhora = await prisma.facturaPendiente.create({ data: { negocioId: pf.id, codigo: `AHORA-${Date.now()}`, entidad: 'FACTURA', fecha: '', hora: '' } })
-r = await resolver(sinFechaAhora.codigo, { monto: 1000, email: 'ana.rec@prueba.test', telefonos: [] })
-chequear(r.cuerpo.resultado === 'acreditado' && await saldo(ana) === 150, 'una compra de recién cuyo aviso viniera sin fecha: suma igual (10)')
+chequear(mailsA('ana.rec@prueba.test') === mailsAna + 1, 'la compra de hoy con fecha válida sí le manda el mail de puntos')
+
+// Avisos reales de hoy (llegan recién) sin fecha o con fecha inválida: no suman
+// ni mandan mail; quedan "sin_fecha" para revisión.
+const mailsAntes = mailsA('ana.rec@prueba.test')
+for (const [codigo, campos, texto] of [
+  ['SINFECHA', { Fecha: undefined, Hora: undefined }, 'sin fecha, recibida el mismo día de la compra'],
+  ['FECHAMALA', { Fecha: '31/11/2026' }, 'con fecha inválida (31/11/2026)'],
+  ['HORAMALA', { Hora: '25:61:00' }, 'con hora inválida'],
+]) {
+  await fetch(`${BASE}/api/webhooks/dragonfish`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...aviso, ...campos, Codigo: `${codigo}-${Date.now()}` }) })
+  const nueva = await prisma.facturaPendiente.findFirst({ where: { negocioId: pf.id, codigo: { startsWith: codigo } } })
+  r = await resolver(nueva.codigo, { monto: 1000, email: 'ana.rec@prueba.test', telefonos: [] })
+  const guardada = await fila(nueva)
+  chequear(r.cuerpo.resultado === 'sin_fecha' && guardada.procesado && guardada.monto === 1000 && await saldo(ana) === 140, `compra de hoy ${texto}: "sin_fecha", no suma`)
+}
+chequear(mailsA('ana.rec@prueba.test') === mailsAntes, 'y ninguna manda mail de puntos')
 
 console.log('Otro negocio')
 r = await pedir(negOtro, 'POST', API, { negocioId: pep.id, accion: 'revisar', dias: 60 })
@@ -176,10 +203,23 @@ r = await resolver(fOtra.codigo, { monto: 7000, email: 'otra.empresa@prueba.test
 chequear(r.cuerpo.resultado === 'acreditado' && await saldo(otraEmp) === 70, 'y se acredita normalmente (70)')
 chequear((await fila(fOtraSinFecha)).procesado === false, 'su venta sin fecha también vuelve a revisarse (sin límite, como antes)')
 
+r = await pedir(neg, 'GET', `${API}?negocioId=${pf.id}`)
+chequear(r.cuerpo.sinFecha === 5 && !r.cuerpo.ventas.some((v) => /^(SINFECHA|FECHAMALA|HORAMALA)/.test(v.codigo)), 'el panel informa las 5 "sin fecha" para revisión, sin ofrecerlas para asignar')
+r = await pedir(neg, 'POST', API, { negocioId: pf.id, accion: 'revisar', dias: 60 })
+chequear((await fila(fPendSinFecha)).resultado === 'sin_fecha', '"Volver a revisar" no las vuelve a la fila')
+r = await pedir(negOtro, 'GET', `${API}?negocioId=${pep.id}`)
+chequear(r.cuerpo.sinFecha === 0, 'otro negocio: nada "sin fecha"')
+const otraHoy = await prisma.facturaPendiente.create({ data: { negocioId: pep.id, codigo: `OTRA-HOY-${Date.now()}`, entidad: 'FACTURA', fecha: '', hora: '' } })
+r = await resolver(otraHoy.codigo, { monto: 2000, email: 'otra.empresa@prueba.test', telefonos: [] }, 'token-agente-prueba')
+chequear(r.cuerpo.resultado === 'acreditado' && await saldo(otraEmp) === 90, 'otro negocio: una compra sin fecha suma como antes (20)')
+
 console.log('Pantalla')
 await neg.page.goto(`${BASE}/`)
 await neg.page.getByRole('button', { name: /^Integraciones/ }).first().click()
 chequear(await neg.page.getByRole('button', { name: 'Volver a revisar (desde el 05/11/2026)' }).isVisible(), 'el botón dice "Volver a revisar (desde el 05/11/2026)"')
+await neg.page.getByRole('button', { name: 'Ver ventas sin identificar' }).click()
+await neg.page.getByText('5 ventas llegaron sin una fecha de Dragon Fish').waitFor({ timeout: 30000 })
+chequear(true, 'muestra "5 ventas llegaron sin una fecha de Dragon Fish que se pueda verificar"')
 await negOtro.page.goto(`${BASE}/`)
 await negOtro.page.getByRole('button', { name: /^Integraciones/ }).first().click()
 chequear(await negOtro.page.getByRole('button', { name: 'Volver a revisar (últimos 60 días)' }).isVisible(), 'en otro negocio sigue "Volver a revisar (últimos 60 días)"')

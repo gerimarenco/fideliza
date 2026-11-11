@@ -279,7 +279,7 @@ model FacturaPendiente {
   fecha     String
   hora      String
   procesado Boolean  @default(false)
-  resultado String?  // "acreditado" | "acreditado_manual" | "sin_cliente" | "sin_datos" | "ambigua" | "cuenta_posterior" | "fuera_de_periodo" (anterior al día desde el que suman las ventas del local del negocio, ver lib/dragonfishFecha.js) | "sin_puntos" | "duplicado", null mientras está pendiente
+  resultado String?  // "acreditado" | "acreditado_manual" | "sin_cliente" | "sin_datos" | "ambigua" | "cuenta_posterior" | "fuera_de_periodo" (anterior al día desde el que suman las ventas del local del negocio, ver lib/dragonfishFecha.js) | "sin_fecha" (negocio con ese día: sin fecha de Dragon Fish verificable, para revisión) | "sin_puntos" | "duplicado", null mientras está pendiente
   // Lo que informó el agente al procesarla (desde 2026-11-11): el monto, el
   // nombre de la ficha de Dragon Fish (solo para que el negocio reconozca a
   // quién corresponde una venta sin identificar), y si se acreditó, a quién
