@@ -126,6 +126,22 @@ No devuelve datos de clientas, solo conteos. Las fechas se leen sin `to_date`
 para que una fecha imposible (31/11) cuente como "sin fecha verificable" en
 vez de cortar la consulta, con el mismo criterio que el código.
 
+**Cómo está guardado `createdAt`** (verificado 2026-11-12): la columna es
+`timestamp(3) without time zone` con `DEFAULT CURRENT_TIMESTAMP`
+(migración `20260830194640_add_dragonfish_agente`), pero la app no usa ese
+DEFAULT: el único que crea filas es el webhook
+(`app/api/webhooks/dragonfish`), con Prisma, que manda `createdAt` explícito
+en el INSERT, calculado en UTC. Probado en una base local: con la sesión en
+UTC o en `America/Argentina/Buenos_Aires`, Prisma guarda la hora UTC (el
+DEFAULT, en cambio, guardaría la hora de la sesión). Por eso las consultas
+convierten con `("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE
+'America/Argentina/Buenos_Aires'`, que da lo mismo con cualquier zona de la
+sesión. La consulta 3 lo comprueba con los datos reales (las dos últimas
+columnas). Probadas con casos alrededor de la medianoche (04/11 23:59:59,
+05/11 00:00:00, 05/11 21:30 que en UTC ya es 06/11, reloj adelantado, sin
+fecha, 31/11): mismo resultado que el código y con la sesión en UTC o en
+Argentina.
+
 ```sql
 -- 1) Negocio con base de Dragon Fish PEPERINA (tiene que devolver exactamente 1 fila)
 SELECT n.nombre,
@@ -134,10 +150,13 @@ SELECT n.nombre,
 FROM "Negocio" n
 WHERE upper(btrim(n."dragonfishBaseDeDatos")) = 'PEPERINA';
 
--- 2) Ventas de Club Peperina por período (fecha real de Dragon Fish, verificable) y resultado
+-- 2) Ventas de Club Peperina por período (fecha real de Dragon Fish, verificable) y resultado.
+--    createdAt guarda la hora UTC (Prisma la manda explícita en UTC; no se usa el DEFAULT de la base):
+--    se convierte a hora de Argentina con AT TIME ZONE 'UTC' y después 'America/Argentina/Buenos_Aires',
+--    que no depende de la zona horaria de la sesión.
 WITH v AS (
   SELECT f.resultado, f.procesado,
-         (f."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') AS llegada,
+         (f."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Argentina/Buenos_Aires' AS llegada,
          btrim(f.hora) AS hora,
          CASE WHEN btrim(f.fecha) ~ '^\d{1,2}/\d{1,2}/\d{4}$' THEN string_to_array(btrim(f.fecha), '/')::int[] END AS dma
   FROM "FacturaPendiente" f
@@ -160,15 +179,19 @@ SELECT CASE WHEN venta IS NULL OR venta > llegada + interval '1 day' THEN 'sin f
 FROM w GROUP BY 1, 2 ORDER BY 1, 2;
 
 -- 3) ¿La fecha real de Dragon Fish coincide con el día en que llegó el aviso (hora de Argentina)?
+--    Las dos últimas columnas comprueban con los datos cómo está guardado createdAt: cuántos avisos
+--    llegaron dentro de los 15 minutos de la venta leyendo createdAt como UTC, y cuántos si fuera
+--    hora de Argentina. Si createdAt es UTC (lo esperado), la primera es alta y la segunda casi 0.
 WITH v AS (
-  SELECT (f."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Argentina/Buenos_Aires') AS llegada,
+  SELECT (f."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Argentina/Buenos_Aires' AS llegada,
+         f."createdAt" AS creado_sin_convertir,
          btrim(f.hora) AS hora,
          CASE WHEN btrim(f.fecha) ~ '^\d{1,2}/\d{1,2}/\d{4}$' THEN string_to_array(btrim(f.fecha), '/')::int[] END AS dma
   FROM "FacturaPendiente" f
   JOIN "Negocio" n ON n.id = f."negocioId"
   WHERE upper(btrim(n."dragonfishBaseDeDatos")) = 'PEPERINA'
 ), w AS (
-  SELECT llegada,
+  SELECT llegada, creado_sin_convertir,
          CASE WHEN dma IS NULL OR dma[3] < 1 OR dma[2] NOT BETWEEN 1 AND 12 OR dma[1] < 1 THEN NULL
               WHEN dma[1] > extract(day FROM make_date(dma[3], dma[2], 1) + interval '1 month - 1 day') THEN NULL
               WHEN hora <> '' AND hora !~ '^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$' THEN NULL
@@ -176,14 +199,16 @@ WITH v AS (
          END AS venta
   FROM v
 ), x AS (
-  SELECT llegada, CASE WHEN venta <= llegada + interval '1 day' THEN venta END AS venta FROM w
+  SELECT llegada, creado_sin_convertir, CASE WHEN venta <= llegada + interval '1 day' THEN venta END AS venta FROM w
 )
 SELECT count(*) AS total,
        count(*) FILTER (WHERE venta IS NULL) AS sin_fecha_verificable,
        count(*) FILTER (WHERE venta::date = llegada::date) AS mismo_dia,
        count(*) FILTER (WHERE venta::date <> llegada::date) AS distinto_dia,
        count(*) FILTER (WHERE venta > llegada) AS venta_despues_del_aviso,
-       max(llegada - venta) AS mayor_demora_del_aviso
+       max(llegada - venta) AS mayor_demora_del_aviso,
+       count(*) FILTER (WHERE abs(extract(epoch FROM llegada - venta)) <= 900) AS aviso_15min_si_createdat_utc,
+       count(*) FILTER (WHERE abs(extract(epoch FROM creado_sin_convertir - venta)) <= 900) AS aviso_15min_si_createdat_hora_arg
 FROM x;
 ```
 
