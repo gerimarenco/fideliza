@@ -14,6 +14,7 @@ import { calcularPuntosPorCompra } from '@/lib/puntos';
 import { PAISES, PAIS_PREDETERMINADO, normalizarCelular, numeroWhatsapp } from '@/lib/telefono';
 import { normalizarDni, MENSAJE_DNI_INVALIDO } from '@/lib/dni';
 import { estadoAgente, textoTiempo } from '@/lib/estadoAgente';
+import { inicioDeVentas } from '@/lib/dragonfishFecha';
 import { ICONOS_PREMIO, IconoPremio } from '@/lib/premioIconos';
 import { TEMA_DEFAULT, FUENTE_TEXTO, resolverTema } from '@/lib/tema';
 import {
@@ -22,6 +23,13 @@ import {
   ShoppingBag, Hourglass, Link as LinkIcon, Ticket, Info, Mail, Menu, Download,
   ArrowRight, Check, X, Copy, ExternalLink, CircleCheck, PackageX, CircleAlert, FileSpreadsheet, Trash2,
 } from 'lucide-react';
+
+// "Volver a revisar": los últimos 60 días o, si el negocio tiene un día desde
+// el que suman las ventas del local y es más reciente, desde ese día.
+function periodoRevisar(negocio) {
+  const inicio = inicioDeVentas(negocio);
+  return inicio && inicio > new Date(Date.now() - 60 * 86400000) ? `desde el ${fechaCorta(inicio)}` : 'últimos 60 días';
+}
 
 // Una clave por confirmación de canje (ver confirmacionCanje).
 function nuevaClaveCanje() {
@@ -134,6 +142,7 @@ export default function Home() {
   const [asignacionVenta, setAsignacionVenta] = useState({});
   const [noVincularVenta, setNoVincularVenta] = useState({});
   const [fichasVinculadas, setFichasVinculadas] = useState([]);
+  const [ventasSinFecha, setVentasSinFecha] = useState(0);
   const [ocupadoVentas, setOcupadoVentas] = useState(null);
   const [clientesData, setClientesData] = useState(null);
   const [clientesBusqueda, setClientesBusqueda] = useState('');
@@ -2021,8 +2030,10 @@ export default function Home() {
           <p style={{ ...ui.ayuda, marginTop: 8 }}>Ventas de la caja que no se pudieron unir a una cuenta: la ficha de Dragon Fish no tiene email, celular ni DNI, o no coinciden con los de su cuenta en Retornar. Completá la ficha y tocá «Volver a revisar», o elegí a la clienta y sumale los puntos. Una compra de antes de que la clienta se registrara no suma.</p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '12px 0' }}>
             <button type="button" className="fid-btn-secondary" onClick={cargarVentasSinIdentificar} disabled={!!ocupadoVentas} style={ui.botonSecundario}>{ventasSinIdentificar ? 'Actualizar lista' : 'Ver ventas sin identificar'}</button>
-            <button type="button" className="fid-btn-secondary" onClick={revisarVentasSinIdentificar} disabled={!!ocupadoVentas} style={ui.botonSecundario}>Volver a revisar (últimos 60 días)</button>
+            <button type="button" className="fid-btn-secondary" onClick={revisarVentasSinIdentificar} disabled={!!ocupadoVentas} style={ui.botonSecundario}>Volver a revisar ({periodoRevisar(negocioMostrado)})</button>
           </div>
+          {inicioDeVentas(negocioMostrado) && <p style={{ ...ui.ayuda, marginTop: 0 }}>Las ventas del local suman desde el {fechaCorta(inicioDeVentas(negocioMostrado))} (fecha de la venta en Dragon Fish). Las anteriores no aparecen acá ni se pueden sumar.</p>}
+          {ventasSinIdentificar && ventasSinFecha > 0 && <p role="status" style={{ fontSize: 14 }}>{ventasSinFecha === 1 ? '1 venta llegó' : `${ventasSinFecha} ventas llegaron`} sin una fecha de Dragon Fish que se pueda verificar: no suman puntos ni se pueden asignar. Avisanos para revisarlas.</p>}
           {ventasSinIdentificar && ventasSinIdentificar.length === 0 && <p style={{ fontSize: 14 }}>No hay ventas sin identificar en los últimos 90 días.</p>}
           {ventasSinIdentificar && ventasSinIdentificar.length > 0 && (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
@@ -2085,7 +2096,7 @@ export default function Home() {
     setOcupadoVentas('cargar');
     fetch(`/api/dragonfish/sin-identificar?negocioId=${negocioMostrado.id}`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => { setVentasSinIdentificar(data?.ventas || []); setFichasVinculadas(data?.vinculadas || []); })
+      .then((data) => { setVentasSinIdentificar(data?.ventas || []); setFichasVinculadas(data?.vinculadas || []); setVentasSinFecha(data?.sinFecha || 0); })
       .catch(() => mostrarToast('error', 'No se pudieron cargar las ventas.'))
       .finally(() => setOcupadoVentas(null));
   };
@@ -2104,7 +2115,7 @@ export default function Home() {
     }
   };
   const revisarVentasSinIdentificar = async () => {
-    if (!window.confirm('Las ventas sin identificar de los últimos 60 días vuelven a la fila y el agente las revisa de nuevo con los datos actuales de las fichas. Las compras de antes de que la clienta se registrara siguen sin sumar. ¿Seguir?')) return;
+    if (!window.confirm(`Las ventas sin identificar (${periodoRevisar(negocioMostrado)}) vuelven a la fila y el agente las revisa de nuevo con los datos actuales de las fichas. Las compras de antes de que la clienta se registrara siguen sin sumar. ¿Seguir?`)) return;
     const data = await accionVentas('revisar', { accion: 'revisar', dias: 60 });
     if (data) {
       mostrarToast('exito', data.enRevision ? `${data.enRevision} venta(s) vuelven a revisarse. El agente las procesa en unos minutos.` : 'No había ventas para revisar.');

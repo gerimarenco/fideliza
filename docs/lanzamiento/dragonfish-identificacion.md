@@ -71,15 +71,162 @@ fila desde agosto, y aparecieron dos problemas:
   viejo al "Volver a revisar"), se conservan el monto, el nombre y el código
   de ficha ya guardados.
 
+## Fecha de la venta y recuperación de Peperina desde el 05/11/2026 (2026-11-11)
+
+- **Qué fecha es cuál.** Dragon Fish manda en el aviso (webhook) `Fecha`
+  (`DD/MM/AAAA`) y `Hora` (`HH:MM:SS`), en hora de Argentina; se guardan tal
+  cual, como texto, en `FacturaPendiente.fecha` y `.hora`. Esa es la fecha de
+  la venta. `FacturaPendiente.createdAt` es cuándo llegó el aviso a Retornar
+  (segundos después de facturar). Hasta ahora todo usaba `createdAt`: la regla
+  "cuenta posterior", los 60 días de "Volver a revisar" y los 90 de la lista.
+  Desde este cambio se usa la fecha de la venta (`lib/dragonfishFecha.js`).
+- **Fecha verificable** (`fechaVerificada`): `fecha` legible y existente,
+  `hora` vacía o legible, y no más de un día posterior a la llegada del aviso.
+  Si no, no hay fecha verificable.
+  - **En la recuperación de un negocio con día de inicio** (lista, "Volver a
+    revisar", asignar a mano, vincular ficha), una venta sin fecha verificable
+    **queda afuera**: no se usa `createdAt` para decidir si entra.
+  - **Cuando el agente reporta una venta** (`controlDeFecha`), vieja o nueva:
+    sin fecha verificable queda **`sin_fecha`**, para revisión. No suma, no
+    se busca a la clienta y no se manda mail, aunque el aviso haya llegado
+    recién: un aviso reciente no prueba que la compra lo sea (puede ser una
+    venta vieja reenviada o recibida tarde). No vuelve a la fila con "Volver a
+    revisar" ni se puede asignar a mano; el panel muestra cuántas hay ("N
+    ventas llegaron sin una fecha de Dragon Fish que se pueda verificar").
+    Con fecha anterior al día de inicio, `fuera_de_periodo`.
+  - **En los flujos sin límite** (regla de cuenta posterior, negocios sin día
+    de inicio) se sigue usando `createdAt` si no hay fecha verificable, como
+    antes.
+- **Club Peperina: solo desde el 05/11/2026.** `INICIO_VENTAS_LOCAL` en
+  `lib/dragonfishFecha.js` fija, por el nombre de la base de Dragon Fish
+  (`Negocio.dragonfishBaseDeDatos` = `PEPERINA`), el día desde el que suman las
+  ventas del local: 05/11/2026 00:00 de Argentina, inclusive. Una venta
+  anterior:
+  - no aparece en "Ventas del local sin identificar" y "Volver a revisar" no
+    la vuelve a la fila (el botón dice "desde el 05/11/2026");
+  - no se puede asignar a mano (409) ni suma al vincular su ficha;
+  - si el agente la reporta (por ejemplo, una que nunca se procesó), queda
+    `fuera_de_periodo` y no suma.
+- **No afecta a nadie más.** Las compras nuevas de Peperina son siempre
+  posteriores al 05/11 y suman normalmente; un negocio que no figura en
+  `INICIO_VENTAS_LOCAL` no tiene límite (se comporta como antes, con la fecha
+  de la venta en vez de la del aviso). Las acreditaciones ya hechas (incluidas
+  las de octubre del 10/11) no se tocan.
+- Sin migración: `fuera_de_periodo` y `sin_fecha` son valores más de
+  `resultado` (texto).
+- Pruebas: `lib/dragonfishFecha.test.js` (límites 04/11 23:59:59 / 05/11
+  00:00:00, hora de Argentina, otros negocios) y
+  `pruebas/e2e/dragonfish-recuperacion.mjs`.
+
+### Consulta de solo lectura: cuántas ventas de Peperina entran
+
+En el SQL Editor de Neon, rama `Production`. Solo lectura (`SELECT`). Funciona
+antes y después del deploy: usa solo columnas que existen desde 2026-08-30.
+No devuelve datos de clientas, solo conteos. Las fechas se leen sin `to_date`
+para que una fecha imposible (31/11) cuente como "sin fecha verificable" en
+vez de cortar la consulta, con el mismo criterio que el código.
+
+**Cómo está guardado `createdAt`** (verificado 2026-11-12): la columna es
+`timestamp(3) without time zone` con `DEFAULT CURRENT_TIMESTAMP`
+(migración `20260830194640_add_dragonfish_agente`), pero la app no usa ese
+DEFAULT: el único que crea filas es el webhook
+(`app/api/webhooks/dragonfish`), con Prisma, que manda `createdAt` explícito
+en el INSERT, calculado en UTC. Probado en una base local: con la sesión en
+UTC o en `America/Argentina/Buenos_Aires`, Prisma guarda la hora UTC (el
+DEFAULT, en cambio, guardaría la hora de la sesión). Por eso las consultas
+convierten con `("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE
+'America/Argentina/Buenos_Aires'`, que da lo mismo con cualquier zona de la
+sesión. La consulta 3 lo comprueba con los datos reales (las dos últimas
+columnas). Probadas con casos alrededor de la medianoche (04/11 23:59:59,
+05/11 00:00:00, 05/11 21:30 que en UTC ya es 06/11, reloj adelantado, sin
+fecha, 31/11): mismo resultado que el código y con la sesión en UTC o en
+Argentina.
+
+```sql
+-- 1) Negocio con base de Dragon Fish PEPERINA (tiene que devolver exactamente 1 fila)
+SELECT n.nombre,
+       n."dragonfishBaseDeDatos",
+       (SELECT count(*) FROM "FacturaPendiente" f WHERE f."negocioId" = n.id) AS ventas_registradas
+FROM "Negocio" n
+WHERE upper(btrim(n."dragonfishBaseDeDatos")) = 'PEPERINA';
+
+-- 2) Ventas de Club Peperina por período (fecha real de Dragon Fish, verificable) y resultado.
+--    createdAt guarda la hora UTC (Prisma la manda explícita en UTC; no se usa el DEFAULT de la base):
+--    se convierte a hora de Argentina con AT TIME ZONE 'UTC' y después 'America/Argentina/Buenos_Aires',
+--    que no depende de la zona horaria de la sesión.
+WITH v AS (
+  SELECT f.resultado, f.procesado,
+         (f."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Argentina/Buenos_Aires' AS llegada,
+         btrim(f.hora) AS hora,
+         CASE WHEN btrim(f.fecha) ~ '^\d{1,2}/\d{1,2}/\d{4}$' THEN string_to_array(btrim(f.fecha), '/')::int[] END AS dma
+  FROM "FacturaPendiente" f
+  JOIN "Negocio" n ON n.id = f."negocioId"
+  WHERE upper(btrim(n."dragonfishBaseDeDatos")) = 'PEPERINA'
+), w AS (
+  SELECT resultado, procesado, llegada,
+         CASE WHEN dma IS NULL OR dma[3] < 1 OR dma[2] NOT BETWEEN 1 AND 12 OR dma[1] < 1 THEN NULL
+              WHEN dma[1] > extract(day FROM make_date(dma[3], dma[2], 1) + interval '1 month - 1 day') THEN NULL
+              WHEN hora <> '' AND hora !~ '^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$' THEN NULL
+              ELSE make_date(dma[3], dma[2], dma[1]) + CASE WHEN hora = '' THEN time '00:00' ELSE hora::time END
+         END AS venta
+  FROM v
+)
+SELECT CASE WHEN venta IS NULL OR venta > llegada + interval '1 day' THEN 'sin fecha verificable (no entra)'
+            WHEN venta >= timestamp '2026-11-05 00:00:00' THEN 'desde el 05/11 (entra)'
+            ELSE 'antes del 05/11 (no entra)' END AS periodo,
+       CASE WHEN NOT procesado THEN 'pendiente (sin procesar)' ELSE resultado END AS resultado,
+       count(*) AS ventas
+FROM w GROUP BY 1, 2 ORDER BY 1, 2;
+
+-- 3) ¿La fecha real de Dragon Fish coincide con el día en que llegó el aviso (hora de Argentina)?
+--    Las dos últimas columnas comprueban con los datos cómo está guardado createdAt: cuántos avisos
+--    llegaron dentro de los 15 minutos de la venta leyendo createdAt como UTC, y cuántos si fuera
+--    hora de Argentina. Si createdAt es UTC (lo esperado), la primera es alta y la segunda casi 0.
+WITH v AS (
+  SELECT (f."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Argentina/Buenos_Aires' AS llegada,
+         f."createdAt" AS creado_sin_convertir,
+         btrim(f.hora) AS hora,
+         CASE WHEN btrim(f.fecha) ~ '^\d{1,2}/\d{1,2}/\d{4}$' THEN string_to_array(btrim(f.fecha), '/')::int[] END AS dma
+  FROM "FacturaPendiente" f
+  JOIN "Negocio" n ON n.id = f."negocioId"
+  WHERE upper(btrim(n."dragonfishBaseDeDatos")) = 'PEPERINA'
+), w AS (
+  SELECT llegada, creado_sin_convertir,
+         CASE WHEN dma IS NULL OR dma[3] < 1 OR dma[2] NOT BETWEEN 1 AND 12 OR dma[1] < 1 THEN NULL
+              WHEN dma[1] > extract(day FROM make_date(dma[3], dma[2], 1) + interval '1 month - 1 day') THEN NULL
+              WHEN hora <> '' AND hora !~ '^([01]?\d|2[0-3]):[0-5]\d(:[0-5]\d)?$' THEN NULL
+              ELSE make_date(dma[3], dma[2], dma[1]) + CASE WHEN hora = '' THEN time '00:00' ELSE hora::time END
+         END AS venta
+  FROM v
+), x AS (
+  SELECT llegada, creado_sin_convertir, CASE WHEN venta <= llegada + interval '1 day' THEN venta END AS venta FROM w
+)
+SELECT count(*) AS total,
+       count(*) FILTER (WHERE venta IS NULL) AS sin_fecha_verificable,
+       count(*) FILTER (WHERE venta::date = llegada::date) AS mismo_dia,
+       count(*) FILTER (WHERE venta::date <> llegada::date) AS distinto_dia,
+       count(*) FILTER (WHERE venta > llegada) AS venta_despues_del_aviso,
+       max(llegada - venta) AS mayor_demora_del_aviso,
+       count(*) FILTER (WHERE abs(extract(epoch FROM llegada - venta)) <= 900) AS aviso_15min_si_createdat_utc,
+       count(*) FILTER (WHERE abs(extract(epoch FROM creado_sin_convertir - venta)) <= 900) AS aviso_15min_si_createdat_hora_arg
+FROM x;
+```
+
+Lo que "Volver a revisar" va a poner en la fila son las filas `desde el 05/11
+(entra)` con resultado `sin_cliente` o `sin_datos` (y `ambigua`, que solo
+existe después del deploy). Las `acreditado` no se tocan. Las `sin fecha
+verificable (no entra)` quedan afuera de la recuperación, igual que en el
+código.
+
 ## Pendiente (con autorización)
 
 1. Deploy (aplica la migración).
 2. **Actualizar el agente en la PC del local**: copiar `index.js` e
    `identificacion.js` nuevos a la carpeta del agente (ver
    `dragonfish-agente/README.md`, "Actualizar el agente") y reiniciarlo.
-3. En el panel, **"Volver a revisar"**: las ventas de noviembre que quedaron
-   "sin datos" por el celular en `Movil` se acreditan solas si la cuenta ya
-   existía.
+3. En el panel, **"Volver a revisar (desde el 05/11/2026)"**: las ventas del
+   05/11 en adelante que quedaron "sin datos" por el celular en `Movil` se
+   acreditan solas si la cuenta ya existía. Las anteriores al 05/11 no.
 4. Las que sigan sin identificar: asignarlas a mano con "Recordar esta ficha"
    tildado (una vez por clienta; después suman solas).
 
