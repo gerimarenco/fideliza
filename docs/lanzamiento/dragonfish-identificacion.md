@@ -118,6 +118,23 @@ fila desde agosto, y aparecieron dos problemas:
   00:00:00, hora de Argentina, otros negocios) y
   `pruebas/e2e/dragonfish-recuperacion.mjs`.
 
+### Hora de Dragon Fish en formato de 12 horas (2026-11-13)
+
+Dragon Fish manda `Hora` en formato de 12 horas **sin AM/PM**: una venta de
+las 19:56 llega como `"07:56:19"`. Se vio en producción con 4 clientas que se
+registraron a las 19:53, 17:21, 19:44 y 18:24, cuyas compras (3 minutos
+después) quedaron `cuenta_posterior` porque se leían a la mañana. Coincide con
+la consulta 3: 319 de 785 avisos a menos de 15 minutos de la venta (las de la
+mañana) y la mayor demora, de exactamente 12 horas (las de la tarde).
+
+- `fechaVerificada`: si la hora es menor a 12 y la misma hora + 12 queda
+  pegada a la llegada del aviso (como mucho 10 minutos después y 1 hora
+  antes), es de la tarde. Un aviso que llega horas tarde no se corre.
+- "Volver a revisar" ahora también vuelve a la fila las `cuenta_posterior`
+  (dentro del mismo período): el agente las recalcula; las que de verdad son
+  anteriores al registro siguen sin sumar, y ninguna suma dos veces. Sin
+  migración ni cambios en el agente.
+
 ### Consulta de solo lectura: cuántas ventas de Peperina entran
 
 En el SQL Editor de Neon, rama `Production`. Solo lectura (`SELECT`). Funciona

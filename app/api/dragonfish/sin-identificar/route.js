@@ -32,6 +32,13 @@ import { fechaCorta } from '@/lib/csv'
 // (el día de margen cubre un reloj adelantado en la PC del local); el filtro
 // fino, por la fecha de la venta, se hace después.
 const RESULTADOS = ['sin_cliente', 'sin_datos', 'ambigua']
+// "Volver a revisar" también vuelve a la fila las "cuenta_posterior": una
+// hora mal leída (Dragon Fish manda la hora en formato de 12 h, ver
+// lib/dragonfishFecha.js) pudo dejar como anterior al registro una compra
+// que fue después. El agente las recalcula; las que de verdad son anteriores
+// siguen sin sumar, y ninguna suma dos veces (misma clave de siempre). No se
+// listan ni se asignan a mano (la asignación rechaza la cuenta posterior).
+const REVISABLES = [...RESULTADOS, 'cuenta_posterior']
 const DIAS_LISTA = 90
 const DIA_MS = 86400000
 const conMargen = (fecha) => new Date(fecha.getTime() - DIA_MS)
@@ -111,11 +118,11 @@ export async function POST(request) {
     // Las de los últimos `dias` días por la fecha de la venta y, si el
     // negocio tiene un día de inicio, solo desde ese día.
     const desde = pisoDeFechas(inicioDeVentas(negocio), dias)
-    const donde = { negocioId: negocio.id, procesado: true, resultado: { in: RESULTADOS } }
+    const donde = { negocioId: negocio.id, procesado: true, resultado: { in: REVISABLES } }
     const posibles = await prisma.facturaPendiente.findMany({ where: { ...donde, createdAt: { gte: conMargen(desde) } }, select: { id: true, fecha: true, hora: true, createdAt: true } })
     const ids = posibles.filter((f) => entraEnRecuperacion(negocio, f, desde)).map((f) => f.id)
     const { count } = ids.length
-      ? await prisma.facturaPendiente.updateMany({ where: { ...donde, id: { in: ids } }, data: { procesado: false, resultado: null, intentos: 0 } })
+      ? await prisma.facturaPendiente.updateMany({ where: { ...donde, id: { in: ids } }, data: { procesado: false, resultado: null, intentos: 0, clienteId: null, identificadaPor: null } })
       : { count: 0 }
     return NextResponse.json({ ok: true, enRevision: count, desde })
   }

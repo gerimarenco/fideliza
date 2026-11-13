@@ -56,6 +56,13 @@ const f04 = await venta(pf.id, '04/11/2026', '23:59:59', '2026-11-05T03:00:30Z')
 const f05 = await venta(pf.id, '05/11/2026', '00:00:00', '2026-11-05T03:00:20Z', { resultado: 'sin_cliente' })
 // Reloj de la PC del local adelantado: Dragon Fish dice 05/11 00:10 y el aviso
 // figura llegado el 04/11 23:58 (hora del servidor). Cuenta la de Dragon Fish.
+// Hora de 12 h sin AM/PM (caso real): se registró a las 19:53, Dragon Fish dice
+// "07:56:19" y el aviso llegó a las 19:56. El agente viejo la dejó "cuenta_posterior".
+const ale = await cuenta(pf.id, 'Ale Tarde', 'ale.tarde@prueba.test', '+5492324700006', new Date('2026-11-06T22:53:00Z'))
+const fTarde = await venta(pf.id, '06/11/2026', '07:56:19', '2026-11-06T22:56:25Z', { resultado: 'cuenta_posterior', clienteId: ale.id, identificadaPor: 'dni', monto: 16600 })
+// Posterior de verdad: compra del mediodía (12:15), se registró a las 12:32.
+const kari = await cuenta(pf.id, 'Kari Mediodia', 'kari.mediodia@prueba.test', '+5492324700007', new Date('2026-11-07T15:32:00Z'))
+const fMediodia = await venta(pf.id, '07/11/2026', '12:15:29', '2026-11-07T15:15:35Z', { resultado: 'cuenta_posterior', clienteId: kari.id, identificadaPor: 'dni', monto: 10300 })
 const fReloj = await venta(pf.id, '05/11/2026', '00:10:00', '2026-11-05T02:58:00Z', { resultado: 'sin_cliente' })
 // Sin fecha verificable: no entran en la recuperación (no se usa la llegada).
 const fSinFecha = await venta(pf.id, '', '', '2026-11-05T15:00:00Z', { resultado: 'sin_cliente' }) // sin fecha, recibida el 05/11
@@ -118,7 +125,7 @@ chequear(r.cuerpo.desde === null && r.cuerpo.ventas.some((v) => v.codigo === fOt
 
 console.log('Volver a revisar')
 r = await pedir(neg, 'POST', API, { negocioId: pf.id, accion: 'revisar', dias: 60 })
-const vuelven = [f05, fReloj, fBeaAntes, fBeaDespues, fAmb, fl06, fl09]
+const vuelven = [f05, fReloj, fTarde, fMediodia, fBeaAntes, fBeaDespues, fAmb, fl06, fl09]
 const quedan = [f04, fOct, fSep, flOct, fl04, fSinFecha, fIlegible, fPosterior, flSinFecha]
 chequear(r.status === 200 && r.cuerpo.enRevision === vuelven.length, `vuelven a la fila exactamente las ${vuelven.length} del 05/11 en adelante (recibido: ${r.cuerpo.enRevision})`)
 chequear((await Promise.all(vuelven.map(fila))).every((x) => x.procesado === false && x.resultado === null), 'esas quedan pendientes para el agente')
@@ -131,6 +138,10 @@ r = await resolver(f05.codigo, { monto: 10000, email: 'ana.rec@prueba.test', tel
 chequear(r.cuerpo.resultado === 'acreditado' && await saldo(ana) === 100, 'venta del 05/11 00:00, cuenta de antes, una sola coincidencia: suma 100')
 r = await resolver(fBeaAntes.codigo, { monto: 10000, email: 'bea.rec@prueba.test', telefonos: [] })
 chequear(r.cuerpo.resultado === 'cuenta_posterior' && await saldo(bea) === 0, 'venta del 06/11, clienta registrada el 07/11: no suma')
+r = await resolver(fTarde.codigo, { monto: 16600, email: 'ale.tarde@prueba.test', telefonos: [] })
+chequear(r.cuerpo.resultado === 'acreditado' && await saldo(ale) === 166, 'hora de 12 h: "07:56:19" con el aviso a las 19:56 es de la tarde; la cuenta (19:53) ya existía: suma 166')
+r = await resolver(fMediodia.codigo, { monto: 10300, email: 'kari.mediodia@prueba.test', telefonos: [] })
+chequear(r.cuerpo.resultado === 'cuenta_posterior' && await saldo(kari) === 0, 'compra de las 12:15, registrada a las 12:32: sigue sin sumar')
 r = await resolver(fBeaDespues.codigo, { monto: 5000, email: 'bea.rec@prueba.test', telefonos: [] })
 chequear(r.cuerpo.resultado === 'acreditado' && await saldo(bea) === 50, 'venta del 08/11, después del registro: suma 50')
 r = await resolver(fAmb.codigo, { monto: 8000, telefonos: ['2324700099'] })
@@ -151,6 +162,9 @@ r = await resolver(f05.codigo, { monto: 10000, email: 'ana.rec@prueba.test', tel
 chequear(r.cuerpo.resultado === 'acreditado' && await saldo(ana) === 100 && await prisma.webhookEvento.count({ where: { referenciaExterna: `${pf.id}:${f05.codigo}` } }) === 1, 'el mismo reporte otra vez no suma de nuevo')
 await pedir(neg, 'POST', API, { negocioId: pf.id, accion: 'revisar', dias: 60 })
 chequear((await fila(f05)).resultado === 'acreditado' && (await fila(f04)).resultado === 'sin_datos', '"Volver a revisar" otra vez no toca las acreditadas ni las anteriores al 05/11')
+r = await resolver(fTarde.codigo, { monto: 16600, email: 'ale.tarde@prueba.test', telefonos: [] })
+chequear((await fila(fTarde)).resultado === 'acreditado' && await saldo(ale) === 166 && (await fila(fMediodia)).procesado === false, 'la de la tarde ya acreditada no vuelve a sumar; la "cuenta posterior" vuelve a revisarse')
+await resolver(fMediodia.codigo, { monto: 10300, email: 'kari.mediodia@prueba.test', telefonos: [] })
 for (const f of [fl06, fl09]) await resolver(f.codigo, { monto: f.monto, codigoFicha: 'F-FLOR', nombre: 'FICHA FLOR', telefonos: [] })
 
 console.log('Asignar a mano y vincular la ficha')
