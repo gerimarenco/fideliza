@@ -162,6 +162,21 @@ Dragon Fish esté abierto):
 > por qué nunca apareció `agente.log`. Reemplazarlo por el de acá es el
 > primer paso.
 
+## Diagnóstico: qué devuelve Dragon Fish (solo lectura)
+
+Si el agente marca ventas "sin datos" (no trajo monto o identificación) o
+"sin cliente" y hay que ver cómo responde realmente Dragon Fish, en la
+carpeta del agente:
+
+```
+node diagnostico.js CODIGO1 CODIGO2
+```
+
+(los códigos son los de "Factura <código>:" en la ventana del agente).
+Consulta la factura y la ficha y muestra **qué campos vienen y de qué tipo,
+nunca su contenido** (ni nombres, ni emails, ni teléfonos, ni DNI); del
+monto sí muestra el número. No escribe nada en Dragon Fish ni en Retornar.
+
 ## Arranque automático con Windows
 
 Esta es la configuración que se usa en Peperina: el agente arranca solo al
