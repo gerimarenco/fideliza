@@ -10,9 +10,31 @@ recuperación de contraseña y, nuevo, la bienvenida. Se mandan con Resend
 **Hecho: nombre visible.** En Ajustes → "Emails a tus clientas" cada negocio
 carga el nombre que se ve en la bandeja (ej. **Club Peperina**). El mail sale
 como `Club Peperina <club@retornar.com.ar>`: cambia el nombre, no la
-dirección, así que no hace falta tocar DNS ni Resend. Vacío = "Retornar",
-como hasta ahora (los demás negocios no cambian hasta que lo carguen). El
-mail de contraseña de la cuenta del negocio sigue saliendo de Retornar.
+dirección, así que no hace falta tocar DNS ni Resend. El mail de contraseña
+de la cuenta del negocio sigue saliendo de Retornar.
+
+**Hecho (2026-11-16): sin nombre cargado, el del club.** Antes, si el campo
+quedaba vacío, los mails a las clientas salían como "Retornar" (así le
+llegaban a las clientas de Peperina). Ahora salen con el nombre del club de
+cada negocio: `Club <nombre del negocio>` (`nombreRemitente` en
+`lib/nombreClub.js`; si el nombre ya empieza con "Club", no se duplica). El
+campo de Ajustes sigue sirviendo para poner otro nombre. Solo cambia el
+nombre visible: misma dirección, mismo dominio verificado, mismo SPF/DKIM,
+mismo asunto y contenido. No se reenvía ningún mail anterior.
+
+**Cada negocio con su propia dirección (a futuro).** Dos caminos:
+
+- **`<negocio>@retornar.com.ar`** (ej. `peperina@retornar.com.ar`): Resend
+  manda desde cualquier dirección de un dominio ya verificado, así que no
+  hace falta DNS nuevo. Requiere un campo por negocio con esa parte de la
+  dirección y que las respuestas vayan al email de soporte del negocio
+  ("responder a", ya hecho): `retornar.com.ar` no recibe correo en esas
+  direcciones. Aporta poco sobre el nombre visible, que es lo que se ve en
+  la bandeja.
+- **Dominio propio del negocio** (ej. `club@peperina.com.ar`): lo más
+  reconocible, pero cada negocio tiene que verificar su dominio en Resend
+  (ver abajo) y Retornar tiene que guardar y usar la dirección por negocio,
+  solo si el dominio está verificado.
 
 **Hecho: "responder a".** Si el negocio cargó su email de soporte (Ajustes →
 Contacto de soporte), las respuestas de las clientas llegan ahí, y el pie del
@@ -86,7 +108,7 @@ hay forma de garantizar una pestaña.
 
 | | Compra | Canje |
 |---|---|---|
-| Remitente | `Retornar <club@retornar.com.ar>` | igual |
+| Remitente | `Retornar <club@retornar.com.ar>` (desde 2026-11-16: `Club Peperina <club@retornar.com.ar>` aunque no esté cargado) | igual |
 | Autenticación (SPF/DKIM del dominio) | igual (mismo dominio y proveedor) | igual |
 | Plantilla | igual | igual |
 | Proveedor | Resend, mismos encabezados | igual |

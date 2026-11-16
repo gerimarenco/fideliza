@@ -381,7 +381,8 @@ export async function PATCH(request) {
     data.soporteEmail = soporteEmail || null
   }
   // Emails a las clientas: nombre visible del remitente (ej. "Club
-  // Peperina"; vacío = el de siempre) y si se manda el mail de bienvenida.
+  // Peperina"; vacío = el nombre del club, ver nombreRemitente en
+  // lib/nombreClub.js) y si se manda el mail de bienvenida.
   // La dirección del remitente no se elige acá: requiere un dominio
   // verificado en Resend (ver docs/lanzamiento/emails.md).
   if (body.emailRemitenteNombre !== undefined) {

@@ -2,7 +2,8 @@
 // "responder a" el email de soporte, versión de texto, mail de bienvenida
 // (solo si el negocio lo activó), canje con asunto neutro, aviso de
 // vencimiento calculado por lote (no por saldo) con premios y cuánto
-// comprar, sin avisos repetidos, y otros negocios sin cambios. Resend
+// comprar, sin avisos repetidos, y cada negocio con el nombre de su club como
+// remitente aunque no lo haya cargado. Resend
 // simulado (los mails van a un archivo): no sale ningún mail real.
 //
 // Correr con: node --import ./pruebas/e2e/simulaciones/todas.mjs pruebas/e2e/emails.mjs
@@ -125,7 +126,13 @@ const lola = await prisma.cliente.findFirst({ where: { email: 'endemo.mail@prueb
 const negDemo = await sesion('demo@prueba.test', 'demo-123')
 r = await pedir(negDemo, 'POST', '/api/compras', { clienteId: lola.id, monto: 5000, negocioId: demo.id })
 m = mailsA('endemo.mail@prueba.test').at(-1)
-chequear(r.status === 200 && m?.from === REMITENTE_BASE && !m.reply_to, `el otro negocio sigue saliendo como siempre (${m?.from})`)
+chequear(r.status === 200 && m?.from === 'Club de demostración <onboarding@resend.dev>' && !m.reply_to, `el otro negocio, sin nombre cargado, sale con el nombre de su club, sin duplicar "Club" (${m?.from})`)
+// Sin nombre de remitente cargado, Peperina sale igual como "Club Peperina".
+r = await pedir(neg, 'PATCH', '/api/negocios', { id: pep.id, emailRemitenteNombre: '' })
+const luciaPep = await prisma.cliente.findFirst({ where: { email: 'lucia@prueba.test' } })
+r = await pedir(neg, 'POST', '/api/compras', { clienteId: luciaPep.id, monto: 1000, negocioId: pep.id })
+m = mailsA('lucia@prueba.test').at(-1)
+chequear(r.status === 200 && (await prisma.negocio.findUnique({ where: { id: pep.id } })).emailRemitenteNombre === null && m?.from === 'Club Peperina <onboarding@resend.dev>' && m.subject === '+10 puntos en Club Peperina', `Peperina sin nombre cargado: "${m?.from}", mismo asunto`)
 
 console.log('Ningún mail real')
 chequear(mails().length > 0 && mails().every((x) => typeof x.html === 'string' && typeof x.text === 'string'), `${mails().length} mails, todos interceptados por la simulación, todos con HTML y texto`)
