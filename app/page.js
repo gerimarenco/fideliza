@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { nombreClub } from '@/lib/nombreClub';
+import { nombreClub, nombreRemitente } from '@/lib/nombreClub';
 import { esCumpleanosHoy, diasHastaProximoCumpleanos } from '@/lib/cumpleanos';
 import { descripcionNiveles, formatearMiles } from '@/lib/clienteStats';
 import { fechaCorta } from '@/lib/csv';
@@ -2368,7 +2368,7 @@ export default function Home() {
       {bloqueAjuste('Emails a tus clientas', `Cómo aparecen los emails que les manda el club (compras, canjes, vencimientos, contraseña). Si cargaste un email de soporte, las respuestas llegan ahí.`, (
         <div style={{ display: 'grid', gap: 14 }}>
           <label htmlFor="email-remitente"><span style={ui.label}>Nombre del remitente (lo que se ve en la bandeja de entrada)</span><input id="email-remitente" maxLength={60} value={formEmails.nombreRemitente} onChange={e => setFormEmails({ ...formEmails, nombreRemitente: e.target.value })} placeholder={negocioMostrado?.nombre ? nombreClub(negocioMostrado.nombre) : 'Club ...'} style={ui.input} /></label>
-          <p style={{ ...ui.ayuda, margin: 0 }}>Vacío: se ve como &quot;Retornar&quot;. La dirección de envío no cambia.</p>
+          <p style={{ ...ui.ayuda, margin: 0 }}>Vacío: se ve como &quot;{nombreRemitente({ nombre: negocioMostrado?.nombre }) || 'Club ...'}&quot;. La dirección de envío no cambia.</p>
           <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 14, cursor: 'pointer' }}>
             <input type="checkbox" checked={formEmails.bienvenida} onChange={e => setFormEmails({ ...formEmails, bienvenida: e.target.checked })} style={{ marginTop: 3 }} />
             <span>Mandar un email de bienvenida a cada clienta que se registra</span>
