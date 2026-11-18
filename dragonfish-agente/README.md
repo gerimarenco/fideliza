@@ -177,6 +177,16 @@ Consulta la factura y la ficha y muestra **qué campos vienen y de qué tipo,
 nunca su contenido** (ni nombres, ni emails, ni teléfonos, ni DNI); del
 monto sí muestra el número. No escribe nada en Dragon Fish ni en Retornar.
 
+### Qué operaciones de clientes tiene la API (solo lectura)
+
+```
+node explorar-api.js
+```
+
+Lee el swagger del servicio REST de Dragon Fish y lista las rutas de
+clientes (buscar, crear, modificar), sus parámetros y los campos de la
+ficha. No consulta ni modifica fichas ni ventas.
+
 ## Arranque automático con Windows
 
 Esta es la configuración que se usa en Peperina: el agente arranca solo al
