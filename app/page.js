@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { nombreClub, nombreRemitente } from '@/lib/nombreClub';
+import { PLANTILLA_SUGERIDA, armarMensaje, enlaceWhatsapp } from '@/lib/mensajeWhatsapp';
 import { esCumpleanosHoy, diasHastaProximoCumpleanos } from '@/lib/cumpleanos';
 import { descripcionNiveles, formatearMiles } from '@/lib/clienteStats';
 import { fechaCorta } from '@/lib/csv';
@@ -185,6 +186,14 @@ export default function Home() {
   // Emails a las clientas: nombre visible del remitente y mail de bienvenida.
   const [formEmails, setFormEmails] = useState({ nombreRemitente: '', bienvenida: false });
   const [formAlertaPremio, setFormAlertaPremio] = useState('');
+  // Mensajes por WhatsApp (lib/mensajeWhatsapp.js): el texto con {nombre},
+  // {puntos} y {club}, las clientas, cuáles ya se mandaron y la búsqueda. El
+  // texto y los enviados se recuerdan en este navegador (localStorage), por
+  // negocio: es una ayuda para ir mandando de a una, no un registro.
+  const [plantillaWa, setPlantillaWa] = useState(PLANTILLA_SUGERIDA);
+  const [clientasWa, setClientasWa] = useState(null);
+  const [enviadosWa, setEnviadosWa] = useState({});
+  const [busquedaWa, setBusquedaWa] = useState('');
   const [formBasesCondiciones, setFormBasesCondiciones] = useState('');
   const [formTema, setFormTema] = useState({ ...TEMA_DEFAULT });
 
@@ -272,6 +281,24 @@ export default function Home() {
     }, 0);
     return () => clearTimeout(t);
   }, [isNegocio]);
+
+  useEffect(() => {
+    if (seccionActiva !== 'mensajes' || !negocioMostrado?.id) return;
+    const negocioId = negocioMostrado.id;
+    fetch(`/api/clientes/whatsapp?negocioId=${negocioId}`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .catch(() => null)
+      .then((data) => {
+        let guardado = null;
+        try { guardado = JSON.parse(localStorage.getItem(`retornar:mensajes:${negocioId}`) || 'null'); } catch { /* sin almacenamiento: arranca de cero */ }
+        setPlantillaWa(typeof guardado?.plantilla === 'string' && guardado.plantilla.trim() ? guardado.plantilla : PLANTILLA_SUGERIDA);
+        setEnviadosWa(guardado?.enviados && typeof guardado.enviados === 'object' ? guardado.enviados : {});
+        setClientasWa(data?.clientes || []);
+      });
+  }, [seccionActiva, negocioMostrado?.id]);
+  const guardarMensajesWa = (plantilla, enviados) => {
+    try { localStorage.setItem(`retornar:mensajes:${negocioMostrado?.id}`, JSON.stringify({ plantilla, enviados })); } catch { /* sin almacenamiento */ }
+  };
 
   useEffect(() => {
     if (seccionActiva !== 'exportar' || !isNegocio) return;
@@ -2213,6 +2240,73 @@ export default function Home() {
     }
   };
 
+  // Mensajes por WhatsApp: el negocio escribe el mensaje una vez y manda el de
+  // cada clienta desde su propio WhatsApp, de a una (link con el texto ya
+  // escrito). Retornar no manda nada.
+  const VistaMensajes = () => {
+    const club = nombreClub(negocioMostrado?.nombre || '');
+    const todas = clientasWa || [];
+    const conLink = todas.map((c) => ({ ...c, mensaje: armarMensaje(plantillaWa, { nombre: c.nombre, puntos: c.puntos, club }) })).map((c) => ({ ...c, link: enlaceWhatsapp(c.telefono, c.mensaje) }));
+    const conCelular = conLink.filter((c) => c.link);
+    const sinCelular = conLink.length - conCelular.length;
+    const q = busquedaWa.trim().toLowerCase();
+    const visibles = q ? conCelular.filter((c) => (c.nombre || '').toLowerCase().includes(q) || (c.telefono || '').includes(q)) : conCelular;
+    const enviadas = conCelular.filter((c) => enviadosWa[c.id]).length;
+    const marcar = (id, valor) => {
+      const enviados = { ...enviadosWa };
+      if (valor) enviados[id] = true; else delete enviados[id];
+      setEnviadosWa(enviados);
+      guardarMensajesWa(plantillaWa, enviados);
+    };
+    const ejemplo = armarMensaje(plantillaWa, { nombre: 'Ana', puntos: 3420, club });
+    return (
+      <div style={{ display: 'grid', gap: 28, maxWidth: 860 }}>
+        <section aria-labelledby="mensaje-wa">
+          <TituloBloque><span id="mensaje-wa">El mensaje</span></TituloBloque>
+          <p style={{ ...ui.ayuda, marginTop: 8 }}>Escribilo una vez. Donde pongas <strong>{'{nombre}'}</strong> va el nombre de cada clienta, <strong>{'{puntos}'}</strong> sus puntos y <strong>{'{club}'}</strong> «{club}». Después, en cada clienta, tocá «Enviar por WhatsApp»: se abre el WhatsApp del local con el mensaje escrito y solo tenés que mandarlo.</p>
+          <label htmlFor="plantilla-wa" style={ui.label}>Mensaje</label>
+          <textarea id="plantilla-wa" value={plantillaWa} onChange={(e) => { setPlantillaWa(e.target.value); guardarMensajesWa(e.target.value, enviadosWa); }} rows={5} maxLength={1000} style={{ ...ui.input, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }} />
+          <p style={{ ...ui.ayuda, margin: '10px 0 6px' }}>Así le llega, por ejemplo, a Ana con 3.420 puntos:</p>
+          <p data-ejemplo-wa style={{ margin: 0, padding: '12px 14px', background: tema.resaltado, borderRadius: 8, fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{ejemplo}</p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+            <button type="button" className="fid-btn-secondary" onClick={() => { setPlantillaWa(PLANTILLA_SUGERIDA); guardarMensajesWa(PLANTILLA_SUGERIDA, enviadosWa); }} style={ui.botonSecundario}>Usar el mensaje sugerido</button>
+            <button type="button" className="fid-btn-secondary" onClick={() => { if (window.confirm('¿Desmarcar todas las enviadas para empezar un envío nuevo?')) { setEnviadosWa({}); guardarMensajesWa(plantillaWa, {}); } }} style={ui.botonSecundario}>Empezar un envío nuevo</button>
+          </div>
+        </section>
+
+        <section aria-labelledby="clientas-wa">
+          <TituloBloque><span id="clientas-wa">Clientas</span></TituloBloque>
+          {!clientasWa ? <p style={{ fontSize: 14 }}>Cargando…</p> : (
+            <>
+              <p role="status" style={{ ...ui.ayuda, marginTop: 8 }}>{enviadas} de {conCelular.length} enviadas{sinCelular ? ` · ${sinCelular} sin un celular válido (no aparecen)` : ''}</p>
+              <label htmlFor="buscar-wa" style={ui.label}>Buscar por nombre o celular</label>
+              <input id="buscar-wa" type="search" value={busquedaWa} onChange={(e) => setBusquedaWa(e.target.value)} style={{ ...ui.input, maxWidth: 360, marginBottom: 14 }} />
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 10 }}>
+                {visibles.map((c) => {
+                  const enviada = !!enviadosWa[c.id];
+                  return (
+                    <li key={c.id} style={{ border: `1px solid ${tema.borde}`, borderRadius: 2, padding: '12px 14px', background: enviada ? tema.fondo : tema.superficie, opacity: enviada ? 0.75 : 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div style={{ fontSize: 14 }}><strong>{c.nombre || 'Sin nombre'}</strong> · {formatearMiles(c.puntos)} puntos · {c.telefono}</div>
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                          {enviada && <span style={{ fontSize: 13, color: tema.textoSecundario, display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={14} aria-hidden="true" /> Enviado</span>}
+                          <a href={c.link} target="_blank" rel="noopener noreferrer" onClick={() => marcar(c.id, true)} className={enviada ? 'fid-btn-secondary' : 'fid-btn-primary'} style={{ ...(enviada ? ui.botonSecundario : ui.botonPrimario), display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}><MessageCircle size={15} aria-hidden="true" /> {enviada ? 'Abrir otra vez' : 'Enviar por WhatsApp'}</a>
+                          {enviada && <button type="button" className="fid-link" onClick={() => marcar(c.id, false)} style={{ background: 'none', border: 'none', color: tema.textoSecundario, fontSize: 13, textDecoration: 'underline', cursor: 'pointer' }}>Desmarcar</button>}
+                        </div>
+                      </div>
+                      <p style={{ margin: '8px 0 0', fontSize: 13, color: tema.textoSecundario, whiteSpace: 'pre-wrap' }}>{c.mensaje}</p>
+                    </li>
+                  );
+                })}
+              </ul>
+              {visibles.length === 0 && <p style={{ fontSize: 14 }}>{q ? 'Ninguna clienta coincide con la búsqueda.' : 'Todavía no hay clientas con celular.'}</p>}
+            </>
+          )}
+        </section>
+      </div>
+    );
+  };
+
   const VistaExportar = () => {
     const e = estadoGoogle;
     const c = e?.conexion;
@@ -2424,6 +2518,7 @@ export default function Home() {
     integraciones: 'Integraciones',
     ajustes: 'Ajustes',
     exportar: 'Exportar clientes',
+    mensajes: 'Mensajes por WhatsApp',
   };
 
   // Panel del negocio (compartido entre admin viendo un negocio y el negocio logueado)
@@ -2496,6 +2591,7 @@ export default function Home() {
         {seccionActiva === 'integraciones' && VistaIntegraciones()}
         {seccionActiva === 'ajustes' && VistaAjustes()}
         {seccionActiva === 'exportar' && VistaExportar()}
+        {seccionActiva === 'mensajes' && VistaMensajes()}
 
         {seccionActiva === 'inicio' && (
           <div>
@@ -3332,7 +3428,7 @@ export default function Home() {
               <div style={{ ...ui.etiqueta, marginTop: 6 }}>Panel del club</div>
             </div>
             <nav aria-label="Secciones" className="fid-sidebar-nav" style={{ padding: '8px 0', flex: 1 }}>
-              {[[HomeIcon, 'Inicio', 'inicio'], [Users, 'Clientes', 'clientes'], [FileSpreadsheet, 'Exportar clientes', 'exportar'], [Gift, 'Premios', 'premios'], [RefreshCw, 'Canjes', 'canjes'], [Plug, 'Integraciones', 'integraciones'], [Settings, 'Ajustes', 'ajustes']].map(([Icono, label, id]) => {
+              {[[HomeIcon, 'Inicio', 'inicio'], [Users, 'Clientes', 'clientes'], [FileSpreadsheet, 'Exportar clientes', 'exportar'], [MessageCircle, 'Mensajes por WhatsApp', 'mensajes'], [Gift, 'Premios', 'premios'], [RefreshCw, 'Canjes', 'canjes'], [Plug, 'Integraciones', 'integraciones'], [Settings, 'Ajustes', 'ajustes']].map(([Icono, label, id]) => {
                 const activo = seccionActiva === id;
                 return (
                   <button
