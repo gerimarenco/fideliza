@@ -2263,9 +2263,9 @@ export default function Home() {
       <div style={{ display: 'grid', gap: 28, maxWidth: 860 }}>
         <section aria-labelledby="mensaje-wa">
           <TituloBloque><span id="mensaje-wa">El mensaje</span></TituloBloque>
-          <p style={{ ...ui.ayuda, marginTop: 8 }}>Escribilo una vez. Donde pongas <strong>{'{nombre}'}</strong> va el nombre de cada clienta, <strong>{'{puntos}'}</strong> sus puntos y <strong>{'{club}'}</strong> «{club}». Después, en cada clienta, tocá «Enviar por WhatsApp»: se abre el WhatsApp del local con el mensaje escrito y solo tenés que mandarlo.</p>
+          <p style={{ ...ui.ayuda, marginTop: 8 }}>Escribilo una vez. Donde pongas <strong>[nombre]</strong> va el nombre de cada clienta, <strong>[puntos]</strong> sus puntos y <strong>[club]</strong> «{club}» (también sirve con llaves: {'{nombre}'}). Para negrita, poné el texto entre asteriscos: *así* o **así**. Después, en cada clienta, tocá «Enviar por WhatsApp»: se abre el WhatsApp del local con el mensaje escrito y solo tenés que mandarlo.</p>
           <label htmlFor="plantilla-wa" style={ui.label}>Mensaje</label>
-          <textarea id="plantilla-wa" value={plantillaWa} onChange={(e) => { setPlantillaWa(e.target.value); guardarMensajesWa(e.target.value, enviadosWa); }} rows={5} maxLength={1000} style={{ ...ui.input, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }} />
+          <textarea id="plantilla-wa" value={plantillaWa} onChange={(e) => { setPlantillaWa(e.target.value); guardarMensajesWa(e.target.value, enviadosWa); }} rows={10} maxLength={2000} style={{ ...ui.input, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }} />
           <p style={{ ...ui.ayuda, margin: '10px 0 6px' }}>Así le llega, por ejemplo, a Ana con 3.420 puntos:</p>
           <p data-ejemplo-wa style={{ margin: 0, padding: '12px 14px', background: tema.resaltado, borderRadius: 8, fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{ejemplo}</p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
