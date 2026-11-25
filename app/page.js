@@ -7,6 +7,7 @@ import { PLANTILLA_SUGERIDA, armarMensaje, enlaceWhatsapp } from '@/lib/mensajeW
 import { esCumpleanosHoy, diasHastaProximoCumpleanos } from '@/lib/cumpleanos';
 import { descripcionNiveles, formatearMiles } from '@/lib/clienteStats';
 import { fechaCorta } from '@/lib/csv';
+import { buscarClientas } from '@/lib/buscarClientas';
 import { guiaCupon } from '@/lib/guiaCupon';
 import { fechaArgentina } from '@/lib/bienvenida';
 import { mensajeAlerta } from '@/lib/alertaCanje';
@@ -142,6 +143,7 @@ export default function Home() {
   const [ventasSinIdentificar, setVentasSinIdentificar] = useState(null);
   const [asignacionVenta, setAsignacionVenta] = useState({});
   const [noVincularVenta, setNoVincularVenta] = useState({});
+  const [busquedaVenta, setBusquedaVenta] = useState({});
   const [fichasVinculadas, setFichasVinculadas] = useState([]);
   const [ventasSinFecha, setVentasSinFecha] = useState(0);
   const [ocupadoVentas, setOcupadoVentas] = useState(null);
@@ -2068,15 +2070,30 @@ export default function Home() {
                 const clientes = negocioMostrado?.clientes || [];
                 const sugeridas = clientes.filter((c) => v.sugerencias.includes(c.id));
                 const elegida = asignacionVenta[v.codigo] || '';
+                const busqueda = busquedaVenta[v.codigo] || '';
+                const encontradas = buscarClientas(clientes, busqueda);
+                // Al buscar: si queda una sola, se elige sola; si la elegida
+                // ya no está entre las encontradas, se suelta (para no sumarle
+                // a una clienta que no se ve en la lista).
+                const alBuscar = (texto) => {
+                  setBusquedaVenta((b) => ({ ...b, [v.codigo]: texto }));
+                  const halladas = buscarClientas(clientes, texto);
+                  setAsignacionVenta((a) => {
+                    const actual = a[v.codigo] || '';
+                    const nueva = halladas.length === 1 ? halladas[0].id : (halladas.some((c) => c.id === actual) ? actual : '');
+                    return nueva === actual ? a : { ...a, [v.codigo]: nueva };
+                  });
+                };
                 return (
                   <li key={v.codigo} style={{ border: `1px solid ${tema.borde}`, padding: 12, fontSize: 14, display: 'grid', gap: 8 }}>
                     <div><strong>{fechaCorta(v.fecha)}</strong> · {v.monto != null ? `$${formatearMiles(v.monto)}${v.puntos ? ` (${formatearMiles(v.puntos)} puntos)` : ''}` : 'monto sin guardar: tocá «Volver a revisar»'} · ficha: {v.nombreFicha || 'sin nombre'}{v.motivo === 'sin_datos' ? ' · sin email, celular ni DNI' : v.motivo === 'ambigua' ? ' · sus datos coinciden con más de una cuenta: elegí cuál' : ' · no coincide con ninguna cuenta'}</div>
                     {v.monto != null && v.puntos > 0 && (
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <input type="search" aria-label="Buscar clienta" placeholder="Buscar clienta por nombre o email…" value={busqueda} onChange={(e) => alBuscar(e.target.value)} style={{ ...ui.input, flex: '1 1 220px', width: 'auto' }} />
                         <select aria-label="Clienta" value={elegida} onChange={(e) => setAsignacionVenta((a) => ({ ...a, [v.codigo]: e.target.value }))} style={{ ...ui.input, flex: '1 1 220px', width: 'auto' }}>
-                          <option value="">Elegir clienta…</option>
-                          {sugeridas.length > 0 && <optgroup label={v.motivo === 'ambigua' ? 'Sugeridas (por sus datos o nombre)' : 'Parecidas por nombre'}>{sugeridas.map((c) => <option key={c.id} value={c.id}>{c.nombre || c.email}</option>)}</optgroup>}
-                          <optgroup label="Todas">{clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre ? `${c.nombre} (${c.email})` : c.email}</option>)}</optgroup>
+                          <option value="">{busqueda.trim() ? (encontradas.length ? `Elegir entre ${encontradas.length === 1 ? '1 encontrada' : `${encontradas.length} encontradas`}…` : 'Ninguna clienta con ese nombre') : 'Elegir clienta…'}</option>
+                          {!busqueda.trim() && sugeridas.length > 0 && <optgroup label={v.motivo === 'ambigua' ? 'Sugeridas (por sus datos o nombre)' : 'Parecidas por nombre'}>{sugeridas.map((c) => <option key={c.id} value={c.id}>{c.nombre || c.email}</option>)}</optgroup>}
+                          <optgroup label={busqueda.trim() ? 'Encontradas' : 'Todas'}>{encontradas.map((c) => <option key={c.id} value={c.id}>{c.nombre ? `${c.nombre} (${c.email})` : c.email}</option>)}</optgroup>
                         </select>
                         <button type="button" className="fid-btn-primary" onClick={() => asignarVenta(v)} disabled={!elegida || !!ocupadoVentas} style={{ ...ui.botonPrimario, width: 'auto' }}>Sumar puntos</button>
                       </div>
